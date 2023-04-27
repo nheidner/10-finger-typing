@@ -22,4 +22,17 @@ services:
       - PORT=8080
     ports:
       - 8080:8080
-  
+  frontend:
+    depends_on:
+      - db
+      - server
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      - PORT=3000
+    ports:
+      - 3000:3000
+    volumes:
+      - ./frontend:/home/node/app
+    

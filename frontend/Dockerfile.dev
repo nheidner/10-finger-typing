@@ -1,0 +1,13 @@
+FROM node:18.12
+
+USER node
+
+RUN mkdir /home/node/app
+
+WORKDIR /home/node/app
+
+COPY --chown=node:node yarn.lock package.json ./
+
+RUN yarn
+
+CMD ["yarn", "dev"]
