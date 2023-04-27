@@ -13,11 +13,13 @@ func main() {
 
 	models.ConnectDatabase()
 
+	api := r.Group("/api")
+
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Hello World!"})
 	})
 
-	r.GET("/books", controllers.FindBooks)
+	api.GET("/books", controllers.FindBooks)
 
 	r.Run()
 }
