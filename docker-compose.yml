@@ -1,0 +1,13 @@
+version: "3"
+services:
+  server:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    volumes:
+      - ./server:/app
+    environment:
+      - PORT=8080
+    ports:
+      - 8080:8080
+  
