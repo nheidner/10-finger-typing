@@ -20,6 +20,7 @@ func main() {
 	})
 
 	api.GET("/books", controllers.FindBooks)
+	api.POST("/users", controllers.CreateUser)
 
 	r.Run()
 }
