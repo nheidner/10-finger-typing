@@ -21,6 +21,7 @@ func main() {
 
 	api.GET("/books", controllers.FindBooks)
 	api.POST("/users", controllers.CreateUser)
+	api.POST("/users/login", controllers.Authenticate)
 
 	r.Run()
 }

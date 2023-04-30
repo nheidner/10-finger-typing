@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"10-typing/models"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
+
+const userPwPepper = "secret-random-string"
 
 func CreateUser(c *gin.Context) {
 	var input models.CreateUserInput
@@ -15,11 +17,51 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	user := models.User{Email: input.Email, Username: input.Username, Password: input.Password, FirstName: input.FirstName, LastName: input.LastName}
-	fmt.Print(user)
-	tx := models.DB.Create(&user)
-	if tx.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": tx.Error})
+	pwBytes := []byte(input.Password + userPwPepper)
+	hashedBytes, err := bcrypt.GenerateFromPassword(pwBytes, bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	user := models.User{
+		Email:        input.Email,
+		Username:     input.Username,
+		FirstName:    input.FirstName,
+		LastName:     input.LastName,
+		IsVerified:   false,
+		PasswordHash: string(hashedBytes),
+	}
+
+	if result := models.DB.Create(&user); result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": result.Error})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": user})
+}
+
+func Authenticate(c *gin.Context) {
+	var input models.LoginUserInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
+
+	var user models.User
+	result := models.DB.Where("email = ?", input.Email).Find(&user)
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	if !user.IsVerified {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not verified"})
+		return
+	}
+
+	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password+userPwPepper))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid password"})
 		return
 	}
 
