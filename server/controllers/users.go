@@ -10,6 +10,17 @@ import (
 
 const userPwPepper = "secret-random-string"
 
+func FindUser(c *gin.Context) {
+	var user models.User
+	result := models.DB.First(&user, c.Param("id"))
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": user})
+}
+
 func CreateUser(c *gin.Context) {
 	var input models.CreateUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
