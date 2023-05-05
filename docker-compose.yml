@@ -1,4 +1,4 @@
-version: "3"
+version: "3.9"
 
 services:
   db:
@@ -10,29 +10,64 @@ services:
       POSTGRES_DB: typing
       POSTGRES_USER: typing
       POSTGRES_PASSWORD: password
-  server:
+  server_dev:
+    profiles:
+      - dev
     depends_on:
       - db
     build:
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       context: ./server
+      target: dependencies
     volumes:
       - ./server:/app
     environment:
       - PORT=8080
     ports:
       - 8080:8080
-  frontend:
+    command: air
+  frontend_dev:
+    profiles:
+      - dev
     depends_on:
       - db
-      - server
+      - server_dev
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     environment:
       - PORT=3000
+      - API_URL=http://server_dev:8080/api
     ports:
       - 3000:3000
     volumes:
       - ./frontend:/home/node/app
+    command: yarn dev
+  server_build:
+    profiles:
+      - build
+    depends_on:
+      - db
+    build:
+      dockerfile: Dockerfile
+      context: ./server
+    environment:
+      - PORT=8080
+    ports:
+      - 8080:8080
+    command: ./tmp/main
+  frontend_build:
+    profiles:
+      - build
+    depends_on:
+      - db
+      - server_build
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3000
+      - API_URL=http://server_build:8080/api
+    ports:
+      - 3000:3000
     
