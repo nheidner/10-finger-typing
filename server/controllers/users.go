@@ -1,18 +1,20 @@
 package controllers
 
 import (
+	custom_errors "10-typing/errors"
 	"10-typing/models"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
-const userPwPepper = "secret-random-string"
+type Users struct {
+	UserService *models.UserService
+}
 
-func FindUser(c *gin.Context) {
+func (u Users) FindUser(c *gin.Context) {
 	var user models.User
-	result := models.DB.First(&user, c.Param("id"))
+	result := u.UserService.DB.First(&user, c.Param("id"))
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
 		return
@@ -21,58 +23,31 @@ func FindUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": user})
 }
 
-func CreateUser(c *gin.Context) {
+func (u Users) CreateUser(c *gin.Context) {
 	var input models.CreateUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	pwBytes := []byte(input.Password + userPwPepper)
-	hashedBytes, err := bcrypt.GenerateFromPassword(pwBytes, bcrypt.DefaultCost)
+	user, err := u.UserService.Create(input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	user := models.User{
-		Email:        input.Email,
-		Username:     input.Username,
-		FirstName:    input.FirstName,
-		LastName:     input.LastName,
-		IsVerified:   false,
-		PasswordHash: string(hashedBytes),
-	}
-
-	if result := models.DB.Create(&user); result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": result.Error})
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": user})
 }
 
-func Authenticate(c *gin.Context) {
+func (u Users) Login(c *gin.Context) {
 	var input models.LoginUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	var user models.User
-	result := models.DB.Where("email = ?", input.Email).Find(&user)
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
-		return
-	}
-
-	if !user.IsVerified {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User not verified"})
-		return
-	}
-
-	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password+userPwPepper))
+	user, err := u.UserService.Authenticate(input.Email, input.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid password"})
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return
 	}
 
