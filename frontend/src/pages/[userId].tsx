@@ -7,10 +7,16 @@ import {
 } from "@tanstack/react-query";
 import { NextPage } from "next";
 
-const getBooks = async (id: string) =>
-  fetch(`http://localhost:3000/api/users/${id}`).then(
+const getBooks = async (id: string) => {
+  const apiUrl =
+    typeof window === "undefined"
+      ? "http://server_dev:8080/api"
+      : process.env.NEXT_PUBLIC_API_URL;
+
+  return fetch(`${apiUrl}/users/${id}`).then(
     (res) => res.json() as Promise<{ data: Book[] }>
   );
+};
 
 const ProfilePage: NextPage<{
   userId: string;
