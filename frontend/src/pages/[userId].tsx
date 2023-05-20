@@ -1,4 +1,5 @@
 import type { Book } from "@/types";
+import { getApiUrl } from "@/utils/get_api_url";
 import {
   DehydratedState,
   QueryClient,
@@ -7,12 +8,8 @@ import {
 } from "@tanstack/react-query";
 import { NextPage } from "next";
 
-const getBooks = async (id: string) => {
-  const apiUrl =
-    typeof window === "undefined"
-      ? "http://server_dev:8080/api"
-      : process.env.NEXT_PUBLIC_API_URL;
-
+const getUsers = async (id: string) => {
+  const apiUrl = getApiUrl();
   return fetch(`${apiUrl}/users/${id}`).then(
     (res) => res.json() as Promise<{ data: Book[] }>
   );
@@ -23,8 +20,8 @@ const ProfilePage: NextPage<{
   dehydratedState: DehydratedState;
 }> = ({ userId }) => {
   const { data } = useQuery({
-    queryKey: ["books"],
-    queryFn: () => getBooks(userId),
+    queryKey: ["users"],
+    queryFn: () => getUsers(userId),
   });
 
   return (
@@ -35,10 +32,10 @@ const ProfilePage: NextPage<{
 };
 
 ProfilePage.getInitialProps = async (ctx) => {
-  const userId = ctx.req?.url?.split("/")[1] || "";
+  const { userId } = ctx.query as { userId: string };
   const queryClient = new QueryClient();
 
-  await queryClient.prefetchQuery(["books"], () => getBooks(userId));
+  await queryClient.prefetchQuery(["users"], () => getUsers(userId));
 
   return {
     userId,

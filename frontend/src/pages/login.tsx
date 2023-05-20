@@ -1,6 +1,45 @@
+import { User } from "@/types";
+import { getApiUrl } from "@/utils/get_api_url";
+import { useMutation } from "@tanstack/react-query";
 import { NextPage } from "next";
+import { useRouter } from "next/router";
+import { useRef } from "react";
 
 const Page: NextPage = () => {
+  const router = useRouter();
+
+  const mutation = useMutation({
+    mutationFn: async ({
+      email,
+      password,
+    }: {
+      email: string;
+      password: string;
+    }) => {
+      const apiUrl = getApiUrl();
+
+      return fetch(`${apiUrl}/users/login`, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      }).then((res) => res.json() as Promise<{ data: User }>);
+    },
+  });
+
+  const emailRef = useRef<null | HTMLInputElement>(null);
+  const passwordRef = useRef<null | HTMLInputElement>(null);
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    mutation.mutate({
+      email: emailRef.current?.value || "",
+      password: passwordRef.current?.value || "",
+    });
+  };
+
+  if (mutation.isSuccess) {
+    router.push(`/${mutation.data?.data.id}`, undefined, { shallow: false });
+  }
+
   return (
     <>
       <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
@@ -11,7 +50,7 @@ const Page: NextPage = () => {
         </div>
 
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          <form className="space-y-6" action="#" method="POST">
+          <form className="space-y-6" onSubmit={onSubmit}>
             <div>
               <label
                 htmlFor="email"
@@ -25,6 +64,7 @@ const Page: NextPage = () => {
                   name="email"
                   type="email"
                   autoComplete="email"
+                  ref={emailRef}
                   required
                   className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                 />
@@ -54,6 +94,7 @@ const Page: NextPage = () => {
                   name="password"
                   type="password"
                   autoComplete="current-password"
+                  ref={passwordRef}
                   required
                   className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                 />
@@ -85,6 +126,8 @@ const Page: NextPage = () => {
   );
 };
 
-// Page.getInitialProps = async () => {};
+// Page.getInitialProps = async (ctx) => {
+//   return {};
+// };
 
 export default Page;
