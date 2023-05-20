@@ -15,8 +15,6 @@ func main() {
 
 	models.ConnectDatabase()
 
-	api := router.Group("/api")
-
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Hello World!"})
 	})
@@ -25,13 +23,20 @@ func main() {
 	userService := models.UserService{
 		DB: models.DB,
 	}
+	sessionService := models.SessionService{
+		DB: models.DB,
+	}
 
 	// Setup our controllers
 	userController := controllers.Users{
-		UserService: &userService,
+		UserService:    &userService,
+		SessionService: &sessionService,
 	}
 
+	api := router.Group("/api")
+
 	api.Use(cors.New(cors.Config{
+		// todo AllowOrigins based on production or development environment
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowCredentials: true,
@@ -39,8 +44,9 @@ func main() {
 	}))
 
 	api.POST("/users", userController.CreateUser)
-	api.GET("/users/:id", userController.FindUser)
+	api.GET("/users/:id", userController.AuthRequired, userController.FindUser)
 	api.POST("/users/login", userController.Login)
+	api.POST("/users/logout", userController.AuthRequired, userController.Logout)
 
 	router.Run()
 }

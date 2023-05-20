@@ -10,16 +10,15 @@ import (
 )
 
 type User struct {
-	ID           uint   `json:"id" gorm:"primary_key"`
-	Username     string `json:"username" gorm:"uniqueIndex;not null;type:varchar(255)"`
-	Password     string `json:"password" gorm:"-"`
-	PasswordHash string `gorm:"not null;type:varchar(510)"`
-	FirstName    string `json:"firstName" gorm:"type:varchar(255)"`
-	Email        string `json:"email" gorm:"uniqueIndex;not null;type:varchar(255)"`
-	LastName     string `json:"lastName" gorm:"type:varchar(255)"`
-	IsVerified   bool   `json:"isVerified" gorm:"default:false; not null"`
-	CreatedAt    int    `json:"createdAt" gorm:"autoCreateTime"`
-	UpdateAt     int    `json:"updateAt" gorm:"autoUpdateTime"`
+	ID           uint      `json:"id" gorm:"primary_key"`
+	Username     string    `json:"username" gorm:"uniqueIndex;not null;type:varchar(255)"`
+	Password     string    `json:"-" gorm:"-"`
+	PasswordHash string    `json:"-" gorm:"not null;type:varchar(510)"`
+	FirstName    string    `json:"firstName" gorm:"type:varchar(255)"`
+	Email        string    `json:"email" gorm:"uniqueIndex;not null;type:varchar(255)"`
+	LastName     string    `json:"lastName" gorm:"type:varchar(255)"`
+	IsVerified   bool      `json:"isVerified" gorm:"default:false; not null"`
+	Sessions     []Session `json:"-"`
 }
 
 type CreateUserInput struct {
@@ -73,7 +72,8 @@ func (us UserService) Authenticate(email, password string) (*User, error) {
 		badRequestError := custom_errors.HTTPError{Message: "error querying user", Status: http.StatusInternalServerError, Details: result.Error.Error()}
 		return nil, badRequestError
 	}
-	if (user == User{}) {
+	user.Sessions = []Session{}
+	if user.Email == "" {
 		badRequestError := custom_errors.HTTPError{Message: "user not found", Status: http.StatusBadRequest}
 		return nil, badRequestError
 	}

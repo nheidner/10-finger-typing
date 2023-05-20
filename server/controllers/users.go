@@ -9,7 +9,8 @@ import (
 )
 
 type Users struct {
-	UserService *models.UserService
+	UserService    *models.UserService
+	SessionService *models.SessionService
 }
 
 func (u Users) FindUser(c *gin.Context) {
@@ -50,6 +51,43 @@ func (u Users) Login(c *gin.Context) {
 		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return
 	}
+	session, err := u.SessionService.Create(user.ID)
+	if err != nil {
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		return
+	}
 
+	setCookie(c.Writer, CookieSession, session.Token)
 	c.JSON(http.StatusOK, gin.H{"data": user})
+}
+
+func (u Users) Logout(c *gin.Context) {
+	token, err := readCookie(c.Request, CookieSession)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = u.SessionService.Delete(token)
+	if err != nil {
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		return
+	}
+
+	deleteCookie(c.Writer, CookieSession)
+	c.JSON(http.StatusOK, gin.H{"data": "Successfully logged out"})
+}
+
+func (u Users) AuthRequired(c *gin.Context) {
+	token, _ := readCookie(c.Request, CookieSession)
+	user, err := u.SessionService.User(token)
+
+	if user == nil || err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	c.Set("user", user)
+
+	c.Next()
 }
