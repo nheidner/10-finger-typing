@@ -1,27 +1,33 @@
 import { User } from "@/types";
+import { fetchApi } from "@/utils/fetch";
 import { getApiUrl } from "@/utils/get_api_url";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useRef } from "react";
 
+type UserCredentials = {
+  email: string;
+  password: string;
+};
+
+const login = async (userCredentials: UserCredentials) =>
+  fetchApi<User>("/users/login", {
+    method: "POST",
+    body: JSON.stringify(userCredentials),
+  });
+
 const Page: NextPage = () => {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async ({
-      email,
-      password,
-    }: {
-      email: string;
-      password: string;
-    }) => {
-      const apiUrl = getApiUrl();
+    mutationKey: ["login"],
+    mutationFn: login,
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ["loggedInUser"] });
 
-      return fetch(`${apiUrl}/users/login`, {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      }).then((res) => res.json() as Promise<{ data: User }>);
+      router.push(`/${data.id}`, undefined, { shallow: true });
     },
   });
 
@@ -35,10 +41,6 @@ const Page: NextPage = () => {
       password: passwordRef.current?.value || "",
     });
   };
-
-  if (mutation.isSuccess) {
-    router.push(`/${mutation.data?.data.id}`, undefined, { shallow: false });
-  }
 
   return (
     <>

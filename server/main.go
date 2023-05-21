@@ -47,6 +47,7 @@ func main() {
 	api.GET("/users/:id", userController.AuthRequired, userController.FindUser)
 	api.POST("/users/login", userController.Login)
 	api.POST("/users/logout", userController.AuthRequired, userController.Logout)
+	api.GET("/user", userController.AuthRequired, userController.CurrentUser)
 
 	router.Run()
 }

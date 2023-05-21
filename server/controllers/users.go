@@ -91,3 +91,9 @@ func (u Users) AuthRequired(c *gin.Context) {
 
 	c.Next()
 }
+
+func (u Users) CurrentUser(c *gin.Context) {
+	user, _ := c.Get("user")
+
+	c.JSON(http.StatusOK, gin.H{"data": user})
+}
