@@ -1,6 +1,5 @@
-import type { Book, User } from "@/types";
+import type { User } from "@/types";
 import { fetchApi } from "@/utils/fetch";
-import { getApiUrl } from "@/utils/get_api_url";
 import {
   DehydratedState,
   QueryClient,
@@ -9,7 +8,11 @@ import {
 } from "@tanstack/react-query";
 import { NextPage } from "next";
 
-const getUserById = async (id: string) => fetchApi<User>(`/users/${id}`);
+const getUserById = async (id: string, cookie?: string) => {
+  const headers = cookie ? { cookie } : undefined;
+
+  return fetchApi<User>(`/users/${id}`, { headers });
+};
 
 const ProfilePage: NextPage<{
   userId: string;
@@ -30,8 +33,11 @@ const ProfilePage: NextPage<{
 ProfilePage.getInitialProps = async (ctx) => {
   const { userId } = ctx.query as { userId: string };
   const queryClient = new QueryClient();
+  const { cookie } = ctx.req?.headers || {};
 
-  await queryClient.prefetchQuery(["user", userId], () => getUserById(userId));
+  await queryClient.prefetchQuery(["user", userId], () =>
+    getUserById(userId, cookie)
+  );
 
   return {
     userId,

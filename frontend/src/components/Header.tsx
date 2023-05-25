@@ -1,10 +1,9 @@
 import { User } from "@/types";
 import { fetchApi } from "@/utils/fetch";
-import { getApiUrl } from "@/utils/get_api_url";
 import { Dialog } from "@headlessui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { Router, useRouter } from "next/router";
+import { useRouter } from "next/router";
 // import { Bars3Icon, XMarkIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
 
@@ -31,6 +30,7 @@ export const Header = () => {
     mutationFn: logout,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loggedInUser"] });
+      queryClient.removeQueries({ predicate: () => true });
     },
   });
 
@@ -43,28 +43,27 @@ export const Header = () => {
     logoutMutation.mutate();
   };
 
-  if (logoutMutation.isSuccess) {
-    router.push("/login");
-  }
-
   const userIsLoggedIn = !isError && data;
 
   return (
+    // Todo: split up into components
     <header className="bg-white">
       <nav
         className="mx-auto flex max-w-7xl items-center justify-between gap-x-6 p-6 lg:px-8"
         aria-label="Global"
       >
         <div className="hidden lg:flex lg:gap-x-12">
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="text-sm font-semibold leading-6 text-gray-900"
-            >
-              {item.name}
-            </Link>
-          ))}
+          {userIsLoggedIn
+            ? navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="text-sm font-semibold leading-6 text-gray-900"
+                >
+                  {item.name}
+                </Link>
+              ))
+            : null}
         </div>
         <div className="flex flex-1 items-center justify-end gap-x-6">
           {userIsLoggedIn ? (
