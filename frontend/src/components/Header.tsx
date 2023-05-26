@@ -1,55 +1,110 @@
 import { User } from "@/types";
 import { fetchApi } from "@/utils/fetch";
-import { Dialog } from "@headlessui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/router";
-// import { Bars3Icon, XMarkIcon } from "@radix-ui/react-icons";
-import { useState } from "react";
+import { useState, Fragment } from "react";
+import { Menu, Transition } from "@headlessui/react";
+import classNames from "classnames";
 
-const getLoggedInUser = async () => fetchApi<User>("/user");
+const getAuthenticatedUser = async () => fetchApi<User>("/user");
 
 const logout = async () =>
   fetchApi<string>("/users/logout", { method: "POST" });
 
-export const Header = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
+const UserMenu = ({ user }: { user?: User }) => {
   const queryClient = useQueryClient();
-
   const router = useRouter();
-
-  const { data, isError } = useQuery({
-    queryKey: ["loggedInUser"],
-    queryFn: () => getLoggedInUser(),
-    retry: false,
-  });
 
   const logoutMutation = useMutation({
     mutationKey: ["logout"],
     mutationFn: logout,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["loggedInUser"] });
+      queryClient.invalidateQueries({ queryKey: ["authenticatedUser"] });
       queryClient.removeQueries({ predicate: () => true });
+
+      router.push("/login");
     },
   });
 
-  const navigation = [
-    { name: "Home", href: "/" },
-    { name: "Profile", href: `/${data?.username}` },
-  ];
+  if (!user) {
+    return null;
+  }
 
   const onLogout = async () => {
     logoutMutation.mutate();
   };
 
+  return (
+    <Menu as="div" className="relative ml-3">
+      <div>
+        <Menu.Button className="flex max-w-xs items-center rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+          <span className="sr-only">Open user menu</span>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-300">
+            <span className="text-md font-medium leading-none text-white">
+              {user.username[0].toUpperCase()}
+            </span>
+          </span>
+        </Menu.Button>
+      </div>
+      <Transition
+        as={Fragment}
+        enter="transition ease-out duration-100"
+        enterFrom="transform opacity-0 scale-95"
+        enterTo="transform opacity-100 scale-100"
+        leave="transition ease-in duration-75"
+        leaveFrom="transform opacity-100 scale-100"
+        leaveTo="transform opacity-0 scale-95"
+      >
+        <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+          <Menu.Item>
+            {({ active }) => (
+              <Link
+                href={`/${user.username}`}
+                className={classNames(
+                  active ? "bg-gray-100" : "",
+                  "block px-4 py-2 text-sm text-gray-700"
+                )}
+              >
+                Profile
+              </Link>
+            )}
+          </Menu.Item>
+          <Menu.Item>
+            {({ active }) => (
+              <button
+                onClick={onLogout}
+                className={classNames(
+                  active ? "bg-gray-100" : "",
+                  "block w-full px-4 py-2 text-sm text-gray-700 text-left"
+                )}
+              >
+                Logout
+              </button>
+            )}
+          </Menu.Item>
+        </Menu.Items>
+      </Transition>
+    </Menu>
+  );
+};
+
+export const Header = () => {
+  const { data, isError } = useQuery({
+    queryKey: ["authenticatedUser"],
+    queryFn: () => getAuthenticatedUser(),
+    retry: false,
+  });
+
+  const navigation = [{ name: "Home", href: "/" }];
+
   const userIsLoggedIn = !isError && data;
 
   return (
     // Todo: split up into components
-    <header className="bg-white">
+    <header className="bg-white mb-11">
       <nav
-        className="mx-auto flex max-w-7xl items-center justify-between gap-x-6 p-6 lg:px-8"
+        className="flex items-center justify-between gap-x-6 py-6"
         aria-label="Global"
       >
         <div className="hidden lg:flex lg:gap-x-12">
@@ -67,12 +122,7 @@ export const Header = () => {
         </div>
         <div className="flex flex-1 items-center justify-end gap-x-6">
           {userIsLoggedIn ? (
-            <button
-              onClick={onLogout}
-              className="hidden lg:block lg:text-sm lg:font-semibold lg:leading-6 lg:text-gray-900"
-            >
-              Logout
-            </button>
+            <UserMenu user={data} />
           ) : (
             <>
               <Link
@@ -90,16 +140,6 @@ export const Header = () => {
             </>
           )}
         </div>
-        {/* <div className="flex lg:hidden">
-          <button
-            type="button"
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <span className="sr-only">Open main menu</span>
-            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
-          </button>
-        </div> */}
       </nav>
     </header>
   );
