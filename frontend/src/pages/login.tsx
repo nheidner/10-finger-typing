@@ -27,7 +27,7 @@ const Page: NextPage = () => {
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["loggedInUser"] });
 
-      router.push(`/${data.id}`, undefined, { shallow: true });
+      router.push(`/${data.username}`, undefined, { shallow: true });
     },
   });
 

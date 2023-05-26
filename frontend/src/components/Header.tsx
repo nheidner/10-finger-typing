@@ -36,7 +36,7 @@ export const Header = () => {
 
   const navigation = [
     { name: "Home", href: "/" },
-    { name: "Profile", href: `/${data?.id}` },
+    { name: "Profile", href: `/${data?.username}` },
   ];
 
   const onLogout = async () => {

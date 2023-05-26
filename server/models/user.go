@@ -40,6 +40,16 @@ type UserService struct {
 
 const userPwPepper = "secret-random-string"
 
+func (us UserService) FindOneByUsername(username string) (*User, error) {
+	var user User
+	result := us.DB.First(&user, "username = ?", username)
+	if result.Error != nil {
+		badRequestError := custom_errors.HTTPError{Message: "error querying user", Status: http.StatusBadRequest, Details: result.Error.Error()}
+		return nil, badRequestError
+	}
+	return &user, nil
+}
+
 func (us UserService) Create(input CreateUserInput) (*User, error) {
 	pwBytes := []byte(input.Password + userPwPepper)
 	hashedBytes, err := bcrypt.GenerateFromPassword(pwBytes, bcrypt.DefaultCost)

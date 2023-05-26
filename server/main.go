@@ -44,7 +44,8 @@ func main() {
 	}))
 
 	api.POST("/users", userController.CreateUser)
-	api.GET("/users/:id", userController.AuthRequired, userController.FindUser)
+	api.GET("/users/:username", userController.AuthRequired, userController.FindUser)
+	api.GET("/users", userController.AuthRequired, userController.FindUsers)
 	api.POST("/users/login", userController.Login)
 	api.POST("/users/logout", userController.AuthRequired, userController.Logout)
 	api.GET("/user", userController.AuthRequired, userController.CurrentUser)

@@ -13,11 +13,14 @@ type Users struct {
 	SessionService *models.SessionService
 }
 
+func (u Users) FindUsers(c *gin.Context) {
+	// Todo: Add pagination, add filtering, add sorting
+}
+
 func (u Users) FindUser(c *gin.Context) {
-	var user models.User
-	result := u.UserService.DB.First(&user, c.Param("id"))
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User not found"})
+	user, err := u.UserService.FindOneByUsername(c.Param("username"))
+	if err != nil {
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -78,6 +81,13 @@ func (u Users) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": "Successfully logged out"})
 }
 
+func (u Users) CurrentUser(c *gin.Context) {
+	user, _ := c.Get("user")
+
+	c.JSON(http.StatusOK, gin.H{"data": user})
+}
+
+// MIDDLEWARE FUNCTIONS
 func (u Users) AuthRequired(c *gin.Context) {
 	token, _ := readCookie(c.Request, CookieSession)
 	user, err := u.SessionService.User(token)
@@ -90,10 +100,4 @@ func (u Users) AuthRequired(c *gin.Context) {
 	c.Set("user", user)
 
 	c.Next()
-}
-
-func (u Users) CurrentUser(c *gin.Context) {
-	user, _ := c.Get("user")
-
-	c.JSON(http.StatusOK, gin.H{"data": user})
 }

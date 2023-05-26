@@ -8,19 +8,19 @@ import {
 } from "@tanstack/react-query";
 import { NextPage } from "next";
 
-const getUserById = async (id: string, cookie?: string) => {
+const getUserByUsername = async (username: string, cookie?: string) => {
   const headers = cookie ? { cookie } : undefined;
 
-  return fetchApi<User>(`/users/${id}`, { headers });
+  return fetchApi<User>(`/users/${username}`, { headers });
 };
 
 const ProfilePage: NextPage<{
-  userId: string;
+  username: string;
   dehydratedState: DehydratedState;
-}> = ({ userId }) => {
+}> = ({ username }) => {
   const { data } = useQuery({
-    queryKey: ["user", userId],
-    queryFn: () => getUserById(userId),
+    queryKey: ["user", username],
+    queryFn: () => getUserByUsername(username),
   });
 
   return (
@@ -31,16 +31,16 @@ const ProfilePage: NextPage<{
 };
 
 ProfilePage.getInitialProps = async (ctx) => {
-  const { userId } = ctx.query as { userId: string };
+  const { username } = ctx.query as { username: string };
   const queryClient = new QueryClient();
   const { cookie } = ctx.req?.headers || {};
 
-  await queryClient.prefetchQuery(["user", userId], () =>
-    getUserById(userId, cookie)
+  await queryClient.prefetchQuery(["user", username], () =>
+    getUserByUsername(username, cookie)
   );
 
   return {
-    userId,
+    username,
     dehydratedState: dehydrate(queryClient),
   };
 };
