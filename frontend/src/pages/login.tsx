@@ -25,7 +25,7 @@ const Page: NextPage = () => {
     mutationKey: ["login"],
     mutationFn: login,
     onSuccess: async (data) => {
-      await queryClient.invalidateQueries({ queryKey: ["loggedInUser"] });
+      await queryClient.invalidateQueries({ queryKey: ["authenticatedUser"] });
 
       router.push(`/${data.username}`, undefined, { shallow: true });
     },

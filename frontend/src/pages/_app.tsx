@@ -41,8 +41,10 @@ const App = ({ Component, pageProps }: AppProps) => {
     <QueryClientProvider client={queryClient}>
       <ReactQueryDevtools initialIsOpen={false} />
       <Hydrate state={pageProps.dehydratedState}>
-        <Header />
-        <Component {...pageProps} />
+        <main className="max-w-7xl mx-auto px-10 box-content">
+          <Header />
+          <Component {...pageProps} />
+        </main>
       </Hydrate>
     </QueryClientProvider>
   );
