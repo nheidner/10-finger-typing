@@ -2,43 +2,68 @@ package models
 
 import (
 	custom_errors "10-typing/errors"
+	"database/sql/driver"
+	"encoding/json"
 	"net/http"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
+type ErrorsJSON map[string]int
+
 type Score struct {
-	*gorm.Model
-	ID             uint           `json:"id" gorm:"primary_key"`
-	WordsPerMinute float64        `json:"wordsPerMinute" gorm:"-"`
-	WordsTyped     int            `json:"wordsTyped"`
-	TimeElapsed    float64        `json:"timeElapsed"`
-	Accuracy       float64        `json:"accuracy" gorm:"-"`
-	NumberErrors   int            `json:"numberErrors"`
-	Errors         map[string]int `json:"errors" gorm:"type:jsonb"`
-	UserId         uint           `json:"userId"`
+	ID             uint       `json:"id" gorm:"primary_key"`
+	WordsPerMinute float64    `json:"wordsPerMinute" gorm:"type:DECIMAL GENERATED ALWAYS AS (words_typed::DECIMAL * 60.0 / time_elapsed) STORED"`
+	WordsTyped     int        `json:"wordsTyped"`
+	TimeElapsed    float64    `json:"timeElapsed"`
+	Accuracy       float64    `json:"accuracy" gorm:"type:DECIMAL GENERATED ALWAYS AS (100.0 - (number_errors::DECIMAL * 100.0 / words_typed::DECIMAL)) STORED"`
+	NumberErrors   int        `json:"numberErrors"`
+	Errors         ErrorsJSON `json:"errors" gorm:"type:jsonb"`
+	UserId         uint       `json:"userId"`
 }
 
 type CreateScoreInput struct {
-	WordsTyped  int            `json:"wordsTyped" binding:"required"`
-	TimeElapsed float64        `json:"timeElapsed" binding:"required"`
-	Errors      map[string]int `json:"errors" binding:"required,typingerrors"`
-	UserId      uint           `json:"userId" binding:"required"`
+	WordsTyped  int        `json:"wordsTyped" binding:"required"`
+	TimeElapsed float64    `json:"timeElapsed" binding:"required"`
+	Errors      ErrorsJSON `json:"errors" binding:"required,typingerrors"`
+	UserId      uint       `json:"userId" binding:"required"`
 }
 
 type ScoreService struct {
 	DB *gorm.DB
 }
 
+func (j ErrorsJSON) Value() (driver.Value, error) {
+	valueString, err := json.Marshal(j)
+	return string(valueString), err
+}
+
+func (j *ErrorsJSON) Scan(value interface{}) error {
+	if err := json.Unmarshal(value.([]byte), &j); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
-	score := Score{
-		WordsTyped:  input.WordsTyped,
-		TimeElapsed: input.TimeElapsed,
-		Errors:      input.Errors,
-		UserId:      input.UserId,
+	numberErrors := 0
+	for _, value := range input.Errors {
+		numberErrors += value
 	}
 
-	createResult := ss.DB.Create(&score)
+	score := Score{
+		WordsTyped:   input.WordsTyped,
+		TimeElapsed:  input.TimeElapsed,
+		Errors:       input.Errors,
+		UserId:       input.UserId,
+		NumberErrors: numberErrors,
+	}
+
+	createResult := ss.DB.Omit("WordsPerMinute", "Accuracy").
+		Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}, {Name: "words_per_minute"}, {Name: "words_typed"}, {Name: "time_elapsed"}, {Name: "accuracy"}, {Name: "number_errors"}, {Name: "errors"}}}).
+		Create(&score)
+
 	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
 		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
 		return nil, internalServerError
