@@ -39,7 +39,7 @@ func ConnectDatabase() {
 		panic("Failed to connect to database!")
 	}
 
-	err = db.AutoMigrate(&User{}, &Session{})
+	err = db.AutoMigrate(&User{}, &Session{}, &Score{})
 	if err != nil {
 		panic("Failed to migrate database!")
 	}

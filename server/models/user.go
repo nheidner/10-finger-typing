@@ -19,6 +19,7 @@ type User struct {
 	LastName     string    `json:"lastName" gorm:"type:varchar(255)"`
 	IsVerified   bool      `json:"isVerified" gorm:"default:false; not null"`
 	Sessions     []Session `json:"-"`
+	Scores       []Score   `json:"-"`
 }
 
 type CreateUserInput struct {
