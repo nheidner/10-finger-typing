@@ -30,7 +30,14 @@ func (s Scores) CreateScore(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": score})
 }
 
-func (s Scores) FindScores(c *gin.Context) {
+func (s Scores) FindScoresByUser(c *gin.Context) {
+	userContext, _ := c.Get("user")
+	user, ok := userContext.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error getting user from context"})
+		return
+	}
+
 	sortOptions, err := models.BindSortByQuery(c, models.FindScoresSortOption{})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -39,11 +46,7 @@ func (s Scores) FindScores(c *gin.Context) {
 
 	query := models.FindScoresQuery{
 		SortOptions: sortOptions,
-	}
-
-	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		UserId:      user.ID,
 	}
 
 	scores, err := s.ScoreService.FindScores(query)

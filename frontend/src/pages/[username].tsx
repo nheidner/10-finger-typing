@@ -1,4 +1,4 @@
-import type { User } from "@/types";
+import type { Score, User } from "@/types";
 import { fetchApi } from "@/utils/fetch";
 import {
   DehydratedState,
@@ -6,12 +6,34 @@ import {
   dehydrate,
   useQuery,
 } from "@tanstack/react-query";
+import classNames from "classnames";
 import { NextPage } from "next";
+import { useState } from "react";
+
+const sortByOptions = ["recent", "accuracy", "errors"] as const;
+
+type SortByOption = (typeof sortByOptions)[number];
 
 const getUserByUsername = async (username: string, cookie?: string) => {
   const headers = cookie ? { cookie } : undefined;
 
   return fetchApi<User>(`/users/${username}`, { headers });
+};
+
+const getScoresByUsername = async (
+  username: string,
+  { cookie, sortBy }: { cookie?: string; sortBy?: string[] }
+) => {
+  const queryParams = sortBy
+    ?.map((sortByValue) => `sort_by=${encodeURIComponent(sortByValue)}`)
+    .join("&");
+  const queryString = queryParams ? `?${queryParams}` : "";
+
+  const headers = cookie ? { cookie } : undefined;
+
+  return fetchApi<Score[]>(`/users/${username}/scores${queryString}`, {
+    headers,
+  });
 };
 
 const Avatar = ({ user }: { user?: User }) => {
@@ -73,30 +95,147 @@ const ProfileData = ({ user }: { user?: User }) => {
   );
 };
 
-const Profile = ({ user }: { user?: User }) => {
-  if (!user) {
+const Profile = ({ username }: { username: string }) => {
+  const { data } = useQuery({
+    queryKey: ["user", username],
+    queryFn: () => getUserByUsername(username),
+  });
+
+  if (!data) {
     return null;
   }
 
   return (
     <section className="flex gap-[10%] border-b border-gray-100 mb-6 pb-8">
-      <Avatar user={user} />
-      <ProfileData user={user} />
+      <Avatar user={data} />
+      <ProfileData user={data} />
     </section>
   );
 };
 
-const Scores = () => {
+const SortBy = ({
+  sortBy,
+  setSortBy,
+}: {
+  sortBy: SortByOption;
+  setSortBy: (sortByOption: SortByOption) => void;
+}) => {
+  const selectOption = (sortByOption: SortByOption) => () =>
+    setSortBy(sortByOption);
+
+  return (
+    <div className="flex items-center">
+      <h4 className="text-sm font-semibold leading-7 text-gray-700">
+        Sort by:
+      </h4>
+      {sortByOptions
+        .map((sortByOption, index) => {
+          const isLast = index === sortByOptions.length - 1;
+          const isActive = sortByOption === sortBy;
+
+          const option = (
+            <span
+              onClick={selectOption(sortByOption)}
+              key={sortByOption}
+              className={classNames(
+                "inline-block mx-2 text-sm cursor-pointer",
+                isActive && "font-semibold text-indigo-400"
+              )}
+            >
+              {sortByOption}
+            </span>
+          );
+
+          if (isLast) {
+            return option;
+          }
+
+          return [
+            option,
+            <span key={index} className="text-gray-500">
+              |
+            </span>,
+          ];
+        })
+        .flat()}
+    </div>
+  );
+};
+
+const Scores = ({ username }: { username: string }) => {
+  const [sortBy, setSortBy] = useState<SortByOption>("recent");
+
+  const sortByParamValues = sortBy === "recent" ? [] : [`${sortBy}.desc`];
+
+  const { data } = useQuery({
+    queryKey: ["score", username, sortBy],
+    queryFn: () => getScoresByUsername(username, { sortBy: sortByParamValues }),
+  });
+
+  if (!data) {
+    return null;
+  }
+
   return (
     <section className="">
-      <div className="px-4 sm:px-0">
-        <h3 className="text-base font-semibold leading-7 text-gray-900">
-          Your scores
-        </h3>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-          Here are your most recent scores
-        </p>
+      <div className="px-4 sm:px-0 mb-10 flex justify-between items-center">
+        <div>
+          <h3 className="text-base font-semibold leading-7 text-gray-900">
+            Your scores
+          </h3>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
+            Here are your most recent scores
+          </p>
+        </div>
+        <SortBy sortBy={sortBy} setSortBy={setSortBy} />
       </div>
+      <table className="min-w-full divide-y divide-gray-300">
+        <thead>
+          <tr>
+            <th
+              scope="col"
+              className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-3"
+            >
+              Words Per Minute
+            </th>
+            <th
+              scope="col"
+              className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+            >
+              Accuracy
+            </th>
+            <th
+              scope="col"
+              className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+            >
+              Number of Errors
+            </th>
+            <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-3">
+              <span className="sr-only">Edit</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white">
+          {data.map((score) => (
+            <tr key={score.id} className="even:bg-gray-50">
+              <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">
+                {score.wordsPerMinute}
+              </td>
+              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                {score.accuracy}
+              </td>
+              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                {score.numberErrors}
+              </td>
+              <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-3">
+                <a href="#" className="text-indigo-600 hover:text-indigo-900">
+                  Edit<span className="sr-only">, {score.id}</span>
+                </a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 };
@@ -105,15 +244,10 @@ const ProfilePage: NextPage<{
   username: string;
   dehydratedState: DehydratedState;
 }> = ({ username }) => {
-  const { data } = useQuery({
-    queryKey: ["user", username],
-    queryFn: () => getUserByUsername(username),
-  });
-
   return (
     <>
-      <Profile user={data} />
-      <Scores />
+      <Profile username={username} />
+      <Scores username={username} />
     </>
   );
 };
@@ -125,6 +259,9 @@ ProfilePage.getInitialProps = async (ctx) => {
 
   await queryClient.prefetchQuery(["user", username], () =>
     getUserByUsername(username, cookie)
+  );
+  await queryClient.prefetchQuery(["score", username], () =>
+    getScoresByUsername(username, { cookie })
   );
 
   return {

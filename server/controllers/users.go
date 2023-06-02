@@ -101,3 +101,20 @@ func (u Users) AuthRequired(c *gin.Context) {
 
 	c.Next()
 }
+
+func (u Users) IsAuthorizedUser(c *gin.Context) {
+	userContext, _ := c.Get("user")
+	user, ok := userContext.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error getting user from context"})
+		return
+	}
+
+	userName := c.Param("username")
+	if userName != user.Username {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	c.Next()
+}

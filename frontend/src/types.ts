@@ -6,3 +6,14 @@ export interface User {
   lastName: string;
   isVerified: boolean;
 }
+
+export interface Score {
+  id: number;
+  wordsPerMinute: number;
+  wordsTyped: number;
+  timeElapsed: number;
+  accuracy: number;
+  numberErrors: number;
+  errors: { [error: string]: number };
+  userId: number;
+}

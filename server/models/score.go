@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -13,14 +14,17 @@ import (
 type ErrorsJSON map[string]int
 
 type Score struct {
-	ID             uint       `json:"id" gorm:"primary_key"`
-	WordsPerMinute float64    `json:"wordsPerMinute" gorm:"type:DECIMAL GENERATED ALWAYS AS (words_typed::DECIMAL * 60.0 / time_elapsed) STORED"`
-	WordsTyped     int        `json:"wordsTyped"`
-	TimeElapsed    float64    `json:"timeElapsed"`
-	Accuracy       float64    `json:"accuracy" gorm:"type:DECIMAL GENERATED ALWAYS AS (100.0 - (number_errors::DECIMAL * 100.0 / words_typed::DECIMAL)) STORED"`
-	NumberErrors   int        `json:"numberErrors"`
-	Errors         ErrorsJSON `json:"errors" gorm:"type:jsonb"`
-	UserId         uint       `json:"userId"`
+	ID             uint            `json:"id" gorm:"primary_key"`
+	CreatedAt      time.Time       `json:"createdAt"`
+	UpdatedAt      time.Time       `json:"updatedAt"`
+	DeletedAt      *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
+	WordsPerMinute float64         `json:"wordsPerMinute" gorm:"type:DECIMAL GENERATED ALWAYS AS (words_typed::DECIMAL * 60.0 / time_elapsed) STORED"`
+	WordsTyped     int             `json:"wordsTyped"`
+	TimeElapsed    float64         `json:"timeElapsed"`
+	Accuracy       float64         `json:"accuracy" gorm:"type:DECIMAL GENERATED ALWAYS AS (100.0 - (number_errors::DECIMAL * 100.0 / words_typed::DECIMAL)) STORED"`
+	NumberErrors   int             `json:"numberErrors"`
+	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
+	UserId         uint            `json:"userId"`
 }
 
 type CreateScoreInput struct {
@@ -36,7 +40,7 @@ type FindScoresQuery struct {
 }
 
 type FindScoresSortOption struct {
-	Column string `validate:"required,oneof=accuracy errors"`
+	Column string `validate:"required,oneof=accuracy errors created_at"`
 	Order  string `validate:"required,oneof=desc asc"`
 }
 
@@ -66,6 +70,9 @@ func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
 
 	for _, sortOption := range query.SortOptions {
 		findResult = findResult.Order(clause.OrderByColumn{Column: clause.Column{Name: sortOption.Column}, Desc: sortOption.Order == "desc"})
+	}
+	if len(query.SortOptions) == 0 {
+		findResult = findResult.Order("created_at desc")
 	}
 
 	findResult.Find(&scores)
