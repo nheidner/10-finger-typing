@@ -1,4 +1,4 @@
-package validations
+package models
 
 import (
 	"errors"

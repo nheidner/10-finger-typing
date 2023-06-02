@@ -30,6 +30,16 @@ type CreateScoreInput struct {
 	UserId      uint       `json:"userId" binding:"required"`
 }
 
+type FindScoresQuery struct {
+	SortOptions []SortOption
+	UserId      uint `form:"userId"`
+}
+
+type FindScoresSortOption struct {
+	Column string `validate:"required,oneof=accuracy errors"`
+	Order  string `validate:"required,oneof=desc asc"`
+}
+
 type ScoreService struct {
 	DB *gorm.DB
 }
@@ -44,6 +54,28 @@ func (j *ErrorsJSON) Scan(value interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
+	var scores []Score
+
+	findResult := ss.DB
+	if query.UserId != 0 {
+		findResult = findResult.Where("user_id = ?", query.UserId)
+	}
+
+	for _, sortOption := range query.SortOptions {
+		findResult = findResult.Order(clause.OrderByColumn{Column: clause.Column{Name: sortOption.Column}, Desc: sortOption.Order == "desc"})
+	}
+
+	findResult.Find(&scores)
+
+	if findResult.Error != nil {
+		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
+		return nil, internalServerError
+	}
+
+	return &scores, nil
 }
 
 func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {

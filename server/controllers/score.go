@@ -29,3 +29,28 @@ func (s Scores) CreateScore(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": score})
 }
+
+func (s Scores) FindScores(c *gin.Context) {
+	sortOptions, err := models.BindSortByQuery(c, models.FindScoresSortOption{})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	query := models.FindScoresQuery{
+		SortOptions: sortOptions,
+	}
+
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	scores, err := s.ScoreService.FindScores(query)
+	if err != nil {
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": scores})
+}

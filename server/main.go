@@ -3,7 +3,6 @@ package main
 import (
 	"10-typing/controllers"
 	"10-typing/models"
-	"10-typing/validations"
 	"net/http"
 	"time"
 
@@ -17,7 +16,7 @@ func main() {
 	router := gin.Default()
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		v.RegisterValidation("typingerrors", validations.TypingErrors)
+		v.RegisterValidation("typingerrors", models.TypingErrors)
 	}
 
 	models.ConnectDatabase()
@@ -63,6 +62,7 @@ func main() {
 	api.POST("/users/logout", userController.AuthRequired, userController.Logout)
 	api.GET("/user", userController.AuthRequired, userController.CurrentUser)
 	api.POST("/scores", userController.AuthRequired, scoreController.CreateScore)
+	api.GET("/scores", userController.AuthRequired, scoreController.FindScores)
 
 	router.Run()
 }
