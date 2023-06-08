@@ -35,15 +35,36 @@ type LoginUserInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type FindUsersQuery struct {
+	Username string `form:"username"`
+}
+
 type UserService struct {
 	DB *gorm.DB
 }
 
 const userPwPepper = "secret-random-string"
 
-func (us UserService) FindOneByUsername(username string) (*User, error) {
+func (us UserService) FindUsers(query FindUsersQuery) ([]User, error) {
+	var users []User
+	findUsersDbQuery := us.DB
+
+	if query.Username != "" {
+		findUsersDbQuery = findUsersDbQuery.Where("username = ?", query.Username)
+	}
+
+	findUsersDbQuery.Find(&users)
+
+	if findUsersDbQuery.Error != nil {
+		badRequestError := custom_errors.HTTPError{Message: "error querying users", Status: http.StatusBadRequest, Details: findUsersDbQuery.Error.Error()}
+		return nil, badRequestError
+	}
+	return users, nil
+}
+
+func (us UserService) FindOneById(id uint) (*User, error) {
 	var user User
-	result := us.DB.First(&user, "username = ?", username)
+	result := us.DB.First(&user, id)
 	if result.Error != nil {
 		badRequestError := custom_errors.HTTPError{Message: "error querying user", Status: http.StatusBadRequest, Details: result.Error.Error()}
 		return nil, badRequestError

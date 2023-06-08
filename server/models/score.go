@@ -31,12 +31,12 @@ type CreateScoreInput struct {
 	WordsTyped  int        `json:"wordsTyped" binding:"required"`
 	TimeElapsed float64    `json:"timeElapsed" binding:"required"`
 	Errors      ErrorsJSON `json:"errors" binding:"required,typingerrors"`
-	UserId      uint       `json:"userId" binding:"required"`
 }
 
 type FindScoresQuery struct {
 	SortOptions []SortOption
-	UserId      uint `form:"userId"`
+	UserId      uint
+	Username    string `form:"username"`
 }
 
 type FindScoresSortOption struct {
@@ -63,21 +63,24 @@ func (j *ErrorsJSON) Scan(value interface{}) error {
 func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
 	var scores []Score
 
-	findResult := ss.DB
+	findScoresDbQuery := ss.DB
 	if query.UserId != 0 {
-		findResult = findResult.Where("user_id = ?", query.UserId)
+		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", query.UserId)
+	}
+	if query.Username != "" {
+		findScoresDbQuery = findScoresDbQuery.Joins("INNER JOIN users ON scores.user_id = users.id").Where("users.username = ?", query.Username)
 	}
 
 	for _, sortOption := range query.SortOptions {
-		findResult = findResult.Order(clause.OrderByColumn{Column: clause.Column{Name: sortOption.Column}, Desc: sortOption.Order == "desc"})
+		findScoresDbQuery = findScoresDbQuery.Order(clause.OrderByColumn{Column: clause.Column{Name: sortOption.Column}, Desc: sortOption.Order == "desc"})
 	}
 	if len(query.SortOptions) == 0 {
-		findResult = findResult.Order("created_at desc")
+		findScoresDbQuery = findScoresDbQuery.Order("created_at desc")
 	}
 
-	findResult.Find(&scores)
+	findScoresDbQuery.Find(&scores)
 
-	if findResult.Error != nil {
+	if findScoresDbQuery.Error != nil {
 		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
 		return nil, internalServerError
 	}
@@ -85,7 +88,7 @@ func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
 	return &scores, nil
 }
 
-func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
+func (ss *ScoreService) Create(userId uint, input CreateScoreInput) (*Score, error) {
 	numberErrors := 0
 	for _, value := range input.Errors {
 		numberErrors += value
@@ -95,7 +98,7 @@ func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
 		WordsTyped:   input.WordsTyped,
 		TimeElapsed:  input.TimeElapsed,
 		Errors:       input.Errors,
-		UserId:       input.UserId,
+		UserId:       userId,
 		NumberErrors: numberErrors,
 	}
 

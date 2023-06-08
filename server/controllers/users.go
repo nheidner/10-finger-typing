@@ -4,6 +4,7 @@ import (
 	custom_errors "10-typing/errors"
 	"10-typing/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +15,30 @@ type Users struct {
 }
 
 func (u Users) FindUsers(c *gin.Context) {
-	// Todo: Add pagination, add filtering, add sorting
+	var query models.FindUsersQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	users, err := u.UserService.FindUsers(query)
+	if err != nil {
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
 func (u Users) FindUser(c *gin.Context) {
-	user, err := u.UserService.FindOneByUsername(c.Param("username"))
+	userIdParam := c.Param("userid")
+	userId, err := strconv.ParseUint(userIdParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := u.UserService.FindOneById(uint(userId))
 	if err != nil {
 		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return
@@ -89,11 +109,18 @@ func (u Users) CurrentUser(c *gin.Context) {
 
 // MIDDLEWARE FUNCTIONS
 func (u Users) AuthRequired(c *gin.Context) {
-	token, _ := readCookie(c.Request, CookieSession)
+	token, err := readCookie(c.Request, CookieSession)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.Abort()
+		return
+	}
+
 	user, err := u.SessionService.User(token)
 
 	if user == nil || err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.Abort()
 		return
 	}
 
@@ -102,17 +129,29 @@ func (u Users) AuthRequired(c *gin.Context) {
 	c.Next()
 }
 
-func (u Users) IsAuthorizedUser(c *gin.Context) {
+// checks if the authenticated user corresponds to the "userid" url parameter
+// this middleware function must be used after AuthRequired
+func (u Users) UserIdUrlParamMatchesAuthorizedUser(c *gin.Context) {
 	userContext, _ := c.Get("user")
+
 	user, ok := userContext.(*models.User)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error getting user from context"})
+		c.Abort()
 		return
 	}
 
-	userName := c.Param("username")
-	if userName != user.Username {
+	userIdParam := c.Param("userid")
+	userId, err := strconv.ParseUint(userIdParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.Abort()
+		return
+	}
+
+	if uint(userId) != user.ID {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.Abort()
 		return
 	}
 

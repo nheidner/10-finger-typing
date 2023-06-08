@@ -4,6 +4,7 @@ import (
 	custom_errors "10-typing/errors"
 	"10-typing/models"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +22,14 @@ func (s Scores) CreateScore(c *gin.Context) {
 		return
 	}
 
-	score, err := s.ScoreService.Create(input)
+	userIdUrlParam := c.Param("userid")
+	userId, err := strconv.ParseUint(userIdUrlParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	score, err := s.ScoreService.Create(uint(userId), input)
 	if err != nil {
 		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return
@@ -31,10 +39,19 @@ func (s Scores) CreateScore(c *gin.Context) {
 }
 
 func (s Scores) FindScoresByUser(c *gin.Context) {
-	userContext, _ := c.Get("user")
-	user, ok := userContext.(*models.User)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "error getting user from context"})
+	userIdParam := c.Param("userid")
+	userId, err := strconv.ParseUint(userIdParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	query := models.FindScoresQuery{
+		UserId: uint(userId),
+	}
+
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -44,10 +61,32 @@ func (s Scores) FindScoresByUser(c *gin.Context) {
 		return
 	}
 
-	query := models.FindScoresQuery{
-		SortOptions: sortOptions,
-		UserId:      user.ID,
+	query.SortOptions = sortOptions
+
+	scores, err := s.ScoreService.FindScores(query)
+	if err != nil {
+		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{"data": scores})
+}
+
+func (s Scores) FindScores(c *gin.Context) {
+	var query models.FindScoresQuery
+
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	sortOptions, err := models.BindSortByQuery(c, models.FindScoresSortOption{})
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	query.SortOptions = sortOptions
 
 	scores, err := s.ScoreService.FindScores(query)
 	if err != nil {

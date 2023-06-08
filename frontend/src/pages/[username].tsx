@@ -15,9 +15,13 @@ const sortByOptions = ["recent", "accuracy", "errors"] as const;
 type SortByOption = (typeof sortByOptions)[number];
 
 const getUserByUsername = async (username: string, cookie?: string) => {
+  const queryParams = `username=${encodeURIComponent(username)}`;
+  const queryString = `?${queryParams}`;
+
   const headers = cookie ? { cookie } : undefined;
 
-  return fetchApi<User>(`/users/${username}`, { headers });
+  const users = await fetchApi<User[]>(`/users${queryString}`, { headers });
+  return users[0];
 };
 
 const getScoresByUsername = async (
@@ -26,12 +30,13 @@ const getScoresByUsername = async (
 ) => {
   const queryParams = sortBy
     ?.map((sortByValue) => `sort_by=${encodeURIComponent(sortByValue)}`)
+    .concat(`username=${encodeURIComponent(username)}`)
     .join("&");
   const queryString = queryParams ? `?${queryParams}` : "";
 
   const headers = cookie ? { cookie } : undefined;
 
-  return fetchApi<Score[]>(`/users/${username}/scores${queryString}`, {
+  return fetchApi<Score[]>(`/scores${queryString}`, {
     headers,
   });
 };
@@ -44,7 +49,7 @@ const Avatar = ({ user }: { user?: User }) => {
   return (
     <span className="inline-flex h-48 w-48 items-center justify-center rounded-full bg-gray-300">
       <span className="text-8xl font-medium leading-none text-white">
-        {user.username[0].toUpperCase()}
+        {user.username?.[0].toUpperCase()}
       </span>
     </span>
   );

@@ -55,14 +55,20 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// USERS
 	api.GET("/users", userController.AuthRequired, userController.FindUsers)
-	api.GET("/users/:username", userController.AuthRequired, userController.FindUser)
-	api.GET("/users/:username/scores", userController.AuthRequired, userController.IsAuthorizedUser, scoreController.FindScoresByUser)
+	api.GET("/users/:userid", userController.AuthRequired, userController.FindUser)
+	api.GET("/users/:userid/scores", userController.AuthRequired, scoreController.FindScoresByUser)
+	api.POST("/users/:userid/scores", userController.AuthRequired, userController.UserIdUrlParamMatchesAuthorizedUser, scoreController.CreateScore)
 	api.POST("/users", userController.CreateUser)
 	api.POST("/users/login", userController.Login)
 	api.POST("/users/logout", userController.AuthRequired, userController.Logout)
+
+	// USER
 	api.GET("/user", userController.AuthRequired, userController.CurrentUser)
-	api.POST("/scores", userController.AuthRequired, scoreController.CreateScore)
+
+	// SCORES
+	api.GET("/scores", userController.AuthRequired, scoreController.FindScores)
 
 	router.Run()
 }
