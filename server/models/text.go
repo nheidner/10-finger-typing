@@ -22,10 +22,12 @@ type Text struct {
 }
 
 type FindTextQuery struct {
-	Language          string `form:"language" binding:"required"`
-	Punctuation       bool   `form:"punctuation"`
-	SpecialCharacters int    `form:"specialCharacters"`
-	Numbers           int    `form:"numbers"`
+	Language             string `form:"language" binding:"required"`
+	Punctuation          bool   `form:"punctuation"`
+	SpecialCharactersGte int    `form:"specialCharacters[gte]"`
+	SpecialCharactersLte int    `form:"specialCharacters[lte]"`
+	NumbersGte           int    `form:"numbers[gte]"`
+	NumbersLte           int    `form:"numbers[lte]"`
 }
 
 type TextService struct {
@@ -34,13 +36,26 @@ type TextService struct {
 
 func (ts TextService) FindNewOneByUserId(userId uint, query FindTextQuery) (*Text, error) {
 	var text Text
-	// TODO: query text that was not used yet by the user
+
 	result := ts.DB.
 		Joins("LEFT JOIN scores s1 ON texts.id = s1.text_id").
 		Joins("LEFT JOIN scores s2 ON s1.text_id = s2.text_id AND s2.user_id = ?", userId).
 		Where("s2.text_id IS NULL").
 		Where("language = ?", query.Language).
 		Where("punctuation = ?", query.Punctuation)
+
+	if query.SpecialCharactersGte != 0 {
+		result = result.Where("special_characters >= ?", query.SpecialCharactersGte)
+	}
+	if query.SpecialCharactersLte != 0 {
+		result = result.Where("special_characters <= ?", query.SpecialCharactersLte)
+	}
+	if query.NumbersGte != 0 {
+		result = result.Where("numbers >= ?", query.NumbersGte)
+	}
+	if query.NumbersLte != 0 {
+		result = result.Where("numbers <= ?", query.NumbersLte)
+	}
 
 	result.First(&text)
 
