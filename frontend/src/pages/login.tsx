@@ -12,7 +12,7 @@ type UserCredentials = {
 };
 
 const login = async (userCredentials: UserCredentials) =>
-  fetchApi<User>("/users/login", {
+  fetchApi<User>("/user/login", {
     method: "POST",
     body: JSON.stringify(userCredentials),
   });

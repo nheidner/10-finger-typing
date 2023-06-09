@@ -9,8 +9,7 @@ import classNames from "classnames";
 
 const getAuthenticatedUser = async () => fetchApi<User>("/user");
 
-const logout = async () =>
-  fetchApi<string>("/users/logout", { method: "POST" });
+const logout = async () => fetchApi<string>("/user/logout", { method: "POST" });
 
 const UserMenu = ({ user }: { user?: User }) => {
   const queryClient = useQueryClient();
@@ -98,7 +97,8 @@ export const Header = () => {
 
   const navigation = [{ name: "Home", href: "/" }];
 
-  const userIsLoggedIn = !isError && data;
+  const userIsLoggedIn = !isError && !!data;
+  console.log("userIsLoggedIn :>> ", userIsLoggedIn);
 
   return (
     // Todo: split up into components

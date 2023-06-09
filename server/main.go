@@ -35,6 +35,9 @@ func main() {
 	scoreService := models.ScoreService{
 		DB: models.DB,
 	}
+	textService := models.TextService{
+		DB: models.DB,
+	}
 
 	// Setup our controllers
 	userController := controllers.Users{
@@ -43,6 +46,9 @@ func main() {
 	}
 	scoreController := controllers.Scores{
 		ScoreService: &scoreService,
+	}
+	textController := controllers.Texts{
+		TextService: &textService,
 	}
 
 	api := router.Group("/api")
@@ -60,12 +66,13 @@ func main() {
 	api.GET("/users/:userid", userController.AuthRequired, userController.FindUser)
 	api.GET("/users/:userid/scores", userController.AuthRequired, scoreController.FindScoresByUser)
 	api.POST("/users/:userid/scores", userController.AuthRequired, userController.UserIdUrlParamMatchesAuthorizedUser, scoreController.CreateScore)
+	api.GET("/users/:userid/text", userController.AuthRequired, userController.UserIdUrlParamMatchesAuthorizedUser, textController.FindText)
 	api.POST("/users", userController.CreateUser)
-	api.POST("/users/login", userController.Login)
-	api.POST("/users/logout", userController.AuthRequired, userController.Logout)
 
 	// USER
 	api.GET("/user", userController.AuthRequired, userController.CurrentUser)
+	api.POST("/user/login", userController.Login)
+	api.POST("/user/logout", userController.AuthRequired, userController.Logout)
 
 	// SCORES
 	api.GET("/scores", userController.AuthRequired, scoreController.FindScores)

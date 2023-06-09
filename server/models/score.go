@@ -25,12 +25,14 @@ type Score struct {
 	NumberErrors   int             `json:"numberErrors"`
 	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
 	UserId         uint            `json:"userId"`
+	TextId         uint            `json:"textId"`
 }
 
 type CreateScoreInput struct {
 	WordsTyped  int        `json:"wordsTyped" binding:"required"`
 	TimeElapsed float64    `json:"timeElapsed" binding:"required"`
 	Errors      ErrorsJSON `json:"errors" binding:"required,typingerrors"`
+	TextId      uint       `json:"textId" binding:"required"`
 }
 
 type FindScoresQuery struct {
@@ -100,6 +102,7 @@ func (ss *ScoreService) Create(userId uint, input CreateScoreInput) (*Score, err
 		Errors:       input.Errors,
 		UserId:       userId,
 		NumberErrors: numberErrors,
+		TextId:       input.TextId,
 	}
 
 	createResult := ss.DB.Omit("WordsPerMinute", "Accuracy").
