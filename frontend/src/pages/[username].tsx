@@ -1,5 +1,5 @@
-import type { Score, User } from "@/types";
-import { fetchApi } from "@/utils/fetch";
+import type { User } from "@/types";
+import { getScoresByUsername, getUserByUsername } from "@/utils/queries";
 import {
   DehydratedState,
   QueryClient,
@@ -13,33 +13,6 @@ import { useState } from "react";
 const sortByOptions = ["recent", "accuracy", "errors"] as const;
 
 type SortByOption = (typeof sortByOptions)[number];
-
-const getUserByUsername = async (username: string, cookie?: string) => {
-  const queryParams = `username=${encodeURIComponent(username)}`;
-  const queryString = `?${queryParams}`;
-
-  const headers = cookie ? { cookie } : undefined;
-
-  const users = await fetchApi<User[]>(`/users${queryString}`, { headers });
-  return users[0];
-};
-
-const getScoresByUsername = async (
-  username: string,
-  { cookie, sortBy }: { cookie?: string; sortBy?: string[] }
-) => {
-  const queryParams = sortBy
-    ?.map((sortByValue) => `sort_by=${encodeURIComponent(sortByValue)}`)
-    .concat(`username=${encodeURIComponent(username)}`)
-    .join("&");
-  const queryString = queryParams ? `?${queryParams}` : "";
-
-  const headers = cookie ? { cookie } : undefined;
-
-  return fetchApi<Score[]>(`/scores${queryString}`, {
-    headers,
-  });
-};
 
 const Avatar = ({ user }: { user?: User }) => {
   if (!user) {
@@ -221,24 +194,30 @@ const Scores = ({ username }: { username: string }) => {
           </tr>
         </thead>
         <tbody className="bg-white">
-          {data.map((score) => (
-            <tr key={score.id} className="even:bg-gray-50">
-              <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">
-                {score.wordsPerMinute}
-              </td>
-              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                {score.accuracy}
-              </td>
-              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                {score.numberErrors}
-              </td>
-              <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-3">
-                <a href="#" className="text-indigo-600 hover:text-indigo-900">
-                  Edit<span className="sr-only">, {score.id}</span>
-                </a>
-              </td>
-            </tr>
-          ))}
+          {data.map((score) => {
+            const wordsPerMinute = score.wordsPerMinute.toFixed(1);
+            const accuracy = `${score.accuracy.toFixed(2)} %`;
+            const numberErrors = score.numberErrors;
+
+            return (
+              <tr key={score.id} className="even:bg-gray-50">
+                <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-3">
+                  {wordsPerMinute}
+                </td>
+                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                  {accuracy}
+                </td>
+                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                  {numberErrors}
+                </td>
+                <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-3">
+                  <a href="#" className="text-indigo-600 hover:text-indigo-900">
+                    Edit<span className="sr-only">, {score.id}</span>
+                  </a>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </section>

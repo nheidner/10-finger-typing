@@ -36,9 +36,5 @@ func (t Texts) FindText(c *gin.Context) {
 		return
 	}
 
-	if text == nil {
-		// TODO: create a new text using openai api
-	}
-
 	c.JSON(http.StatusOK, gin.H{"data": text})
 }

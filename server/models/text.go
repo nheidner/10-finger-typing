@@ -42,7 +42,8 @@ func (ts TextService) FindNewOneByUserId(userId uint, query FindTextQuery) (*Tex
 		Joins("LEFT JOIN scores s2 ON s1.text_id = s2.text_id AND s2.user_id = ?", userId).
 		Where("s2.text_id IS NULL").
 		Where("language = ?", query.Language).
-		Where("punctuation = ?", query.Punctuation)
+		Where("punctuation = ?", query.Punctuation).
+		Order("created_at DESC")
 
 	if query.SpecialCharactersGte != 0 {
 		result = result.Where("special_characters >= ?", query.SpecialCharactersGte)

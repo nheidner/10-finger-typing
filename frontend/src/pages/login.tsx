@@ -1,21 +1,8 @@
-import { User } from "@/types";
-import { fetchApi } from "@/utils/fetch";
-import { getApiUrl } from "@/utils/get_api_url";
+import { login } from "@/utils/queries";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useRef } from "react";
-
-type UserCredentials = {
-  email: string;
-  password: string;
-};
-
-const login = async (userCredentials: UserCredentials) =>
-  fetchApi<User>("/user/login", {
-    method: "POST",
-    body: JSON.stringify(userCredentials),
-  });
 
 const Page: NextPage = () => {
   const router = useRouter();

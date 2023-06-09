@@ -1,15 +1,11 @@
 import { User } from "@/types";
-import { fetchApi } from "@/utils/fetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState, Fragment } from "react";
+import { Fragment } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import classNames from "classnames";
-
-const getAuthenticatedUser = async () => fetchApi<User>("/user");
-
-const logout = async () => fetchApi<string>("/user/logout", { method: "POST" });
+import { getAuthenticatedUser, logout } from "@/utils/queries";
 
 const UserMenu = ({ user }: { user?: User }) => {
   const queryClient = useQueryClient();
@@ -95,10 +91,12 @@ export const Header = () => {
     retry: false,
   });
 
-  const navigation = [{ name: "Home", href: "/" }];
+  const navigation = [
+    { name: "Home", href: "/" },
+    { name: "Train", href: "/train" },
+  ];
 
   const userIsLoggedIn = !isError && !!data;
-  console.log("userIsLoggedIn :>> ", userIsLoggedIn);
 
   return (
     // Todo: split up into components

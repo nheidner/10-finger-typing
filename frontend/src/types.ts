@@ -17,3 +17,22 @@ export interface Score {
   errors: { [error: string]: number };
   userId: number;
 }
+
+export type TypingLanguage =
+  | "en"
+  | "de"
+  | "fr"
+  | "es"
+  | "it"
+  | "pt"
+  | "ru"
+  | "zh";
+
+export interface Text {
+  id: number;
+  language: TypingLanguage;
+  text: string;
+  punctuation: boolean;
+  specialCharacters: number;
+  numbers: number;
+}
