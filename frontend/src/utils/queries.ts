@@ -1,4 +1,4 @@
-import { Score, TypingLanguage, User } from "@/types";
+import { Score, Text, TypingLanguage, User } from "@/types";
 import { fetchApi } from "./fetch";
 
 export const getAuthenticatedUser = async () => fetchApi<User>("/user");
@@ -6,7 +6,7 @@ export const getAuthenticatedUser = async () => fetchApi<User>("/user");
 export const logout = async () =>
   fetchApi<string>("/user/logout", { method: "POST" });
 
-type TextQuery = {
+type TextQueryParams = {
   specialCharactersGte?: number;
   specialCharactersLte?: number;
   numbersGte?: number;
@@ -22,7 +22,7 @@ export const getNewTextByUserid = async (
     query,
   }: {
     cookie?: string;
-    query: TextQuery;
+    query: TextQueryParams;
   }
 ) => {
   const queryString = Object.entries(query).reduce(
@@ -43,7 +43,43 @@ export const getNewTextByUserid = async (
 
   const headers = cookie ? { cookie } : undefined;
 
-  return fetchApi<Text>(`/users/${userId}/text${queryString}`, { headers });
+  return fetchApi<Text | null>(`/users/${userId}/text${queryString}`, {
+    headers,
+  });
+};
+
+type TextParams = {
+  specialCharacters: number;
+  numbers: number;
+  punctuation: boolean;
+  language: TypingLanguage;
+};
+
+export const createNewText = async ({
+  cookie,
+  query,
+}: {
+  cookie?: string;
+  query: TextParams;
+}) => {
+  // const body = Object.entries(query).reduce((acc, [key, value]) => {
+  //   if (value === undefined) {
+  //     return acc;
+  //   }
+
+  //   const queryParamKey = key.replace("Gte", "[gte]").replace("Lte", "[lte]");
+  //   acc[queryParamKey] = value;
+
+  //   return acc;
+  // }, {} as { [key: string]: number | boolean | TypingLanguage });
+
+  const headers = cookie ? { cookie } : undefined;
+
+  return fetchApi<Text>(`/texts`, {
+    headers,
+    method: "POST",
+    body: JSON.stringify(query),
+  });
 };
 
 type UserCredentials = {

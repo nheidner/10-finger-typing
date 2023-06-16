@@ -2,6 +2,7 @@ package models
 
 import (
 	custom_errors "10-typing/errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -30,8 +31,19 @@ type FindTextQuery struct {
 	NumbersLte           int    `form:"numbers[lte]"`
 }
 
+type CreateTextInput struct {
+	Language          string `json:"language" binding:"required"`
+	Punctuation       bool   `json:"punctuation"`
+	SpecialCharacters int    `json:"specialCharacters"`
+	Numbers           int    `json:"numbers"`
+}
+
 type TextService struct {
 	DB *gorm.DB
+}
+
+func (ti *CreateTextInput) String() string {
+	return fmt.Sprintf("language: %s, punctuation: %t, number of special characters: %d, number of numbers: %d, length: 100 words", ti.Language, ti.Punctuation, ti.SpecialCharacters, ti.Numbers)
 }
 
 func (ts TextService) FindNewOneByUserId(userId uint, query FindTextQuery) (*Text, error) {
@@ -67,6 +79,24 @@ func (ts TextService) FindNewOneByUserId(userId uint, query FindTextQuery) (*Tex
 
 	if result.Error == gorm.ErrRecordNotFound {
 		return nil, nil
+	}
+
+	return &text, nil
+}
+
+func (ts TextService) Create(input CreateTextInput, gptText string) (*Text, error) {
+	text := Text{
+		Language:          input.Language,
+		Text:              gptText,
+		Punctuation:       input.Punctuation,
+		SpecialCharacters: input.SpecialCharacters,
+		Numbers:           input.Numbers,
+	}
+
+	createResult := ts.DB.Create(&text)
+	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
+		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
+		return nil, internalServerError
 	}
 
 	return &text, nil

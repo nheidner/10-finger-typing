@@ -18,15 +18,7 @@ export interface Score {
   userId: number;
 }
 
-export type TypingLanguage =
-  | "en"
-  | "de"
-  | "fr"
-  | "es"
-  | "it"
-  | "pt"
-  | "ru"
-  | "zh";
+export type TypingLanguage = (typeof typingLanguages)[number];
 
 export interface Text {
   id: number;

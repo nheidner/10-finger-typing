@@ -10,9 +10,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic("Error loading .env file")
+	}
+
 	router := gin.Default()
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
@@ -76,6 +82,9 @@ func main() {
 
 	// SCORES
 	api.GET("/scores", userController.AuthRequired, scoreController.FindScores)
+
+	// TEXTS
+	api.POST("/texts", userController.AuthRequired, textController.CreateText)
 
 	router.Run()
 }
