@@ -12,6 +12,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["Inter var", ...defaultTheme.fontFamily.sans],
+        courier: ["Courier New", "Courier", "monospace"],
       },
     },
   },

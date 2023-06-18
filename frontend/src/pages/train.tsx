@@ -12,10 +12,11 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { NextPage } from "next";
-import { ChangeEvent, FC, useEffect, useState } from "react";
-import { Switch as HeadlessUiSwitch } from "@headlessui/react";
+import { ChangeEvent, FC, use, useEffect, useRef, useState } from "react";
+import { Text, TypingLanguage, User } from "@/types";
+import { Toggle } from "@/components/train/Toggle";
+import { Switch } from "@/components/train/Switch";
 import classNames from "classnames";
-import { Text, TypingLanguage } from "@/types";
 
 const specialCharactersOptions = {
   "0-5": "0-5",
@@ -37,83 +38,135 @@ const languageOptions: { [key in TypingLanguage]: string } = {
   fr: "French",
 };
 
-const Switch: FC<{
-  item: string;
-  label: string;
-  enabled: boolean;
-  handleChange: () => void;
-}> = ({ item, label, enabled, handleChange }) => {
-  return (
-    <div className="flex items-center flex-col">
-      <label
-        htmlFor={item}
-        className="block text-sm font-medium leading-6 text-gray-900 mb-2"
-      >
-        {label}
-      </label>
-      <HeadlessUiSwitch
-        checked={enabled}
-        onChange={handleChange}
-        className={classNames(
-          enabled ? "bg-indigo-600" : "bg-gray-200",
-          "relative inline-flex h-9 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
-        )}
-      >
-        <span className="sr-only">Use setting</span>
-        <span
-          aria-hidden="true"
-          className={classNames(
-            enabled ? "translate-x-5" : "translate-x-0",
-            "pointer-events-none inline-block h-8 w-8 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-          )}
-        />
-      </HeadlessUiSwitch>
-    </div>
-  );
-};
+type LetterType = "correct" | "incorrect" | "notTyped";
 
-const Toggle: FC<{
-  item: string;
-  label: string;
-  options: { [key: string]: string };
-  selectedValue: string;
-  handleChange: (e: ChangeEvent<HTMLSelectElement>) => void;
-}> = ({ item, label, options, selectedValue, handleChange }) => {
-  return (
-    <div className="flex items-center flex-col">
-      <label
-        htmlFor={item}
-        className="block text-sm font-medium leading-6 text-gray-900"
-      >
-        {label}
-      </label>
-      <select
-        id={item}
-        name={item}
-        className="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
-        defaultValue={Object.values(options)[0]}
-        onChange={handleChange}
-        value={selectedValue}
-      >
-        {Object.entries(options).map(([key, value]) => (
-          <option key={key} value={key}>
-            {value}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-};
+const Content: FC<{
+  text: Text | null;
+  isLoading: boolean;
+  onType: (cursor: number) => void;
+  userData: { [userId: number]: UserData };
+}> = ({ text, isLoading, onType, userData }) => {
+  const [editedText, setEditedText] = useState<
+    {
+      char: string;
+      type: LetterType;
+    }[]
+  >([]);
 
-const Content: FC<{ text: Text | null; isLoading: boolean }> = ({
-  text,
-  isLoading,
-}) => {
+  const [input, setInput] = useState<string>("");
+  const [cursorIndex, setCursorIndex] = useState<number>(0);
+
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!text) {
+      return;
+    }
+
+    const newText = text.text.split("").map((char) => {
+      return {
+        char,
+        type: "notTyped" as LetterType,
+      };
+    });
+
+    setEditedText(newText);
+  }, [text]);
+
+  useEffect(() => {
+    setInput("");
+    setCursorIndex(0);
+  }, [text]);
+
+  const focusTextInput = () => {
+    inputRef.current?.focus();
+  };
+
+  useEffect(() => {
+    window.addEventListener("keydown", focusTextInput);
+    return () => {
+      window.removeEventListener("keydown", focusTextInput);
+    };
+  }, []);
+
+  const handleInput = (e: ChangeEvent<HTMLInputElement>) => {
+    const newChar = e.target.value.slice(-1);
+
+    const isCorrectChar = newChar === editedText[cursorIndex].char;
+
+    if (!isCorrectChar) {
+      setEditedText((editedText) => {
+        const newEditedText = [...editedText];
+        newEditedText[cursorIndex].type = "incorrect";
+        return newEditedText;
+      });
+      return;
+    }
+
+    if (editedText[cursorIndex].type !== "incorrect") {
+      setEditedText((editedText) => {
+        const newEditedText = [...editedText];
+        newEditedText[cursorIndex].type = "correct";
+        return newEditedText;
+      });
+    }
+
+    onType(cursorIndex + 1);
+    setInput((input) => input + newChar);
+    setCursorIndex((cursorIndex) => cursorIndex + 1);
+  };
+
   if (isLoading) {
     return <section>Loading...</section>;
   }
 
-  return <section>{JSON.stringify(text)}</section>;
+  if (!text) {
+    return <section>No text found</section>;
+  }
+
+  return (
+    <section className="relative">
+      <input
+        type="text"
+        className="absolute right-0"
+        onChange={handleInput}
+        ref={inputRef}
+        value={input}
+      />
+      <div className="font-courier" onClick={focusTextInput}>
+        {editedText.map((char, index) => {
+          const otherUserCursor = Object.entries(userData).reduce(
+            (acc, [_, userData]) => {
+              return userData.cursor === index || acc;
+            },
+            false
+          );
+
+          return (
+            <span
+              key={index}
+              className={classNames(
+                otherUserCursor &&
+                  "before:content-[] border-b-4 border-gray-200",
+                cursorIndex === index &&
+                  "before:content-[] border-b-4 border-gray-400",
+                char.type === "correct" && "text-green-700",
+                char.type === "incorrect" && "text-red-700",
+                "text-2xl"
+              )}
+            >
+              {char.char}
+            </span>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+type UserData = {
+  user: User;
+  cursor: number;
 };
 
 const TrainPage: NextPage<{
@@ -127,6 +180,8 @@ const TrainPage: NextPage<{
     retry: false,
   });
 
+  const webSocketRef = useRef<WebSocket | null>(null);
+
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
   );
@@ -135,6 +190,7 @@ const TrainPage: NextPage<{
   const [language, setLanguage] = useState(
     Object.keys(languageOptions)[0] as TypingLanguage
   );
+  const [userData, setUserData] = useState<{ [userId: number]: UserData }>({});
 
   const handleSpecialCharactersChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setSpecialCharacters(e.target.value);
@@ -201,6 +257,67 @@ const TrainPage: NextPage<{
     }
   }, [textData]);
 
+  useEffect(() => {
+    const apiUrl =
+      typeof window === "undefined"
+        ? "ws://server_dev:8080/api"
+        : "ws://localhost:8080/api";
+
+    webSocketRef.current = new WebSocket(apiUrl + "/ws");
+
+    webSocketRef.current.onopen = () => {
+      const message = {
+        type: "user_added",
+      };
+      webSocketRef.current?.send(JSON.stringify(message));
+    };
+
+    webSocketRef.current.onmessage = (e) => {
+      type Message = {
+        user: User;
+        type: "user_added" | "cursor";
+        payload: { cursor: number } | null;
+      };
+
+      const message = JSON.parse(e.data) as Message;
+
+      switch (message.type) {
+        case "user_added":
+          setUserData((userData) => {
+            return {
+              ...userData,
+              [message.user.id]: { user: message.user, cursor: 0 },
+            };
+          });
+          break;
+        case "cursor":
+          setUserData((userData) => {
+            return {
+              ...userData,
+              [message.user.id]: {
+                ...userData[message.user.id],
+                cursor: message.payload?.cursor || 0,
+              },
+            };
+          });
+        default:
+          break;
+      }
+
+      console.log("message received: >>", JSON.parse(e.data));
+    };
+
+    webSocketRef.current.onclose = (e) => {
+      console.log("connection closed: >>", e);
+    };
+
+    return () => {
+      webSocketRef.current?.close();
+    };
+  }, []);
+
+  console.log("userData :>> ", userData);
+
   return (
     <>
       <section className="flex gap-10 justify-center">
@@ -235,6 +352,16 @@ const TrainPage: NextPage<{
       <Content
         isLoading={newTextIsLoading || textIsLoading}
         text={textData || null}
+        userData={userData}
+        onType={(cursor: number) => {
+          const message = {
+            type: "cursor",
+            payload: {
+              cursor,
+            },
+          };
+          webSocketRef.current?.send(JSON.stringify(message));
+        }}
       />
     </>
   );
