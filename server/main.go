@@ -86,5 +86,8 @@ func main() {
 	// TEXTS
 	api.POST("/texts", userController.AuthRequired, textController.CreateText)
 
+	// websocket
+	api.GET("/ws", userController.AuthRequired, controllers.Websocket)
+
 	router.Run()
 }
