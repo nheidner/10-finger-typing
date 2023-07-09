@@ -20,6 +20,7 @@ type User struct {
 	IsVerified   bool      `json:"isVerified" gorm:"default:false; not null"`
 	Sessions     []Session `json:"-"`
 	Scores       []Score   `json:"-"`
+	Rooms        []*Room   `gorm:"many2many:user_rooms"`
 }
 
 type CreateUserInput struct {

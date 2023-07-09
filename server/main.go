@@ -44,6 +44,9 @@ func main() {
 	textService := models.TextService{
 		DB: models.DB,
 	}
+	roomService := models.RoomService{
+		DB: models.DB,
+	}
 
 	// Setup our controllers
 	userController := controllers.Users{
@@ -55,6 +58,9 @@ func main() {
 	}
 	textController := controllers.Texts{
 		TextService: &textService,
+	}
+	roomController := controllers.Rooms{
+		RoomService: &roomService,
 	}
 
 	api := router.Group("/api")
@@ -85,6 +91,9 @@ func main() {
 
 	// TEXTS
 	api.POST("/texts", userController.AuthRequired, textController.CreateText)
+
+	// ROOMS
+	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
 
 	// websocket
 	api.GET("/ws", userController.AuthRequired, controllers.Websocket)
