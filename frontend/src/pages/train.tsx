@@ -128,7 +128,7 @@ const Content: FC<{
     <section className="relative">
       <input
         type="text"
-        className="absolute right-0"
+        className="absolute opacity-0"
         onChange={handleInput}
         ref={inputRef}
         value={input}

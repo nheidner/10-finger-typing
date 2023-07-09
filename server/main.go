@@ -91,12 +91,8 @@ func main() {
 
 	// TEXTS
 	api.POST("/texts", userController.AuthRequired, textController.CreateText)
-
-	// ROOMS
-	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
-
-	// websocket
-	api.GET("/ws", userController.AuthRequired, controllers.Websocket)
+	api.POST("/tests/:textid/rooms", userController.AuthRequired, roomController.CreateRoom)
+	api.GET("/texts/:textid/rooms/:roomid/ws", userController.AuthRequired, roomController.ConnectToRoom)
 
 	router.Run()
 }

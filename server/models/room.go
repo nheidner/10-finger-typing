@@ -20,7 +20,7 @@ type Room struct {
 
 type CreateRoomInput struct {
 	UserIds []uint `json:"usernames"`
-	TextId  uint   `json:"textId"`
+	TextId  uint   `json:"-"`
 }
 
 type RoomService struct {
@@ -50,6 +50,23 @@ func (rs *RoomService) Create(input CreateRoomInput) (*Room, error) {
 	}
 
 	tx.Commit()
+
+	return &room, nil
+}
+
+func (rs *RoomService) Find(roomId uuid.UUID, textId, userId uint) (*Room, error) {
+	var room Room
+
+	if result := rs.DB.
+		Joins("INNER JOIN user_rooms ur ON ur.room_id = rooms.id").
+		Joins("INNER JOIN users ON ur.user_id = users.id").
+		Where("rooms.id = ?", roomId).
+		Where("rooms.text_id = ?", textId).
+		Where("users.id = ?", userId).
+		First(&room); (result.Error != nil) || (result.RowsAffected == 0) {
+		badRequestError := custom_errors.HTTPError{Message: "no room found", Status: http.StatusBadRequest, Details: result.Error.Error()}
+		return nil, badRequestError
+	}
 
 	return &room, nil
 }
