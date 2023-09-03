@@ -2,10 +2,10 @@ version: "3.9"
 
 services:
   db:
-    image: 'postgres:14.5'
+    image: "postgres:14.5"
     restart: always
     ports:
-      - '54329:5432'
+      - "54329:5432"
     environment:
       POSTGRES_DB: typing
       POSTGRES_USER: typing
@@ -39,6 +39,7 @@ services:
     environment:
       - PORT=3000
       - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+      - BACKEND_HOST=server_dev
     ports:
       - 3000:3000
     volumes:
@@ -66,9 +67,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - BACKEND_HOST=server_build
     environment:
       - PORT=3000
       - NEXT_PUBLIC_API_URL=http://localhost:8080/api
     ports:
       - 3000:3000
-    

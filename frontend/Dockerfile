@@ -15,6 +15,7 @@ FROM dependencies as builder
 COPY --chown=node:node . .
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG BACKEND_HOST
 
 RUN yarn build
 
