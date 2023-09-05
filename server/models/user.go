@@ -124,3 +124,7 @@ func (us UserService) Authenticate(email, password string) (*User, error) {
 
 	return &user, nil
 }
+
+func (us *UserService) DeleteAll() error {
+	return us.DB.Exec("TRUNCATE users RESTART IDENTITY CASCADE").Error
+}

@@ -70,3 +70,7 @@ func (rs *RoomService) Find(roomId uuid.UUID, textId, userId uint) (*Room, error
 
 	return &room, nil
 }
+
+func (rs *RoomService) DeleteAll() error {
+	return rs.DB.Exec("TRUNCATE rooms RESTART IDENTITY CASCADE").Error
+}

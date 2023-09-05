@@ -116,3 +116,7 @@ func (ss *ScoreService) Create(userId uint, input CreateScoreInput) (*Score, err
 
 	return &score, nil
 }
+
+func (ss *ScoreService) DeleteAll() error {
+	return ss.DB.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error
+}

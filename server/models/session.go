@@ -85,6 +85,10 @@ func (ss *SessionService) User(token string) (*User, error) {
 	return &user, nil
 }
 
+func (ss *SessionService) DeleteAll() error {
+	return ss.DB.Exec("TRUNCATE sessions RESTART IDENTITY CASCADE").Error
+}
+
 func (ss *SessionService) hash(token string) string {
 	tokenHash := sha256.Sum256([]byte(token))
 

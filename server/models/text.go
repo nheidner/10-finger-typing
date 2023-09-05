@@ -102,3 +102,7 @@ func (ts TextService) Create(input CreateTextInput, gptText string) (*Text, erro
 
 	return &text, nil
 }
+
+func (tx *TextService) DeleteAll() error {
+	return tx.DB.Exec("TRUNCATE texts RESTART IDENTITY CASCADE").Error
+}
