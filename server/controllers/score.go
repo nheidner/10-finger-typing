@@ -29,7 +29,9 @@ func (s Scores) CreateScore(c *gin.Context) {
 		return
 	}
 
-	score, err := s.ScoreService.Create(uint(userId), input)
+	input.UserId = uint(userId)
+
+	score, err := s.ScoreService.Create(input)
 	if err != nil {
 		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return

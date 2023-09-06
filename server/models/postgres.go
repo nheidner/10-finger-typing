@@ -21,6 +21,10 @@ const (
 
 var DB *gorm.DB
 
+func init() {
+	ConnectDatabase()
+}
+
 func ConnectDatabase() {
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags),

@@ -29,10 +29,11 @@ type Score struct {
 }
 
 type CreateScoreInput struct {
-	WordsTyped  int        `json:"wordsTyped" binding:"required"`
-	TimeElapsed float64    `json:"timeElapsed" binding:"required"`
+	WordsTyped  int        `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=250"`
+	TimeElapsed float64    `json:"timeElapsed" binding:"required" faker:"oneof: 60.0, 120.0, 180.0"`
 	Errors      ErrorsJSON `json:"errors" binding:"required,typingerrors"`
 	TextId      uint       `json:"textId" binding:"required"`
+	UserId      uint
 }
 
 type FindScoresQuery struct {
@@ -90,7 +91,7 @@ func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
 	return &scores, nil
 }
 
-func (ss *ScoreService) Create(userId uint, input CreateScoreInput) (*Score, error) {
+func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
 	numberErrors := 0
 	for _, value := range input.Errors {
 		numberErrors += value
@@ -100,7 +101,7 @@ func (ss *ScoreService) Create(userId uint, input CreateScoreInput) (*Score, err
 		WordsTyped:   input.WordsTyped,
 		TimeElapsed:  input.TimeElapsed,
 		Errors:       input.Errors,
-		UserId:       userId,
+		UserId:       input.UserId,
 		NumberErrors: numberErrors,
 		TextId:       input.TextId,
 	}

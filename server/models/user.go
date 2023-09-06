@@ -24,11 +24,11 @@ type User struct {
 }
 
 type CreateUserInput struct {
-	Email     string `json:"email" binding:"required,email"`
-	Username  string `json:"username" binding:"required,min=3,max=255"`
-	Password  string `json:"password" binding:"omitempty,min=6,max=255"`
-	FirstName string `json:"firstName" binding:"omitempty,min=3,max=255"`
-	LastName  string `json:"lastName" binding:"omitempty,min=3,max=255"`
+	Email     string `json:"email" binding:"required,email" faker:"email"`
+	Username  string `json:"username" binding:"required,min=3,max=255" faker:"username"`
+	Password  string `json:"password" binding:"omitempty,min=6,max=255" faker:"password"`
+	FirstName string `json:"firstName" binding:"omitempty,min=3,max=255" faker:"first_name"`
+	LastName  string `json:"lastName" binding:"omitempty,min=3,max=255" faker:"last_name"`
 }
 
 type LoginUserInput struct {
@@ -123,6 +123,10 @@ func (us UserService) Authenticate(email, password string) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+func (us *UserService) Verify(userId uint) error {
+	return us.DB.Model(&User{}).Where("id = ?", userId).Update("is_verified", true).Error
 }
 
 func (us *UserService) DeleteAll() error {
