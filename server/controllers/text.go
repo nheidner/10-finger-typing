@@ -3,7 +3,6 @@ package controllers
 import (
 	custom_errors "10-typing/errors"
 	"10-typing/models"
-	"10-typing/openai"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -12,7 +11,8 @@ import (
 )
 
 type Texts struct {
-	TextService *models.TextService
+	TextService   *models.TextService
+	OpenAiService *models.OpenAiService
 }
 
 func (t Texts) FindText(c *gin.Context) {
@@ -48,7 +48,7 @@ func (t Texts) CreateText(c *gin.Context) {
 		return
 	}
 
-	gptText, err := openai.GPTText(&input)
+	gptText, err := t.OpenAiService.GenerateTypingText(input)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

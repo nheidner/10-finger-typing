@@ -4,6 +4,7 @@ import (
 	"10-typing/controllers"
 	"10-typing/models"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -45,6 +46,9 @@ func main() {
 	roomService := models.RoomService{
 		DB: models.DB,
 	}
+	openAiService := models.OpenAiService{
+		ApiKey: os.Getenv("OPENAI_API_KEY"),
+	}
 
 	// Setup our controllers
 	userController := controllers.Users{
@@ -55,7 +59,8 @@ func main() {
 		ScoreService: &scoreService,
 	}
 	textController := controllers.Texts{
-		TextService: &textService,
+		TextService:   &textService,
+		OpenAiService: &openAiService,
 	}
 	roomController := controllers.Rooms{
 		RoomService: &roomService,
