@@ -12,7 +12,7 @@ FROM dependencies as builder
 
 COPY . .
 
-RUN go build -o ./tmp/main .
+RUN make build
 
 CMD ["./tmp/main"]
 

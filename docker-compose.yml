@@ -10,6 +10,7 @@ services:
       POSTGRES_DB: typing
       POSTGRES_USER: typing
       POSTGRES_PASSWORD: password
+
   server_dev:
     profiles:
       - dev
@@ -25,7 +26,11 @@ services:
       - PORT=8080
     ports:
       - 8080:8080
-    command: air
+    command: /bin/bash -c
+      "make clean
+      && make seed
+      && make develop"
+
   frontend_dev:
     profiles:
       - dev
@@ -45,6 +50,7 @@ services:
     volumes:
       - ./frontend:/home/node/app
     command: yarn dev
+
   server_build:
     profiles:
       - build
@@ -58,6 +64,7 @@ services:
     ports:
       - 8080:8080
     command: ./tmp/main
+
   frontend_build:
     profiles:
       - build
