@@ -3,6 +3,7 @@ package controllers
 import (
 	custom_errors "10-typing/errors"
 	"10-typing/models"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -111,16 +112,16 @@ func (u Users) CurrentUser(c *gin.Context) {
 func (u Users) AuthRequired(c *gin.Context) {
 	token, err := readCookie(c.Request, CookieSession)
 	if err != nil {
+		log.Println("Session cookie could not be read", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		c.Abort()
 		return
 	}
 
 	user, err := u.SessionService.User(token)
 
 	if user == nil || err != nil {
+		log.Println("User related to session cookie could not be found", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		c.Abort()
 		return
 	}
 

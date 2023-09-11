@@ -94,7 +94,7 @@ func main() {
 
 	// TEXTS
 	api.POST("/texts", userController.AuthRequired, textController.CreateText)
-	api.POST("/tests/:textid/rooms", userController.AuthRequired, roomController.CreateRoom)
+	api.POST("/texts/:textid/rooms", userController.AuthRequired, roomController.CreateRoom)
 	api.GET("/texts/:textid/rooms/:roomid/ws", userController.AuthRequired, roomController.ConnectToRoom)
 
 	router.Run()
