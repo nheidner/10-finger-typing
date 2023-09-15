@@ -71,22 +71,24 @@ export const useEnsureTextData = ({
   });
 
   useEffect(() => {
-    if (textData === null) {
-      const specialCharacters = getRandomNumberBetween(
-        specialCharactersGte,
-        specialCharactersLte
-      );
-      const numbers = getRandomNumberBetween(numbersGte, numbersLte);
-
-      mutateText({
-        query: {
-          specialCharacters,
-          numbers,
-          punctuation: usePunctuation,
-          language,
-        },
-      });
+    if (textData !== null) {
+      return;
     }
+
+    const specialCharacters = getRandomNumberBetween(
+      specialCharactersGte,
+      specialCharactersLte
+    );
+    const numbers = getRandomNumberBetween(numbersGte, numbersLte);
+
+    mutateText({
+      query: {
+        specialCharacters,
+        numbers,
+        punctuation: usePunctuation,
+        language,
+      },
+    });
   }, [
     textData,
     language,
@@ -98,10 +100,8 @@ export const useEnsureTextData = ({
     mutateText,
   ]);
 
-  console.log("newTextIsLoading :>> ", newTextIsLoading);
-  console.log("textIsLoading :>> ", textIsLoading);
   return {
     text: textData || newTextData,
-    isLoading: newTextIsLoading || textIsLoading,
+    isLoading: (newTextIsLoading || textIsLoading) && !textData, // newTextIsLoading might still be true while textData is not null or undefined
   };
 };

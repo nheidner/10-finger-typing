@@ -1,13 +1,9 @@
 import { ChangeEvent, FC, useEffect, useRef, useState } from "react";
 import { Text, User } from "@/types";
 import classNames from "classnames";
+import { UserData } from "../types";
 
 type LetterType = "correct" | "incorrect" | "notTyped";
-
-type UserData = {
-  user: User;
-  cursor: number;
-};
 
 export const Content: FC<{
   text: Text | null;

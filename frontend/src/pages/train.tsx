@@ -1,12 +1,13 @@
 import { DehydratedState, QueryClient, dehydrate } from "@tanstack/react-query";
 import { NextPage } from "next";
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import { TypingLanguage, User } from "@/types";
-import { Toggle } from "@/components/train/Toggle";
-import { Switch } from "@/components/train/Switch";
-import { getWsUrl } from "@/utils/get_api_url";
-import { Content } from "@/components/train/Content";
-import { useEnsureTextData } from "@/hooks/use_ensure_new_text";
+import { Toggle } from "@/modules/train/components/Toggle";
+import { Switch } from "@/modules/train/components/Switch";
+import { Content } from "@/modules/train/components/Content";
+import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
+import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
+import { UserData } from "@/modules/train/types";
 
 const specialCharactersOptions = {
   "0-4": "0-4",
@@ -28,18 +29,9 @@ const languageOptions: { [key in TypingLanguage]: string } = {
   fr: "French",
 };
 
-type LetterType = "correct" | "incorrect" | "notTyped";
-
-type UserData = {
-  user: User;
-  cursor: number;
-};
-
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
 }> = () => {
-  const webSocketRef = useRef<WebSocket | null>(null);
-
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
   );
@@ -77,64 +69,9 @@ const TrainPage: NextPage<{
     language,
   });
 
-  useEffect(() => {
-    const apiUrl = getWsUrl();
+  const roomId = "b4df1403-1599-48f1-9ea2-36dc4d97cfc0";
 
-    // runs after there is textData
-    if (textData?.id) {
-      const websocketUrl = `${apiUrl}/texts/${textData.id}/rooms/fa1c3fc5-a018-4d92-9c53-47ade506e1f0/ws`;
-      webSocketRef.current = new WebSocket(websocketUrl);
-
-      webSocketRef.current.onopen = () => {
-        const message = {
-          type: "user_added",
-        };
-        webSocketRef.current?.send(JSON.stringify(message));
-      };
-
-      webSocketRef.current.onmessage = (e) => {
-        type Message = {
-          user: User;
-          type: "user_added" | "cursor";
-          payload: { cursor: number } | null;
-        };
-
-        const message = JSON.parse(e.data) as Message;
-
-        switch (message.type) {
-          case "user_added":
-            setUserData((userData) => {
-              return {
-                ...userData,
-                [message.user.id]: { user: message.user, cursor: 0 },
-              };
-            });
-            break;
-          case "cursor":
-            setUserData((userData) => {
-              return {
-                ...userData,
-                [message.user.id]: {
-                  ...userData[message.user.id],
-                  cursor: message.payload?.cursor || 0,
-                },
-              };
-            });
-          default:
-            break;
-        }
-
-        console.log("message received: >>", JSON.parse(e.data));
-      };
-
-      webSocketRef.current.onclose = (e) => {
-        // console.log("connection closed: >>", e);
-      };
-    }
-    return () => {
-      webSocketRef.current?.close();
-    };
-  }, [textData?.id]);
+  const webSocketRef = useConnectToRoom(roomId, setUserData, textData);
 
   return (
     <>
