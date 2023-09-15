@@ -1,0 +1,107 @@
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createNewText,
+  getAuthenticatedUser,
+  getNewTextByUserid,
+} from "@/utils/queries";
+import { Text, TypingLanguage } from "@/types";
+
+const getRandomNumberBetween = (min: number, max: number) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+export const useEnsureTextData = ({
+  specialCharactersGte,
+  specialCharactersLte,
+  numbersGte,
+  numbersLte,
+  usePunctuation,
+  language,
+}: {
+  specialCharactersGte: number;
+  specialCharactersLte: number;
+  numbersGte: number;
+  numbersLte: number;
+  usePunctuation: boolean;
+  language: TypingLanguage;
+}): { text?: Text; isLoading: boolean } => {
+  const queryClient = useQueryClient();
+
+  const { data: authenticatedUserData } = useQuery({
+    queryKey: ["authenticatedUser"],
+    queryFn: () => getAuthenticatedUser(),
+    retry: false,
+  });
+
+  const { data: textData, isLoading: textIsLoading } = useQuery(
+    [
+      "text",
+      specialCharactersGte,
+      specialCharactersLte,
+      numbersGte,
+      numbersLte,
+      usePunctuation,
+      language,
+    ],
+    () =>
+      getNewTextByUserid(authenticatedUserData?.id as number, {
+        query: {
+          specialCharactersGte,
+          specialCharactersLte,
+          numbersGte,
+          numbersLte,
+          punctuation: usePunctuation,
+          language,
+        },
+      }),
+    { enabled: !!authenticatedUserData?.id }
+  );
+
+  const {
+    mutate: mutateText,
+    data: newTextData,
+    isLoading: newTextIsLoading,
+  } = useMutation({
+    mutationKey: ["create text"],
+    mutationFn: createNewText,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["text"] });
+    },
+  });
+
+  useEffect(() => {
+    if (textData === null) {
+      const specialCharacters = getRandomNumberBetween(
+        specialCharactersGte,
+        specialCharactersLte
+      );
+      const numbers = getRandomNumberBetween(numbersGte, numbersLte);
+
+      mutateText({
+        query: {
+          specialCharacters,
+          numbers,
+          punctuation: usePunctuation,
+          language,
+        },
+      });
+    }
+  }, [
+    textData,
+    language,
+    specialCharactersLte,
+    numbersLte,
+    usePunctuation,
+    specialCharactersGte,
+    numbersGte,
+    mutateText,
+  ]);
+
+  console.log("newTextIsLoading :>> ", newTextIsLoading);
+  console.log("textIsLoading :>> ", textIsLoading);
+  return {
+    text: textData || newTextData,
+    isLoading: newTextIsLoading || textIsLoading,
+  };
+};
