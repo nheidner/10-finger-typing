@@ -1,7 +1,7 @@
 import { DehydratedState, QueryClient, dehydrate } from "@tanstack/react-query";
 import { NextPage } from "next";
-import { ChangeEvent, useRef, useState } from "react";
-import { TypingLanguage, User } from "@/types";
+import { ChangeEvent, useState } from "react";
+import { TypingLanguage } from "@/types";
 import { Toggle } from "@/modules/train/components/Toggle";
 import { Switch } from "@/modules/train/components/Switch";
 import { Content } from "@/modules/train/components/Content";
@@ -9,24 +9,25 @@ import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
 import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
 import { UserData } from "@/modules/train/types";
 
-const specialCharactersOptions = {
-  "0-4": "0-4",
-  "5-9": "5-9",
-  "10-14": "10-14",
-  "15-19": "15-19",
+const specialCharactersOptions: { [value: string]: number[] | TypingLanguage } =
+  {
+    "0-4": [0, 4],
+    "5-9": [5, 9],
+    "10-14": [10, 14],
+    "15-19": [15, 19],
+  };
+
+const numeralOptions: { [value: string]: number[] | TypingLanguage } = {
+  "0-4": [0, 4],
+  "5-9": [5, 9],
+  "10-14": [10, 14],
+  "15-19": [15, 19],
 };
 
-const numeralOptions = {
-  "0-4": "0-4",
-  "5-9": "5-9",
-  "10-14": "10-14",
-  "15-19": "15-19",
-};
-
-const languageOptions: { [key in TypingLanguage]: string } = {
-  de: "German",
-  en: "English",
-  fr: "French",
+const languageOptions: { [value: string]: number[] | TypingLanguage } = {
+  English: "en",
+  German: "de",
+  French: "fr",
 };
 
 const TrainPage: NextPage<{
@@ -37,9 +38,7 @@ const TrainPage: NextPage<{
   );
   const [numerals, setNumerals] = useState(Object.keys(numeralOptions)[0]);
   const [usePunctuation, setUsePunctuation] = useState(false);
-  const [language, setLanguage] = useState(
-    Object.keys(languageOptions)[0] as TypingLanguage
-  );
+  const [language, setLanguage] = useState(Object.keys(languageOptions)[0]);
   const [userData, setUserData] = useState<{ [userId: number]: UserData }>({});
 
   const handleSpecialCharactersChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -52,13 +51,18 @@ const TrainPage: NextPage<{
     setUsePunctuation(!usePunctuation);
   };
   const handleLanguageChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setLanguage(e.target.value as TypingLanguage);
+    setLanguage(e.target.value);
   };
 
-  const specialCharactersGte = parseInt(specialCharacters.split("-")[0], 10);
-  const specialCharactersLte = parseInt(specialCharacters.split("-")[1], 10);
-  const numbersGte = parseInt(numerals.split("-")[0], 10);
-  const numbersLte = parseInt(numerals.split("-")[1], 10);
+  const specialCharactersGte = specialCharactersOptions[
+    specialCharacters
+  ][0] as number;
+  const specialCharactersLte = specialCharactersOptions[
+    specialCharacters
+  ][1] as number;
+  const numbersGte = numeralOptions[numerals][0] as number;
+  const numbersLte = numeralOptions[numerals][1] as number;
+  const lang = languageOptions[language] as TypingLanguage;
 
   const { text: textData, isLoading: textIsLoading } = useEnsureTextData({
     specialCharactersGte,
@@ -66,7 +70,7 @@ const TrainPage: NextPage<{
     numbersGte,
     numbersLte,
     usePunctuation,
-    language,
+    language: lang,
   });
 
   const roomId = "b4df1403-1599-48f1-9ea2-36dc4d97cfc0";
@@ -79,14 +83,14 @@ const TrainPage: NextPage<{
         <Toggle
           item="specialCharacters"
           label="Special Characters"
-          options={specialCharactersOptions}
+          options={Object.keys(specialCharactersOptions)}
           selectedValue={specialCharacters}
           handleChange={handleSpecialCharactersChange}
         />
         <Toggle
           item="numerals"
           label="Number of Numerals"
-          options={numeralOptions}
+          options={Object.keys(numeralOptions)}
           selectedValue={numerals}
           handleChange={handleNumeralsChange}
         />
@@ -99,7 +103,7 @@ const TrainPage: NextPage<{
         <Toggle
           item="languages"
           label="Languages"
-          options={languageOptions}
+          options={Object.keys(languageOptions)}
           selectedValue={language}
           handleChange={handleLanguageChange}
         />
