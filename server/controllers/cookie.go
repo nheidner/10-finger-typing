@@ -6,9 +6,7 @@ import (
 	"net/http"
 )
 
-const (
-	CookieSession = "SID"
-)
+const CookieSession = "SID"
 
 func newCookie(name, value string) *http.Cookie {
 	cookie := http.Cookie{

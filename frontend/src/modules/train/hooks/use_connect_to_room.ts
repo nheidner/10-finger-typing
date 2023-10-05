@@ -27,7 +27,7 @@ export const useConnectToRoom = (
 
     const apiUrl = getWsUrl();
 
-    const websocketUrl = `${apiUrl}/texts/${textData.id}/rooms/${roomId}/ws`;
+    const websocketUrl = `${apiUrl}/rooms/${roomId}/ws?textId=${textData.id}`;
     webSocketRef.current = new WebSocket(websocketUrl);
 
     webSocketRef.current.onopen = () => {
