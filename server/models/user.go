@@ -63,6 +63,16 @@ func (us UserService) FindUsers(query FindUsersQuery) ([]User, error) {
 	return users, nil
 }
 
+func (us *UserService) FindByEmail(email string) (*User, error) {
+	var user User
+
+	if err := us.DB.Where("email = ?", email).Find(&user).Error; err != nil || user.Email == "" {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func (us UserService) FindOneById(id uint) (*User, error) {
 	var user User
 	result := us.DB.First(&user, id)

@@ -46,8 +46,14 @@ func main() {
 	roomService := models.RoomService{
 		DB: models.DB,
 	}
+	tokenService := models.TokenService{
+		DB: models.DB,
+	}
 	openAiService := models.OpenAiService{
 		ApiKey: os.Getenv("OPENAI_API_KEY"),
+	}
+	emailTransactionService := models.EmailTransactionService{
+		ApiKey: os.Getenv("POSTMARK_API_KEY"),
 	}
 
 	// Setup our controllers
@@ -63,7 +69,10 @@ func main() {
 		OpenAiService: &openAiService,
 	}
 	roomController := controllers.Rooms{
-		RoomService: &roomService,
+		RoomService:             &roomService,
+		TokenService:            &tokenService,
+		UserService:             &userService,
+		EmailTransactionService: &emailTransactionService,
 	}
 
 	api := router.Group("/api")
@@ -81,6 +90,7 @@ func main() {
 	api.GET("/users/:userid", userController.AuthRequired, userController.FindUser)
 	api.GET("/users/:userid/scores", userController.AuthRequired, scoreController.FindScoresByUser)
 	api.POST("/users/:userid/scores", userController.AuthRequired, userController.UserIdUrlParamMatchesAuthorizedUser, scoreController.CreateScore)
+	// why use the userId here -> without a user id the middleware function UserIdUrlParamMatchesAuthorizedUser would be unnecessary
 	api.GET("/users/:userid/text", userController.AuthRequired, userController.UserIdUrlParamMatchesAuthorizedUser, textController.FindText)
 	api.POST("/users", userController.CreateUser)
 
@@ -94,8 +104,10 @@ func main() {
 
 	// TEXTS
 	api.POST("/texts", userController.AuthRequired, textController.CreateText)
-	api.POST("/texts/:textid/rooms", userController.AuthRequired, roomController.CreateRoom)
-	api.GET("/texts/:textid/rooms/:roomid/ws", userController.AuthRequired, roomController.ConnectToRoom)
+
+	// ROOMS
+	api.GET("/rooms/:roomid/ws", userController.AuthRequired, roomController.ConnectToRoom)
+	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
 
 	router.Run()
 }

@@ -1,57 +1,97 @@
 package controllers
 
 import (
-	custom_errors "10-typing/errors"
 	"10-typing/models"
 	"fmt"
-	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func (r Rooms) CreateRoom(c *gin.Context) {
+func (r *Rooms) CreateRoom(c *gin.Context) {
 	var input models.CreateRoomInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		fmt.Println("Error processing HTTP body:", err)
+
+	user, err := processCreateRoomHTTPParams(c, &input)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userContext, _ := c.Get("user")
-	user, ok := userContext.(*models.User)
-	if !ok {
-		log.Println("Could not read user from route context")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "error getting user from context"})
+	tx := r.RoomService.DB.Begin()
+
+	var newRoomUsers []models.NewRoomUser
+
+	for _, newRoomUser := range input.NewRoomUsers {
+		user, err := r.UserService.FindByEmail(newRoomUser.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			return
+		}
+
+		if user == nil {
+			newRoomUsers = append(newRoomUsers, newRoomUser)
+			continue
+		}
+
+		input.UserIds = append(input.UserIds, user.ID)
+	}
+
+	// create room
+	room, err := r.RoomService.Create(tx, input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		tx.Rollback()
 		return
+	}
+
+	// create tokens and send invites to non registered users
+	for _, newRoomUser := range newRoomUsers {
+		token, err := r.TokenService.Create(tx, room.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			tx.Rollback()
+		}
+
+		err = r.EmailTransactionService.InviteNewUserToRoom(newRoomUser.Email, newRoomUser.Name, token.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			tx.Rollback()
+		}
+	}
+
+	// send invites to registered users
+	for _, roomSubscriber := range room.Subscribers {
+		if roomSubscriber.ID == user.ID {
+			continue
+		}
+
+		err = r.EmailTransactionService.InviteUserToRoom(roomSubscriber.Email, roomSubscriber.Username)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			tx.Rollback()
+		}
+	}
+
+	tx.Commit()
+
+	c.JSON(http.StatusOK, gin.H{"data": room})
+}
+
+func processCreateRoomHTTPParams(c *gin.Context, input *models.CreateRoomInput) (*models.User, error) {
+	userContext, _ := c.Get("user")
+	user, _ := userContext.(*models.User)
+
+	if err := c.ShouldBindJSON(input); err != nil {
+		return nil, fmt.Errorf("error processing HTTP body: %w", err)
 	}
 
 	for _, userId := range input.UserIds {
 		if userId == user.ID {
-			log.Println("You cannot create a room for yourself with yourself")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "you cannot create a room for yourself with yourself"})
-			return
+			return nil, fmt.Errorf("you cannot create a room for yourself with yourself")
 		}
 	}
 
-	textIdUrlParam := c.Param("textid")
-	textId, err := strconv.ParseUint(textIdUrlParam, 10, 0)
-	if err != nil {
-		log.Println("Error parsing the text id:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "error parsing the text id"})
-		return
-	}
-
-	input.TextId = uint(textId)
 	input.UserIds = append(input.UserIds, user.ID)
 
-	room, err := r.RoomService.Create(input)
-	if err != nil {
-		log.Println("Error creating room:", err)
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": room})
+	return user, nil
 }

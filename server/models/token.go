@@ -11,15 +11,19 @@ type Token struct {
 	ID        uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	CreatedAt time.Time       `json:"createdAt"`
 	DeletedAt *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	Rooms     []*Room         `json:"-" gorm:"many2many:room_tokens"`
+	Room      Room            `json:"-"`
+	RoomID    uuid.UUID       `json:"-"`
+	IsUsed    bool            `json:"-"`
 }
 
 type TokenService struct {
 	DB *gorm.DB
 }
 
-func (ts *TokenService) Create(tx *gorm.DB) (*Token, error) {
-	var token Token
+func (ts *TokenService) Create(tx *gorm.DB, roomId uuid.UUID) (*Token, error) {
+	token := Token{
+		RoomID: roomId,
+	}
 
 	db := ts.getDbOrTx(tx)
 
@@ -28,6 +32,10 @@ func (ts *TokenService) Create(tx *gorm.DB) (*Token, error) {
 	}
 
 	return &token, nil
+}
+
+func (ts *TokenService) FindById(id uuid.UUID) (*Token, error) {
+	return nil, nil
 }
 
 func (ts *TokenService) getDbOrTx(tx *gorm.DB) *gorm.DB {
