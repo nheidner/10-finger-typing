@@ -107,10 +107,15 @@ export const getScoresByUsername = async (
   username: string,
   { cookie, sortBy }: { cookie?: string; sortBy?: string[] }
 ) => {
-  const queryParams = sortBy
-    ?.map((sortByValue) => `sort_by=${encodeURIComponent(sortByValue)}`)
-    .concat(`username=${encodeURIComponent(username)}`)
-    .join("&");
+  const sortByQueryParams = sortBy?.map(
+    (sortByValue) => `sort_by=${encodeURIComponent(sortByValue)}`
+  );
+
+  const queryParams = [
+    `username=${encodeURIComponent(username)}`,
+    ...(sortByQueryParams || []),
+  ].join("&");
+
   const queryString = queryParams ? `?${queryParams}` : "";
 
   const headers = cookie ? { cookie } : undefined;

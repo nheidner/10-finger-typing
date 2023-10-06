@@ -24,7 +24,7 @@ ProfilePage.getInitialProps = async (ctx) => {
   await queryClient.prefetchQuery(["user", username], () =>
     getUserByUsername(username, cookie)
   );
-  await queryClient.prefetchQuery(["score", username], () =>
+  await queryClient.prefetchQuery(["score", username, "recent"], () =>
     getScoresByUsername(username, { cookie })
   );
 
