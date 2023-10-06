@@ -32,7 +32,7 @@ export const useEnsureTextData = ({
 
   const { data: authenticatedUserData } = useQuery({
     queryKey: ["authenticatedUser"],
-    queryFn: () => getAuthenticatedUser(),
+    queryFn: getAuthenticatedUser,
     retry: false,
   });
 

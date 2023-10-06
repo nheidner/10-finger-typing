@@ -62,17 +62,6 @@ export const createNewText = async ({
   cookie?: string;
   query: TextParams;
 }) => {
-  // const body = Object.entries(query).reduce((acc, [key, value]) => {
-  //   if (value === undefined) {
-  //     return acc;
-  //   }
-
-  //   const queryParamKey = key.replace("Gte", "[gte]").replace("Lte", "[lte]");
-  //   acc[queryParamKey] = value;
-
-  //   return acc;
-  // }, {} as { [key: string]: number | boolean | TypingLanguage });
-
   const headers = cookie ? { cookie } : undefined;
 
   return fetchApi<Text>(`/texts`, {
@@ -101,6 +90,19 @@ export const getUserByUsername = async (username: string, cookie?: string) => {
 
   const users = await fetchApi<User[]>(`/users${queryString}`, { headers });
   return users[0];
+};
+
+export const getUsersByUsernamePartial = async (
+  usernamePartial: string,
+  cookie?: string
+) => {
+  const queryString = usernamePartial
+    ? `?username_contains=${encodeURIComponent(usernamePartial)}`
+    : "";
+
+  const headers = cookie ? { cookie } : undefined;
+
+  return fetchApi<User[]>(`/users${queryString}`, { headers });
 };
 
 export const getScoresByUsername = async (
