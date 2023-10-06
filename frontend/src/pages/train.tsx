@@ -34,7 +34,8 @@ const languageOptions: { [value: string]: number[] | TypingLanguage } = {
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
 }> = () => {
-  const [modalIsOpen, setModalOpen] = useState(false);
+  const [newRoomUsers, setNewUsers] = useState<string[]>([]);
+  const [newRoomModalIsOpen, setNewRoomModalOpen] = useState(false);
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
   );
@@ -54,6 +55,9 @@ const TrainPage: NextPage<{
   };
   const handleLanguageChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setLanguage(e.target.value);
+  };
+  const handleSelectNewRoomUser = (user: string) => {
+    setNewUsers((users) => users.concat(user));
   };
 
   const specialCharactersGte = specialCharactersOptions[
@@ -112,12 +116,17 @@ const TrainPage: NextPage<{
         <button
           type="button"
           className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          onClick={() => setModalOpen(true)}
+          onClick={() => setNewRoomModalOpen(true)}
         >
           Invite
         </button>
       </section>
-      <InviteModal isOpen={modalIsOpen} setOpen={setModalOpen} />
+      <InviteModal
+        isOpen={newRoomModalIsOpen}
+        setOpen={setNewRoomModalOpen}
+        handleSelectNewRoomUser={handleSelectNewRoomUser}
+        newRoomUsers={newRoomUsers}
+      />
       <Content
         isLoading={textIsLoading}
         text={textData || null}

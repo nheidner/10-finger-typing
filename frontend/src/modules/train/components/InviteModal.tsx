@@ -4,19 +4,16 @@ import { CheckIcon } from "@heroicons/react/20/solid";
 import classNames from "classnames";
 import { useDebouncedUserSearchByUsernamePartial } from "../hooks/use_debounced_user_search_by_username_partial.ts";
 
-const UsernameAutoComplete = () => {
-  const [newRoomUsers, setNewUsers] = useState<string[]>([]);
-
+const UsernameAutoComplete: FC<{
+  newRoomUsers: string[];
+  handleSelectNewRoomUser: (user: string) => void;
+}> = ({ newRoomUsers, handleSelectNewRoomUser }) => {
   const { users, handleUsernamePartialChange } =
     useDebouncedUserSearchByUsernamePartial();
 
-  const handleSelectUser = (user: string) => {
-    setNewUsers((users) => users.concat(user));
-  };
-
   return (
     <>
-      <Combobox as="div" value="" onChange={handleSelectUser}>
+      <Combobox as="div" value="" onChange={handleSelectNewRoomUser}>
         <div className="relative mt-2">
           <Combobox.Input
             className="w-full rounded-md border-0 bg-white py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 placeholder:italic"
@@ -79,7 +76,9 @@ const UsernameAutoComplete = () => {
 export const InviteModal: FC<{
   isOpen: boolean;
   setOpen: (open: boolean) => void;
-}> = ({ isOpen, setOpen }) => {
+  newRoomUsers: string[];
+  handleSelectNewRoomUser: (user: string) => void;
+}> = ({ isOpen, setOpen, newRoomUsers, handleSelectNewRoomUser }) => {
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={setOpen}>
@@ -107,7 +106,10 @@ export const InviteModal: FC<{
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
               <Dialog.Panel className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
-                <UsernameAutoComplete />
+                <UsernameAutoComplete
+                  newRoomUsers={newRoomUsers}
+                  handleSelectNewRoomUser={handleSelectNewRoomUser}
+                />
               </Dialog.Panel>
             </Transition.Child>
           </div>
