@@ -9,27 +9,11 @@ import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
 import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
 import { UserData } from "@/modules/train/types";
 import { InviteModal } from "@/modules/train/components/InviteModal";
-
-const specialCharactersOptions: { [value: string]: number[] | TypingLanguage } =
-  {
-    "0-4": [0, 4],
-    "5-9": [5, 9],
-    "10-14": [10, 14],
-    "15-19": [15, 19],
-  };
-
-const numeralOptions: { [value: string]: number[] | TypingLanguage } = {
-  "0-4": [0, 4],
-  "5-9": [5, 9],
-  "10-14": [10, 14],
-  "15-19": [15, 19],
-};
-
-const languageOptions: { [value: string]: number[] | TypingLanguage } = {
-  English: "en",
-  German: "de",
-  French: "fr",
-};
+import {
+  languageOptions,
+  numeralOptions,
+  specialCharactersOptions,
+} from "@/modules/train/constants";
 
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
