@@ -37,7 +37,8 @@ type LoginUserInput struct {
 }
 
 type FindUsersQuery struct {
-	Username string `form:"username"`
+	Username    string `form:"username"`
+	UsernameSub string `form:"username_contains"`
 }
 
 type UserService struct {
@@ -52,6 +53,10 @@ func (us UserService) FindUsers(query FindUsersQuery) ([]User, error) {
 
 	if query.Username != "" {
 		findUsersDbQuery = findUsersDbQuery.Where("username = ?", query.Username)
+	}
+
+	if query.UsernameSub != "" {
+		findUsersDbQuery = findUsersDbQuery.Where("username ILIKE ?", "%"+query.UsernameSub+"%")
 	}
 
 	findUsersDbQuery.Find(&users)
