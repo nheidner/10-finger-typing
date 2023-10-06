@@ -1,32 +1,17 @@
-import { ChangeEvent, FC, Fragment, useRef, useState } from "react";
+import { FC, Fragment, useState } from "react";
 import { Dialog, Transition, Combobox } from "@headlessui/react";
 import { CheckIcon } from "@heroicons/react/20/solid";
 import classNames from "classnames";
-import { useQuery } from "@tanstack/react-query";
-import { getUsersByUsernamePartial } from "@/utils/queries";
-import { debounce } from "@/utils/debounce";
+import { useDebouncedUserSearchByUsernamePartial } from "../hooks/use_debounced_user_search_by_username_partial.ts";
 
 const UsernameAutoComplete = () => {
-  const [queryKey, setQueryKey] = useState("");
-  const [users, setUsers] = useState<string[]>([]);
+  const [newRoomUsers, setNewUsers] = useState<string[]>([]);
 
-  const debouncedSetQueryKeyRef = useRef(debounce<void>(setQueryKey, 300));
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { value } = event.target;
-
-    debouncedSetQueryKeyRef.current(value);
-  };
-
-  const { data } = useQuery({
-    queryKey: ["users", "username_contains", queryKey],
-    queryFn: () => getUsersByUsernamePartial(queryKey),
-    retry: false,
-    enabled: !!queryKey,
-  });
+  const { users, handleUsernamePartialChange } =
+    useDebouncedUserSearchByUsernamePartial();
 
   const handleSelectUser = (user: string) => {
-    setUsers((users) => users.concat(user));
+    setNewUsers((users) => users.concat(user));
   };
 
   return (
@@ -35,12 +20,12 @@ const UsernameAutoComplete = () => {
         <div className="relative mt-2">
           <Combobox.Input
             className="w-full rounded-md border-0 bg-white py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 placeholder:italic"
-            onChange={handleChange}
+            onChange={handleUsernamePartialChange}
             placeholder="type in username or email address .."
           />
-          {data && data.length > 0 && (
+          {users && users.length > 0 && (
             <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-              {data.map(({ username }) => (
+              {users.map(({ username }) => (
                 <Combobox.Option
                   key={username}
                   value={username}
@@ -83,7 +68,7 @@ const UsernameAutoComplete = () => {
         </div>
       </Combobox>
       <div>
-        {users.map((user) => {
+        {newRoomUsers.map((user) => {
           return <p key={user}>{user}</p>;
         })}
       </div>
