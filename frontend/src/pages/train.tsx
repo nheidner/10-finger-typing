@@ -8,6 +8,7 @@ import { Content } from "@/modules/train/components/Content";
 import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
 import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
 import { UserData } from "@/modules/train/types";
+import { InviteModal } from "@/modules/train/components/InviteModal";
 
 const specialCharactersOptions: { [value: string]: number[] | TypingLanguage } =
   {
@@ -33,6 +34,7 @@ const languageOptions: { [value: string]: number[] | TypingLanguage } = {
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
 }> = () => {
+  const [modalIsOpen, setModalOpen] = useState(false);
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
   );
@@ -79,7 +81,7 @@ const TrainPage: NextPage<{
 
   return (
     <>
-      <section className="flex gap-10 justify-center">
+      <section className="flex gap-10 justify-center items-center">
         <Toggle
           item="specialCharacters"
           label="Special Characters"
@@ -107,7 +109,15 @@ const TrainPage: NextPage<{
           selectedValue={language}
           handleChange={handleLanguageChange}
         />
+        <button
+          type="button"
+          className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+          onClick={() => setModalOpen(true)}
+        >
+          Invite
+        </button>
       </section>
+      <InviteModal isOpen={modalIsOpen} setOpen={setModalOpen} />
       <Content
         isLoading={textIsLoading}
         text={textData || null}

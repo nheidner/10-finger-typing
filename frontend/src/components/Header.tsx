@@ -105,7 +105,7 @@ export const Header = () => {
         className="flex items-center justify-between gap-x-6 py-6"
         aria-label="Global"
       >
-        <div className="hidden lg:flex lg:gap-x-12">
+        <div className="flex gap-x-12">
           {userIsLoggedIn
             ? navigation.map((item) => (
                 <Link
