@@ -7,12 +7,8 @@ export const useDebouncedUserSearchByUsernamePartial = () => {
   const [queryKey, setQueryKey] = useState("");
   const debouncedSetQueryKeyRef = useRef(debounce<void>(setQueryKey, 300));
 
-  const handleUsernamePartialChange = (
-    event: ChangeEvent<HTMLInputElement>
-  ) => {
-    const { value } = event.target;
-
-    debouncedSetQueryKeyRef.current(value);
+  const handleUsernamePartialChange = (usernamePartial: string) => {
+    debouncedSetQueryKeyRef.current(usernamePartial);
   };
 
   const { data } = useQuery({
@@ -24,6 +20,6 @@ export const useDebouncedUserSearchByUsernamePartial = () => {
 
   return {
     users: data,
-    handleUsernamePartialChange,
+    debouncedFetchUsers: handleUsernamePartialChange,
   };
 };

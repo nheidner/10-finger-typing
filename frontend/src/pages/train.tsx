@@ -18,7 +18,6 @@ import {
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
 }> = () => {
-  const [newRoomUsers, setNewUsers] = useState<string[]>([]);
   const [newRoomModalIsOpen, setNewRoomModalOpen] = useState(false);
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
@@ -39,9 +38,6 @@ const TrainPage: NextPage<{
   };
   const handleLanguageChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setLanguage(e.target.value);
-  };
-  const handleSelectNewRoomUser = (user: string) => {
-    setNewUsers((users) => users.concat(user));
   };
 
   const specialCharactersGte = specialCharactersOptions[
@@ -105,12 +101,7 @@ const TrainPage: NextPage<{
           Invite
         </button>
       </section>
-      <InviteModal
-        isOpen={newRoomModalIsOpen}
-        setOpen={setNewRoomModalOpen}
-        handleSelectNewRoomUser={handleSelectNewRoomUser}
-        newRoomUsers={newRoomUsers}
-      />
+      <InviteModal isOpen={newRoomModalIsOpen} setOpen={setNewRoomModalOpen} />
       <Content
         isLoading={textIsLoading}
         text={textData || null}
