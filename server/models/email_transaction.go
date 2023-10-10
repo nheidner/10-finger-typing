@@ -10,8 +10,8 @@ type EmailTransactionService struct {
 	ApiKey string
 }
 
-func (es *EmailTransactionService) InviteNewUserToRoom(email, name string, token uuid.UUID) error {
-	fmt.Println("new user: email :", email, "name :", name)
+func (es *EmailTransactionService) InviteNewUserToRoom(email string, token uuid.UUID) error {
+	fmt.Println("new user: email :", email)
 	return nil
 }
 

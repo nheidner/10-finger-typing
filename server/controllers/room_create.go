@@ -19,17 +19,17 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 
 	tx := r.RoomService.DB.Begin()
 
-	var newRoomUsers []models.NewRoomUser
+	var emails []string
 
-	for _, newRoomUser := range input.NewRoomUsers {
-		user, err := r.UserService.FindByEmail(newRoomUser.Email)
+	for _, email := range input.Emails {
+		user, err := r.UserService.FindByEmail(email)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			return
 		}
 
 		if user == nil {
-			newRoomUsers = append(newRoomUsers, newRoomUser)
+			emails = append(emails, email)
 			continue
 		}
 
@@ -45,14 +45,14 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 	}
 
 	// create tokens and send invites to non registered users
-	for _, newRoomUser := range newRoomUsers {
+	for _, email := range emails {
 		token, err := r.TokenService.Create(tx, room.ID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			tx.Rollback()
 		}
 
-		err = r.EmailTransactionService.InviteNewUserToRoom(newRoomUser.Email, newRoomUser.Name, token.ID)
+		err = r.EmailTransactionService.InviteNewUserToRoom(email, token.ID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			tx.Rollback()

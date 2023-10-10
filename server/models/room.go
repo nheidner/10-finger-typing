@@ -23,15 +23,10 @@ type FindRoomQuery struct {
 	TextId string `form:"textId" binding:"required"`
 }
 
-type NewRoomUser struct {
-	Email string `json:"email" binding:"email"`
-	Name  string `json:"name"`
-}
-
 type CreateRoomInput struct {
-	UserIds      []uint        `json:"userIds"`
-	NewRoomUsers []NewRoomUser `json:"newRoomUsers"`
-	TextIds      []uint        `json:"textIds"`
+	UserIds []uint   `json:"userIds"`
+	Emails  []string `json:"emails" binding:"dive,email"`
+	TextIds []uint   `json:"textIds"`
 }
 
 type RoomService struct {
