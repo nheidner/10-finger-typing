@@ -106,30 +106,54 @@ const UsernameAutoComplete: FC<{
   );
 };
 
-const UserList: FC<{ newRoomUsers: Partial<User>[] }> = ({ newRoomUsers }) => {
+const UserList: FC<{
+  newRoomUsers: Partial<User>[];
+  removeNewRoomUser: (i: number) => void;
+}> = ({ newRoomUsers, removeNewRoomUser }) => {
+  if (!newRoomUsers.length) {
+    return null;
+  }
+
   return (
-    <ul className="grid gap-6 grid-cols-3">
-      {newRoomUsers.map((newRoomUser) => {
+    <ul className="grid gap-y-6 grid-cols-3 mb-8">
+      {newRoomUsers.map((newRoomUser, i) => {
         const userString = newRoomUser.username || newRoomUser.email;
+        const hasUsername = !!newRoomUser.username;
+
+        const handleRemoveNewRoomUser = () => {
+          removeNewRoomUser(i);
+        };
 
         return (
-          <li key={userString} className="">
+          <li
+            key={userString}
+            className="flex flex-col items-center w-full group relative"
+          >
             <Avatar
               user={newRoomUser}
               textClassName="text-4xl"
               containerClassName="w-24 h-24"
             />
-
-            {/* <div className="flex justify-between items-center">
-              {user.isEmail ? (
-                <div>{user.userString}</div>
-              ) : (
-                <Link href={`/${user.userString}`} target="_blank">
-                  {user.userString}
+            <span className="text-center block text-xs mt-1 w-full overflow-hidden px-1">
+              {hasUsername ? (
+                <Link
+                  href={`/${userString}`}
+                  target="_blank"
+                  className="hover:underline"
+                >
+                  {userString}
                 </Link>
+              ) : (
+                userString
               )}
-              <XMarkIcon className="h-5 w-5 text-red-700" />
-            </div> */}
+            </span>
+            <button
+              onClick={handleRemoveNewRoomUser}
+              type="button"
+              className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150 rounded bg-white px-2 py-1 text-sm font-semibold text-red-700 shadow-sm ring-1 ring-inset ring-red-700 hover:bg-gray-50"
+            >
+              remove
+            </button>
           </li>
         );
       })}
@@ -137,14 +161,15 @@ const UserList: FC<{ newRoomUsers: Partial<User>[] }> = ({ newRoomUsers }) => {
   );
 };
 
-export const InviteModal: FC<{
-  isOpen: boolean;
-  setOpen: (open: boolean) => void;
-}> = ({ isOpen, setOpen }) => {
+const InvitePanel: FC = () => {
   const [newRoomUsers, setNewRoomUsers] = useState<Partial<User>[]>([]);
 
   const addNewRoomUser = (user: Partial<User>) => {
     setNewRoomUsers((users) => users.concat(user));
+  };
+
+  const removeNewRoomUser = (idx: number) => {
+    setNewRoomUsers((prevUsers) => prevUsers.filter((_, i) => i !== idx));
   };
 
   const newRoomUsersDisplaySet = useMemo(
@@ -157,6 +182,34 @@ export const InviteModal: FC<{
     [newRoomUsers]
   );
 
+  return (
+    <Transition.Child
+      as={Fragment}
+      enter="ease-out duration-50"
+      enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+      enterTo="opacity-100 translate-y-0 sm:scale-100"
+      leave="ease-out duration-20"
+      leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+      leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+    >
+      <Dialog.Panel className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-[31.25rem] sm:p-6">
+        <UserList
+          newRoomUsers={newRoomUsers}
+          removeNewRoomUser={removeNewRoomUser}
+        />
+        <UsernameAutoComplete
+          addNewRoomUser={addNewRoomUser}
+          newRoomUsersDisplaySet={newRoomUsersDisplaySet}
+        />
+      </Dialog.Panel>
+    </Transition.Child>
+  );
+};
+
+export const InviteModal: FC<{
+  isOpen: boolean;
+  setOpen: (open: boolean) => void;
+}> = ({ isOpen, setOpen }) => {
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={setOpen}>
@@ -174,23 +227,7 @@ export const InviteModal: FC<{
 
         <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-50"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-out duration-20"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            >
-              <Dialog.Panel className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6">
-                <UserList newRoomUsers={newRoomUsers} />
-                <UsernameAutoComplete
-                  addNewRoomUser={addNewRoomUser}
-                  newRoomUsersDisplaySet={newRoomUsersDisplaySet}
-                />
-              </Dialog.Panel>
-            </Transition.Child>
+            <InvitePanel />
           </div>
         </div>
       </Dialog>
