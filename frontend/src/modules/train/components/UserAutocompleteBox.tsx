@@ -1,12 +1,16 @@
 import { ChangeEvent, FC, useState } from "react";
 import { Combobox } from "@headlessui/react";
-import { PlusCircleIcon } from "@heroicons/react/20/solid";
+import { EnvelopeIcon, PlusIcon } from "@heroicons/react/20/solid";
 import classNames from "classnames";
 import { useDebouncedUserSearchByUsernamePartial } from "../hooks/use_debounced_user_search_by_username_partial.ts";
 import isEmail from "validator/lib/isEmail";
 import { User } from "@/types";
+import { Avatar } from "@/components/Avatar";
 
-const Option: FC<{ user: Partial<User> }> = ({ user }) => {
+const Option: FC<{ user: Partial<User>; isEmail?: boolean }> = ({
+  user,
+  isEmail,
+}) => {
   const userDisplay = user.username || user.email;
 
   return (
@@ -20,19 +24,35 @@ const Option: FC<{ user: Partial<User> }> = ({ user }) => {
         )
       }
     >
-      {({ active }) => (
-        <div className="flex justify-between items-center">
-          <div className="flex justify-start items-center">
-            <span className="truncate">{userDisplay}</span>
-          </div>
-          <PlusCircleIcon
+      {({ active }) => {
+        const leadingIcon = isEmail ? (
+          <EnvelopeIcon
             className={classNames(
-              "h-4 w-4",
+              "h-6 w-6 mr-2",
               active ? "text-white" : "text-indigo-600"
             )}
           />
-        </div>
-      )}
+        ) : (
+          <Avatar
+            user={user}
+            textClassName="text-xs"
+            containerClassName="h-6 w-6 mr-2"
+          />
+        );
+
+        return (
+          <div className="flex justify-between items-center">
+            {leadingIcon}
+            <span className="truncate flex-1">{userDisplay}</span>
+            <PlusIcon
+              className={classNames(
+                "h-4 w-4",
+                active ? "text-white" : "text-indigo-600"
+              )}
+            />
+          </div>
+        );
+      }}
     </Combobox.Option>
   );
 };
@@ -70,7 +90,7 @@ export const UserAutocompleteBox: FC<{
   const showOptions = showFirstOption || showUsernameOptions;
 
   const firstOption = showFirstOption ? (
-    <Option user={{ email: input }} key={0} />
+    <Option user={{ email: input }} key={0} isEmail />
   ) : null;
 
   const usernameOptions = showUsernameOptions
