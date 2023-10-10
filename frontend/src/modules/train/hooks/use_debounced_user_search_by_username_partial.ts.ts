@@ -3,9 +3,13 @@ import { getUsersByUsernamePartial } from "@/utils/queries";
 import { useQuery } from "@tanstack/react-query";
 import { ChangeEvent, useRef, useState } from "react";
 
-export const useDebouncedUserSearchByUsernamePartial = () => {
+export const useDebouncedUserSearchByUsernamePartial = (
+  debounceTime: number
+) => {
   const [queryKey, setQueryKey] = useState("");
-  const debouncedSetQueryKeyRef = useRef(debounce<void>(setQueryKey, 300));
+  const debouncedSetQueryKeyRef = useRef(
+    debounce<void>(setQueryKey, debounceTime)
+  );
 
   const handleUsernamePartialChange = (usernamePartial: string) => {
     debouncedSetQueryKeyRef.current(usernamePartial);
@@ -16,6 +20,7 @@ export const useDebouncedUserSearchByUsernamePartial = () => {
     queryFn: () => getUsersByUsernamePartial(queryKey),
     retry: false,
     enabled: !!queryKey,
+    keepPreviousData: true,
   });
 
   return {
