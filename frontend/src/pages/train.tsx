@@ -14,6 +14,7 @@ import {
   numeralOptions,
   specialCharactersOptions,
 } from "@/modules/train/constants";
+import { useRouter } from "next/router";
 
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
@@ -59,9 +60,12 @@ const TrainPage: NextPage<{
     language: lang,
   });
 
-  const roomId = "b4df1403-1599-48f1-9ea2-36dc4d97cfc0";
+  const router = useRouter();
+  const { roomId } = router.query as {
+    roomId?: string;
+  };
 
-  const webSocketRef = useConnectToRoom(roomId, setUserData, textData);
+  const webSocketRef = useConnectToRoom(setUserData, roomId, textData);
 
   return (
     <>

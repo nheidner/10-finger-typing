@@ -10,18 +10,18 @@ type Message = {
 };
 
 export const useConnectToRoom = (
-  roomId: string,
   setUserData: (
     value: SetStateAction<{
       [userId: number]: UserData;
     }>
   ) => void,
+  roomId?: string,
   textData?: Text
 ) => {
   const webSocketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!textData?.id) {
+    if (!textData?.id || !roomId) {
       return;
     }
 

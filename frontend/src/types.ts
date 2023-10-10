@@ -28,3 +28,7 @@ export interface Text {
   specialCharacters: number;
   numbers: number;
 }
+
+export interface Room {
+  id: number;
+}

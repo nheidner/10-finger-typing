@@ -1,5 +1,18 @@
-import { Score, Text, TypingLanguage, User } from "@/types";
+import { Room, Score, Text, TypingLanguage, User } from "@/types";
 import { fetchApi } from "./fetch";
+
+export type NewRoomParams = {
+  userIds: number[];
+  emails: string[];
+  textIds: number[];
+};
+
+export const createRoom = async ({ query }: { query: NewRoomParams }) => {
+  return fetchApi<Room>("/rooms", {
+    method: "POST",
+    body: JSON.stringify(query),
+  });
+};
 
 export const getAuthenticatedUser = async () => fetchApi<User>("/user");
 
