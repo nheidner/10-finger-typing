@@ -2,6 +2,7 @@ import { FC } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { User } from "@/types";
+import { Transition } from "@headlessui/react";
 
 export const UserList: FC<{
   newRoomUsers: Partial<User>[];
@@ -34,9 +35,18 @@ export const UserList: FC<{
         );
 
         return (
-          <li
+          <Transition
             key={userString}
             className="flex flex-col items-center w-full group relative"
+            as="li"
+            appear={true}
+            show={true}
+            enter="transition-opacity duration-150"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="transition-opacity duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
           >
             <Avatar
               user={newRoomUser}
@@ -53,7 +63,7 @@ export const UserList: FC<{
             >
               remove
             </button>
-          </li>
+          </Transition>
         );
       })}
     </ul>
