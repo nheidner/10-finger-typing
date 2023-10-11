@@ -1,61 +1,9 @@
 import { ChangeEvent, FC, useState } from "react";
 import { Combobox } from "@headlessui/react";
-import { EnvelopeIcon, PlusIcon } from "@heroicons/react/20/solid";
-import classNames from "classnames";
 import { useDebouncedUserSearchByUsernamePartial } from "../hooks/use_debounced_user_search_by_username_partial.ts";
 import isEmail from "validator/lib/isEmail";
 import { User } from "@/types";
-import { Avatar } from "@/components/Avatar";
-
-const Option: FC<{ user: Partial<User>; isEmail?: boolean }> = ({
-  user,
-  isEmail,
-}) => {
-  const userDisplay = user.username || user.email;
-
-  return (
-    <Combobox.Option
-      key={userDisplay}
-      value={user}
-      className={({ active }) =>
-        classNames(
-          "relative cursor-pointer select-none py-2 px-3",
-          active ? "bg-indigo-600 text-white" : "text-gray-900"
-        )
-      }
-    >
-      {({ active }) => {
-        const leadingIcon = isEmail ? (
-          <EnvelopeIcon
-            className={classNames(
-              "h-6 w-6 mr-2",
-              active ? "text-white" : "text-indigo-600"
-            )}
-          />
-        ) : (
-          <Avatar
-            user={user}
-            textClassName="text-xs"
-            containerClassName="h-6 w-6 mr-2"
-          />
-        );
-
-        return (
-          <div className="flex justify-between items-center">
-            {leadingIcon}
-            <span className="truncate flex-1">{userDisplay}</span>
-            <PlusIcon
-              className={classNames(
-                "h-4 w-4",
-                active ? "text-white" : "text-indigo-600"
-              )}
-            />
-          </div>
-        );
-      }}
-    </Combobox.Option>
-  );
-};
+import { AutocompleteOption } from "./AutocompleteOption";
 
 export const UserAutocompleteBox: FC<{
   addNewRoomUser: (user: Partial<User>) => void;
@@ -90,12 +38,12 @@ export const UserAutocompleteBox: FC<{
   const showOptions = showFirstOption || showUsernameOptions;
 
   const firstOption = showFirstOption ? (
-    <Option user={{ email: input }} key={0} isEmail />
+    <AutocompleteOption user={{ email: input }} key={0} isEmail />
   ) : null;
 
   const usernameOptions = showUsernameOptions
     ? suggestedUsers.map((suggestedUser) => (
-        <Option user={suggestedUser} key={suggestedUser.username} />
+        <AutocompleteOption user={suggestedUser} key={suggestedUser.username} />
       ))
     : null;
 
