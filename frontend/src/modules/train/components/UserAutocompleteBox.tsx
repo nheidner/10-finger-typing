@@ -21,6 +21,11 @@ export const UserAutocompleteBox: FC<{
     setInput(value);
   };
 
+  const handleOnChange = (user: Partial<User>) => {
+    setInput("");
+    addNewRoomUser(user);
+  };
+
   const isValidEmail = isEmail(input);
   const suggestedUsers = users?.filter(
     (suggestedUser) => !newRoomUsersDisplaySet.has(suggestedUser.username)
@@ -55,12 +60,13 @@ export const UserAutocompleteBox: FC<{
   ) : null;
 
   return (
-    <Combobox as="div" value={null} onChange={addNewRoomUser}>
+    <Combobox as="div" value={{ email: input }} onChange={handleOnChange}>
       <div className="relative mt-2">
         <Combobox.Input
           className="w-full rounded-md border-0 bg-white py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 placeholder:italic"
           onChange={handleInputChange}
           placeholder="type in username or email address .."
+          displayValue={(user: Partial<User>) => user.email || ""}
         />
         {options}
       </div>
