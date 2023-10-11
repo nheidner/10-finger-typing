@@ -39,9 +39,18 @@ const sanitizeNewRoomUsers = (
 export const InvitePanel: FC<{
   textId: string;
   closeModal: () => void;
-}> = ({ textId, closeModal }) => {
-  const [newRoomUsers, setNewRoomUsers] = useState<Partial<User>[]>([]);
-
+  newRoomUsers: Partial<User>[];
+  addNewRoomUser: (user: Partial<User>) => void;
+  removeNewRoomUser: (idx: number) => void;
+  removeNewRoomUsers: () => void;
+}> = ({
+  textId,
+  closeModal,
+  newRoomUsers,
+  addNewRoomUser,
+  removeNewRoomUser,
+  removeNewRoomUsers,
+}) => {
   const { data: authenticatedUserData } = useQuery({
     queryKey: ["authenticatedUser"],
     queryFn: getAuthenticatedUser,
@@ -59,19 +68,11 @@ export const InvitePanel: FC<{
         query: { ...router.query, roomId: data.id },
       });
 
-      setNewRoomUsers([]);
+      removeNewRoomUsers();
 
       closeModal();
     },
   });
-
-  const addNewRoomUser = (user: Partial<User>) => {
-    setNewRoomUsers((users) => users.concat(user));
-  };
-
-  const removeNewRoomUser = (idx: number) => {
-    setNewRoomUsers((prevUsers) => prevUsers.filter((_, i) => i !== idx));
-  };
 
   const handleCreateNewRoom = () => {
     const params = sanitizeNewRoomUsers(newRoomUsers, textId);
