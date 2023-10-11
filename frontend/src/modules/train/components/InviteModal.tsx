@@ -15,6 +15,10 @@ export const InviteModal: FC<{
     textId?: string;
   };
 
+  if (!textId) {
+    return null;
+  }
+
   const addNewRoomUser = (user: Partial<User>) => {
     setNewRoomUsers((users) => users.concat(user));
   };
@@ -26,10 +30,6 @@ export const InviteModal: FC<{
   const removeNewRoomUsers = () => {
     setNewRoomUsers([]);
   };
-
-  if (!textId) {
-    return null;
-  }
 
   const closeModal = () => setOpen(false);
 

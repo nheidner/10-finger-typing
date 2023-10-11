@@ -75,6 +75,18 @@ export const InvitePanel: FC<{
 
   const router = useRouter();
 
+  const newRoomUsersDisplaySet = useMemo(
+    () =>
+      new Set(
+        newRoomUsers.map(
+          (newRoomUser) => (newRoomUser.username || newRoomUser.email)!
+        )
+      )
+        .add(authenticatedUserData!.email)
+        .add(authenticatedUserData!.username),
+    [newRoomUsers, authenticatedUserData]
+  );
+
   const { mutate: createNewRoomMutate, isLoading: createRoomIsLoading } =
     useMutation({
       mutationKey: ["create room"],
@@ -102,21 +114,11 @@ export const InvitePanel: FC<{
     }
   };
 
-  const newRoomUsersDisplaySet = useMemo(
-    () =>
-      new Set(
-        newRoomUsers.map(
-          (newRoomUser) => (newRoomUser.username || newRoomUser.email)!
-        )
-      )
-        .add(authenticatedUserData!.email)
-        .add(authenticatedUserData!.username),
-    [newRoomUsers, authenticatedUserData]
-  );
-
   const panelHeight = `${
     (152 + Math.ceil(newRoomUsers.length / 3) * 148) / 16
   }rem`;
+
+  const submitButtonIsDisabled = !newRoomUsers.length;
 
   return (
     <Transition.Child
@@ -145,7 +147,7 @@ export const InvitePanel: FC<{
           />
           <div className="self-end mt-6 flex items-center">
             <LoadingSpinner isLoading={createRoomIsLoading} />
-            <SubmitButton isDisabled={!newRoomUsers.length}>
+            <SubmitButton isDisabled={submitButtonIsDisabled}>
               Create Room
             </SubmitButton>
           </div>

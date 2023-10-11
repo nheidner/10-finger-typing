@@ -27,7 +27,7 @@ export const UserAutocompleteBox: FC<{
     debouncedFetchUsers(value);
   };
 
-  const handleOnChange = (user: Partial<User>) => {
+  const handleOnComboboxChange = (user: Partial<User>) => {
     setInput("");
     addNewRoomUser(user);
   };
@@ -69,7 +69,11 @@ export const UserAutocompleteBox: FC<{
   ) : null;
 
   return (
-    <Combobox as="div" value={{ email: input }} onChange={handleOnChange}>
+    <Combobox
+      as="div"
+      value={{ email: input }}
+      onChange={handleOnComboboxChange}
+    >
       <div className="relative mt-2">
         <Combobox.Input
           className="w-full rounded-md border-0 bg-white py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
