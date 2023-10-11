@@ -28,6 +28,10 @@ func (u Users) FindUsers(c *gin.Context) {
 		return
 	}
 
+	userContext, _ := c.Get("user")
+	authenticatedUser, _ := userContext.(*models.User)
+	stripSensitiveUserInformation(users, authenticatedUser)
+
 	c.JSON(http.StatusOK, gin.H{"data": users})
 }
 
@@ -157,4 +161,17 @@ func (u Users) UserIdUrlParamMatchesAuthorizedUser(c *gin.Context) {
 	}
 
 	c.Next()
+}
+
+func stripSensitiveUserInformation(users []models.User, authenticatedUser *models.User) {
+	for i := range users {
+		if authenticatedUser != nil && users[i].ID == authenticatedUser.ID {
+			continue
+		}
+
+		users[i].FirstName = ""
+		users[i].Email = ""
+		users[i].LastName = ""
+		users[i].IsVerified = false
+	}
 }

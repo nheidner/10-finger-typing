@@ -15,52 +15,81 @@ type Room struct {
 	UpdatedAt   time.Time       `json:"updatedAt"`
 	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
 	Subscribers []*User         `json:"-" gorm:"many2many:user_rooms"`
-	TextId      uint            `json:"textId"`
+	Texts       []*Text         `json:"-" gorm:"many2many:text_rooms"`
+	Tokens      []Token         `json:"-"`
+}
+
+type FindRoomQuery struct {
+	TextId string `form:"textId" binding:"required"`
 }
 
 type CreateRoomInput struct {
-	UserIds []uint `json:"usernames"`
-	TextId  uint   `json:"-"`
+	UserIds []uint   `json:"userIds"`
+	Emails  []string `json:"emails" binding:"dive,email"`
+	TextIds []uint   `json:"textIds"`
 }
 
 type RoomService struct {
 	DB *gorm.DB
 }
 
-func (rs *RoomService) Create(input CreateRoomInput) (*Room, error) {
-	tx := rs.DB.Begin()
-
-	room := Room{
-		TextId: input.TextId,
-	}
-	if err := tx.Create(&room).Error; err != nil {
-		tx.Rollback()
-		badRequestError := custom_errors.HTTPError{Message: "error creating room", Status: http.StatusBadRequest, Details: err.Error()}
-		return nil, badRequestError
+func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput) (*Room, error) {
+	db := tx
+	if tx == nil {
+		db = rs.DB.Begin()
 	}
 
+	var room Room
+	if err := db.Create(&room).Error; err != nil {
+		return returnAndRollBackIfNeeded(tx, err)
+	}
+
+	// subscribers
 	for _, userId := range input.UserIds {
 		join := map[string]any{"room_id": room.ID, "user_id": userId}
 
-		if err := tx.Table("user_rooms").Create(&join).Error; err != nil {
-			tx.Rollback()
-			badRequestError := custom_errors.HTTPError{Message: "error creating user room association", Status: http.StatusBadRequest, Details: err.Error()}
-			return nil, badRequestError
+		if err := db.Table("user_rooms").Create(&join).Error; err != nil {
+			return returnAndRollBackIfNeeded(tx, err)
 		}
 	}
 
-	tx.Commit()
+	// texts
+	for _, textId := range input.TextIds {
+		join := map[string]any{"room_id": room.ID, "text_id": textId}
+
+		if err := db.Table("text_rooms").Create(&join).Error; err != nil {
+			return returnAndRollBackIfNeeded(tx, err)
+		}
+	}
+
+	if tx == nil {
+		db.Commit()
+	}
+
+	if err := db.Preload("Subscribers").First(&room, room.ID).Error; err != nil {
+		return returnAndRollBackIfNeeded(tx, err)
+	}
 
 	return &room, nil
 }
 
+func returnAndRollBackIfNeeded(tx *gorm.DB, err error) (*Room, error) {
+	if tx == nil {
+		tx.Rollback()
+	}
+
+	return nil, err
+}
+
+// finds room that is connected to user and text
 func (rs *RoomService) Find(roomId uuid.UUID, textId, userId uint) (*Room, error) {
 	var room Room
 
 	if result := rs.DB.
 		Joins("INNER JOIN user_rooms ur ON ur.room_id = rooms.id").
+		Joins("INNER JOIN text_rooms tr ON tr.room_id = rooms.id").
 		Where("rooms.id = ?", roomId).
-		Where("rooms.text_id = ?", textId).
+		Where("tr.text_id = ?", textId).
 		Where("ur.user_id = ?", userId).
 		First(&room); (result.Error != nil) || (result.RowsAffected == 0) {
 		badRequestError := custom_errors.HTTPError{Message: "no room found", Status: http.StatusBadRequest, Details: result.Error.Error()}

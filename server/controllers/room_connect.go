@@ -33,6 +33,7 @@ import (
 
 func (r Rooms) ConnectToRoom(c *gin.Context) {
 	roomId, textId, user, err := processHTTPParams(c)
+
 	if err != nil {
 		log.Println("Error processing the HTTP params:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error processing the HTTP params"})
@@ -66,13 +67,14 @@ func (r Rooms) ConnectToRoom(c *gin.Context) {
 }
 
 func processHTTPParams(c *gin.Context) (roomId uuid.UUID, textId uint64, user *models.User, err error) {
+	// userId
 	userContext, _ := c.Get("user")
 	user, ok := userContext.(*models.User)
 	if !ok {
 		return uuid.Nil, 0, nil, fmt.Errorf("could not read user from route context")
 	}
 
-	textIdUrlParam := c.Param("textid")
+	// roomId
 	roomIdUrlParam := c.Param("roomid")
 
 	roomId, err = uuid.Parse(roomIdUrlParam)
@@ -80,7 +82,14 @@ func processHTTPParams(c *gin.Context) (roomId uuid.UUID, textId uint64, user *m
 		return uuid.Nil, 0, nil, fmt.Errorf("error parsing the room id: %w", err)
 	}
 
-	textId, err = strconv.ParseUint(textIdUrlParam, 10, 0)
+	// textId
+	var query models.FindRoomQuery
+
+	if err = c.ShouldBindQuery(&query); err != nil {
+		return uuid.Nil, 0, nil, fmt.Errorf("textId query string field has to be specified")
+	}
+
+	textId, err = strconv.ParseUint(query.TextId, 10, 0)
 	if err != nil {
 		return uuid.Nil, 0, nil, fmt.Errorf("error parsing the text id: %w", err)
 	}

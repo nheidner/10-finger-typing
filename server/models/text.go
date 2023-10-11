@@ -20,7 +20,7 @@ type Text struct {
 	SpecialCharacters int             `json:"specialCharacters" gorm:"not null;default:0"`
 	Numbers           int             `json:"numbers" gorm:"not null;default:0"`
 	Scores            []Score         `json:"-"`
-	Rooms             []Room          `json:"-"`
+	Rooms             []*Room         `json:"-" gorm:"many2many:text_rooms"`
 }
 
 type FindTextQuery struct {

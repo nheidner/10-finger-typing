@@ -1,5 +1,18 @@
-import { Score, Text, TypingLanguage, User } from "@/types";
+import { Room, Score, Text, TypingLanguage, User } from "@/types";
 import { fetchApi } from "./fetch";
+
+export type NewRoomParams = {
+  userIds: number[];
+  emails: string[];
+  textIds: number[];
+};
+
+export const createRoom = async ({ query }: { query: NewRoomParams }) => {
+  return fetchApi<Room>("/rooms", {
+    method: "POST",
+    body: JSON.stringify(query),
+  });
+};
 
 export const getAuthenticatedUser = async () => fetchApi<User>("/user");
 
@@ -62,17 +75,6 @@ export const createNewText = async ({
   cookie?: string;
   query: TextParams;
 }) => {
-  // const body = Object.entries(query).reduce((acc, [key, value]) => {
-  //   if (value === undefined) {
-  //     return acc;
-  //   }
-
-  //   const queryParamKey = key.replace("Gte", "[gte]").replace("Lte", "[lte]");
-  //   acc[queryParamKey] = value;
-
-  //   return acc;
-  // }, {} as { [key: string]: number | boolean | TypingLanguage });
-
   const headers = cookie ? { cookie } : undefined;
 
   return fetchApi<Text>(`/texts`, {
@@ -103,14 +105,36 @@ export const getUserByUsername = async (username: string, cookie?: string) => {
   return users[0];
 };
 
+export const getUsersByUsernamePartial = async (
+  usernamePartial: string,
+  cookie?: string
+) => {
+  if (usernamePartial === "") {
+    return Promise.resolve([]);
+  }
+
+  const queryString = `?username_contains=${encodeURIComponent(
+    usernamePartial
+  )}`;
+
+  const headers = cookie ? { cookie } : undefined;
+
+  return fetchApi<User[]>(`/users${queryString}`, { headers });
+};
+
 export const getScoresByUsername = async (
   username: string,
   { cookie, sortBy }: { cookie?: string; sortBy?: string[] }
 ) => {
-  const queryParams = sortBy
-    ?.map((sortByValue) => `sort_by=${encodeURIComponent(sortByValue)}`)
-    .concat(`username=${encodeURIComponent(username)}`)
-    .join("&");
+  const sortByQueryParams = sortBy?.map(
+    (sortByValue) => `sort_by=${encodeURIComponent(sortByValue)}`
+  );
+
+  const queryParams = [
+    `username=${encodeURIComponent(username)}`,
+    ...(sortByQueryParams || []),
+  ].join("&");
+
   const queryString = queryParams ? `?${queryParams}` : "";
 
   const headers = cookie ? { cookie } : undefined;

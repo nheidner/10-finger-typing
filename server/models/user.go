@@ -20,7 +20,7 @@ type User struct {
 	IsVerified   bool      `json:"isVerified" gorm:"default:false; not null"`
 	Sessions     []Session `json:"-"`
 	Scores       []Score   `json:"-"`
-	Rooms        []*Room   `gorm:"many2many:user_rooms"`
+	Rooms        []*Room   `json:"-" gorm:"many2many:user_rooms"`
 }
 
 type CreateUserInput struct {
@@ -37,7 +37,8 @@ type LoginUserInput struct {
 }
 
 type FindUsersQuery struct {
-	Username string `form:"username"`
+	Username    string `form:"username"`
+	UsernameSub string `form:"username_contains"`
 }
 
 type UserService struct {
@@ -54,6 +55,10 @@ func (us UserService) FindUsers(query FindUsersQuery) ([]User, error) {
 		findUsersDbQuery = findUsersDbQuery.Where("username = ?", query.Username)
 	}
 
+	if query.UsernameSub != "" {
+		findUsersDbQuery = findUsersDbQuery.Where("username ILIKE ?", "%"+query.UsernameSub+"%")
+	}
+
 	findUsersDbQuery.Find(&users)
 
 	if findUsersDbQuery.Error != nil {
@@ -61,6 +66,16 @@ func (us UserService) FindUsers(query FindUsersQuery) ([]User, error) {
 		return nil, badRequestError
 	}
 	return users, nil
+}
+
+func (us *UserService) FindByEmail(email string) (*User, error) {
+	var user User
+
+	if err := us.DB.Where("email = ?", email).Find(&user).Error; err != nil || user.Email == "" {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (us UserService) FindOneById(id uint) (*User, error) {

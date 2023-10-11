@@ -6,6 +6,7 @@ import { Fragment } from "react";
 import { Menu, Transition } from "@headlessui/react";
 import classNames from "classnames";
 import { getAuthenticatedUser, logout } from "@/utils/queries";
+import { Avatar } from "./Avatar";
 
 const UserMenu = ({ user }: { user?: User }) => {
   const queryClient = useQueryClient();
@@ -35,11 +36,12 @@ const UserMenu = ({ user }: { user?: User }) => {
       <div>
         <Menu.Button className="flex max-w-xs items-center rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
           <span className="sr-only">Open user menu</span>
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-300">
-            <span className="text-md font-medium leading-none text-white">
-              {user.username[0].toUpperCase()}
-            </span>
-          </span>
+
+          <Avatar
+            user={user}
+            textClassName="text-md"
+            containerClassName="w-10 h-10"
+          />
         </Menu.Button>
       </div>
       <Transition
@@ -105,7 +107,7 @@ export const Header = () => {
         className="flex items-center justify-between gap-x-6 py-6"
         aria-label="Global"
       >
-        <div className="hidden lg:flex lg:gap-x-12">
+        <div className="flex gap-x-12">
           {userIsLoggedIn
             ? navigation.map((item) => (
                 <Link

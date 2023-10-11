@@ -24,6 +24,7 @@ const App = ({ Component, pageProps }: AppProps) => {
             router.push("/login");
           }
         },
+        staleTime: Infinity,
       },
       mutations: {
         onError: (error: any) => {

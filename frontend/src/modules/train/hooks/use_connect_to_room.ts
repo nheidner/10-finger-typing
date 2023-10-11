@@ -10,24 +10,24 @@ type Message = {
 };
 
 export const useConnectToRoom = (
-  roomId: string,
   setUserData: (
     value: SetStateAction<{
       [userId: number]: UserData;
     }>
   ) => void,
+  roomId?: string,
   textData?: Text
 ) => {
   const webSocketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!textData?.id) {
+    if (!textData?.id || !roomId) {
       return;
     }
 
     const apiUrl = getWsUrl();
 
-    const websocketUrl = `${apiUrl}/texts/${textData.id}/rooms/${roomId}/ws`;
+    const websocketUrl = `${apiUrl}/rooms/${roomId}/ws?textId=${textData.id}`;
     webSocketRef.current = new WebSocket(websocketUrl);
 
     webSocketRef.current.onopen = () => {

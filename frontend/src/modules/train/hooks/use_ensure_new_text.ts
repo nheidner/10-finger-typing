@@ -6,6 +6,7 @@ import {
   getNewTextByUserid,
 } from "@/utils/queries";
 import { Text, TypingLanguage } from "@/types";
+import { useRouter } from "next/router";
 
 const getRandomNumberBetween = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -26,11 +27,12 @@ export const useEnsureTextData = ({
   usePunctuation: boolean;
   language: TypingLanguage;
 }): { text?: Text; isLoading: boolean } => {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: authenticatedUserData } = useQuery({
     queryKey: ["authenticatedUser"],
-    queryFn: () => getAuthenticatedUser(),
+    queryFn: getAuthenticatedUser,
     retry: false,
   });
 
@@ -55,7 +57,16 @@ export const useEnsureTextData = ({
           language,
         },
       }),
-    { enabled: !!authenticatedUserData?.id }
+    {
+      enabled: !!authenticatedUserData?.id,
+      onSuccess(data) {
+        queryClient.setQueryData(["texts", data?.id], () => data);
+        router.push({
+          pathname: router.pathname,
+          query: { ...router.query, textId: data?.id },
+        });
+      },
+    }
   );
 
   const {
