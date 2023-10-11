@@ -1,4 +1,4 @@
-import { FC, Fragment, useMemo } from "react";
+import { KeyboardEvent, FC, FormEvent, Fragment, useMemo } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { User } from "@/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -11,6 +11,21 @@ import { useRouter } from "next/router";
 import { UserAutocompleteBox } from "./UserAutocompleteBox";
 import { UserList } from "./UserList";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+
+const SubmitButton: FC<{ isDisabled: boolean; children: string }> = ({
+  isDisabled,
+  children,
+}) => {
+  return (
+    <button
+      type="submit"
+      disabled={isDisabled}
+      className="flex items-center rounded-md ml-2 bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+    >
+      {children}
+    </button>
+  );
+};
 
 const sanitizeNewRoomUsers = (
   users: Partial<User>[],
@@ -74,10 +89,17 @@ export const InvitePanel: FC<{
       },
     });
 
-  const handleCreateNewRoom = () => {
+  const handleCreateNewRoom = (e: FormEvent) => {
+    e.preventDefault();
     const params = sanitizeNewRoomUsers(newRoomUsers, textId);
 
     createNewRoomMutate({ query: params });
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && newRoomUsers.length) {
+      handleCreateNewRoom(e);
+    }
   };
 
   const newRoomUsersDisplaySet = useMemo(
@@ -107,29 +129,27 @@ export const InvitePanel: FC<{
       leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
     >
       <Dialog.Panel
-        className="flex flex-col relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-[31.25rem] sm:p-6"
+        className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-[31.25rem] sm:p-6"
         style={{ height: panelHeight }}
       >
-        <UserList
-          newRoomUsers={newRoomUsers}
-          removeNewRoomUser={removeNewRoomUser}
-          isLoading={createRoomIsLoading}
-        />
-        <UserAutocompleteBox
-          addNewRoomUser={addNewRoomUser}
-          newRoomUsersDisplaySet={newRoomUsersDisplaySet}
-        />
-        <div className="self-end mt-6 flex items-center">
-          <LoadingSpinner isLoading={createRoomIsLoading} />
-          <button
-            type="button"
-            disabled={!newRoomUsers.length}
-            className="flex items-center rounded-md ml-2 bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            onClick={handleCreateNewRoom}
-          >
-            Create Room
-          </button>
-        </div>
+        <form className="flex flex-col" onSubmit={handleCreateNewRoom}>
+          <UserList
+            newRoomUsers={newRoomUsers}
+            removeNewRoomUser={removeNewRoomUser}
+            isLoading={createRoomIsLoading}
+          />
+          <UserAutocompleteBox
+            addNewRoomUser={addNewRoomUser}
+            newRoomUsersDisplaySet={newRoomUsersDisplaySet}
+            handleKeyDown={handleKeyDown}
+          />
+          <div className="self-end mt-6 flex items-center">
+            <LoadingSpinner isLoading={createRoomIsLoading} />
+            <SubmitButton isDisabled={!newRoomUsers.length}>
+              Create Room
+            </SubmitButton>
+          </div>
+        </form>
       </Dialog.Panel>
     </Transition.Child>
   );

@@ -1,4 +1,4 @@
-import { ChangeEvent, FC, useState } from "react";
+import { ChangeEvent, FC, KeyboardEvent, useState } from "react";
 import { Combobox } from "@headlessui/react";
 import { useDebouncedUserSearchByUsernamePartial } from "../hooks/use_debounced_user_search_by_username_partial.ts";
 import isEmail from "validator/lib/isEmail";
@@ -10,7 +10,8 @@ import { Transition } from "@headlessui/react";
 export const UserAutocompleteBox: FC<{
   addNewRoomUser: (user: Partial<User>) => void;
   newRoomUsersDisplaySet: Set<string>;
-}> = ({ addNewRoomUser, newRoomUsersDisplaySet }) => {
+  handleKeyDown: (e: KeyboardEvent) => void;
+}> = ({ addNewRoomUser, newRoomUsersDisplaySet, handleKeyDown }) => {
   const [input, setInput] = useState("");
 
   const {
@@ -75,6 +76,7 @@ export const UserAutocompleteBox: FC<{
           onChange={handleInputChange}
           placeholder="Type in username or email address .."
           displayValue={(user: Partial<User>) => user.email || ""}
+          onKeyDown={handleKeyDown}
         />
         <Transition
           className="flex flex-col items-center w-full group relative"
