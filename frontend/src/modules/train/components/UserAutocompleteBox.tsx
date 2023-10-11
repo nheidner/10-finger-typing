@@ -4,6 +4,8 @@ import { useDebouncedUserSearchByUsernamePartial } from "../hooks/use_debounced_
 import isEmail from "validator/lib/isEmail";
 import { User } from "@/types";
 import { AutocompleteOption } from "./AutocompleteOption";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { Transition } from "@headlessui/react";
 
 export const UserAutocompleteBox: FC<{
   addNewRoomUser: (user: Partial<User>) => void;
@@ -11,8 +13,11 @@ export const UserAutocompleteBox: FC<{
 }> = ({ addNewRoomUser, newRoomUsersDisplaySet }) => {
   const [input, setInput] = useState("");
 
-  const { users, debouncedFetchUsers } =
-    useDebouncedUserSearchByUsernamePartial(200);
+  const {
+    users,
+    debouncedFetchUsers,
+    isLoading: usersIsLoading,
+  } = useDebouncedUserSearchByUsernamePartial(200);
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { value } = event.target;
@@ -40,7 +45,7 @@ export const UserAutocompleteBox: FC<{
     input && !inputIsUsername && isValidEmail && !inputIsNewRoomUser;
   const showUsernameOptions =
     input && suggestedUsers && suggestedUsers.length > 0;
-  const showOptions = showFirstOption || showUsernameOptions;
+  const showOptions = showFirstOption || showUsernameOptions || usersIsLoading;
 
   const firstOption = showFirstOption ? (
     <AutocompleteOption user={{ email: input }} key={0} isEmail />
@@ -52,11 +57,14 @@ export const UserAutocompleteBox: FC<{
       ))
     : null;
 
-  const options = showOptions ? (
-    <Combobox.Options className="absolute z-10 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-      {firstOption}
-      {usernameOptions}
-    </Combobox.Options>
+  const loadingOption = usersIsLoading ? (
+    <Combobox.Option
+      value="loading .."
+      className="flex justify-center py-2"
+      disabled={true}
+    >
+      <LoadingSpinner isLoading={usersIsLoading} />
+    </Combobox.Option>
   ) : null;
 
   return (
@@ -68,7 +76,23 @@ export const UserAutocompleteBox: FC<{
           placeholder="Type in username or email address .."
           displayValue={(user: Partial<User>) => user.email || ""}
         />
-        {options}
+        <Transition
+          className="flex flex-col items-center w-full group relative"
+          as="div"
+          show={showOptions}
+          enter="transition-opacity duration-75"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="transition-opacity duration-75"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <Combobox.Options className="absolute z-10 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+            {firstOption}
+            {usernameOptions}
+            {loadingOption}
+          </Combobox.Options>
+        </Transition>
       </div>
     </Combobox>
   );

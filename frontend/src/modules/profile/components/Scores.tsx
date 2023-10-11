@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { SortByOption } from "../types";
 import { SortBy } from "./SortBy";
 import { Score } from "@/types";
-import classNames from "classnames";
+import { LoadingOverlay } from "@/components/LoadingOverlay";
 
 export const ScoresList = ({ data }: { data?: Score[] }) => {
   if (!data) {
@@ -41,17 +41,6 @@ export const ScoresList = ({ data }: { data?: Score[] }) => {
   );
 };
 
-const Overlay = ({ isLoading }: { isLoading: boolean }) => {
-  return (
-    <div
-      className={classNames(
-        "absolute left-0 top-0 w-full h-full bg-gray-300 transition-opacity z-10 duration-100",
-        isLoading ? "opacity-50" : "opacity-0"
-      )}
-    />
-  );
-};
-
 export const Scores = ({ username }: { username: string }) => {
   const [sortBy, setSortBy] = useState<SortByOption>("recent");
   const sortByParamValues = sortBy === "recent" ? [] : [`${sortBy}.desc`];
@@ -80,8 +69,7 @@ export const Scores = ({ username }: { username: string }) => {
         </div>
         <SortBy sortBy={sortBy} setSortBy={setSortBy} />
       </div>
-      <div className="relative">
-        <Overlay isLoading={isLoading} />
+      <LoadingOverlay isLoading={isLoading}>
         <table className="min-w-full divide-y divide-gray-300 table-fixed">
           <thead className="z-20 bg-white relative">
             <tr>
@@ -110,7 +98,7 @@ export const Scores = ({ username }: { username: string }) => {
           </thead>
           <ScoresList data={dataRef.current} />
         </table>
-      </div>
+      </LoadingOverlay>
     </section>
   );
 };

@@ -15,15 +15,16 @@ export const useDebouncedUserSearchByUsernamePartial = (
     debouncedSetQueryKeyRef.current(usernamePartial);
   };
 
-  const { data } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: ["users", "username_contains", queryKey],
-    queryFn: () => getUsersByUsernamePartial(queryKey),
+    queryFn: async () => getUsersByUsernamePartial(queryKey),
     retry: false,
     keepPreviousData: true,
   });
 
   return {
     users: data,
+    isLoading: isFetching,
     debouncedFetchUsers: handleUsernamePartialChange,
   };
 };

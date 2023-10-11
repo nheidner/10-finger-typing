@@ -15,6 +15,9 @@ const config: Config = {
         sans: ["Inter var", ...defaultTheme.fontFamily.sans],
         courier: ["Courier New", "Courier", "monospace"],
       },
+      animation: {
+        "spin-fast": "spin 0.65s linear infinite",
+      },
     },
   },
   plugins: [forms],

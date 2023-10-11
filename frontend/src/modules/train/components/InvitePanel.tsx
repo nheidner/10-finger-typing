@@ -1,4 +1,4 @@
-import { FC, Fragment, useMemo, useState } from "react";
+import { FC, Fragment, useMemo } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { User } from "@/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/router";
 import { UserAutocompleteBox } from "./UserAutocompleteBox";
 import { UserList } from "./UserList";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 const sanitizeNewRoomUsers = (
   users: Partial<User>[],
@@ -59,20 +60,19 @@ export const InvitePanel: FC<{
 
   const router = useRouter();
 
-  const { mutate: createNewRoomMutate, isLoading } = useMutation({
-    mutationKey: ["create room"],
-    mutationFn: createRoom,
-    onSuccess: (data) => {
-      router.push({
-        pathname: router.pathname,
-        query: { ...router.query, roomId: data.id },
-      });
-
-      removeNewRoomUsers();
-
-      closeModal();
-    },
-  });
+  const { mutate: createNewRoomMutate, isLoading: createRoomIsLoading } =
+    useMutation({
+      mutationKey: ["create room"],
+      mutationFn: createRoom,
+      onSuccess: (data) => {
+        router.push({
+          pathname: router.pathname,
+          query: { ...router.query, roomId: data.id },
+        });
+        removeNewRoomUsers();
+        closeModal();
+      },
+    });
 
   const handleCreateNewRoom = () => {
     const params = sanitizeNewRoomUsers(newRoomUsers, textId);
@@ -113,19 +113,23 @@ export const InvitePanel: FC<{
         <UserList
           newRoomUsers={newRoomUsers}
           removeNewRoomUser={removeNewRoomUser}
+          isLoading={createRoomIsLoading}
         />
         <UserAutocompleteBox
           addNewRoomUser={addNewRoomUser}
           newRoomUsersDisplaySet={newRoomUsersDisplaySet}
         />
-        <button
-          type="button"
-          disabled={!newRoomUsers.length}
-          className="flex self-end mt-6 items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          onClick={handleCreateNewRoom}
-        >
-          Create Room
-        </button>
+        <div className="self-end mt-6 flex items-center">
+          <LoadingSpinner isLoading={createRoomIsLoading} />
+          <button
+            type="button"
+            disabled={!newRoomUsers.length}
+            className="flex items-center rounded-md ml-2 bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            onClick={handleCreateNewRoom}
+          >
+            Create Room
+          </button>
+        </div>
       </Dialog.Panel>
     </Transition.Child>
   );
