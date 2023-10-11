@@ -85,8 +85,18 @@ func processCreateRoomHTTPParams(c *gin.Context, input *models.CreateRoomInput) 
 		return nil, fmt.Errorf("error processing HTTP body: %w", err)
 	}
 
+	if (len(input.UserIds) == 0) && (len(input.Emails) == 0) {
+		return nil, fmt.Errorf("you cannot create a room just for yourself")
+	}
+
 	for _, userId := range input.UserIds {
 		if userId == user.ID {
+			return nil, fmt.Errorf("you cannot create a room for yourself with yourself")
+		}
+	}
+
+	for _, email := range input.Emails {
+		if email == user.Email {
 			return nil, fmt.Errorf("you cannot create a room for yourself with yourself")
 		}
 	}
