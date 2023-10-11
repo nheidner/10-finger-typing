@@ -19,7 +19,6 @@ export const useDebouncedUserSearchByUsernamePartial = (
     queryKey: ["users", "username_contains", queryKey],
     queryFn: () => getUsersByUsernamePartial(queryKey),
     retry: false,
-    enabled: !!queryKey,
     keepPreviousData: true,
   });
 

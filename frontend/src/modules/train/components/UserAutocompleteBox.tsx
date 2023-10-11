@@ -17,8 +17,8 @@ export const UserAutocompleteBox: FC<{
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { value } = event.target;
 
-    debouncedFetchUsers(value);
     setInput(value);
+    debouncedFetchUsers(value);
   };
 
   const handleOnChange = (user: Partial<User>) => {

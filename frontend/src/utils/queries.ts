@@ -109,9 +109,13 @@ export const getUsersByUsernamePartial = async (
   usernamePartial: string,
   cookie?: string
 ) => {
-  const queryString = usernamePartial
-    ? `?username_contains=${encodeURIComponent(usernamePartial)}`
-    : "";
+  if (usernamePartial === "") {
+    return Promise.resolve([]);
+  }
+
+  const queryString = `?username_contains=${encodeURIComponent(
+    usernamePartial
+  )}`;
 
   const headers = cookie ? { cookie } : undefined;
 
