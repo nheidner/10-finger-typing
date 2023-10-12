@@ -3,7 +3,6 @@ package main
 import (
 	"10-typing/controllers"
 	"10-typing/models"
-	"net/http"
 	"os"
 	"time"
 
@@ -25,10 +24,6 @@ func main() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("typingerrors", models.TypingErrors)
 	}
-
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Hello World!"})
-	})
 
 	// Setup our model services
 	userService := models.UserService{
