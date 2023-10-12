@@ -16,18 +16,18 @@ export const useConnectToRoom = (
     }>
   ) => void,
   roomId?: string,
-  textData?: Text
+  textId?: number
 ) => {
   const webSocketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!textData?.id || !roomId) {
+    if (!textId || !roomId) {
       return;
     }
 
     const apiUrl = getWsUrl();
 
-    const websocketUrl = `${apiUrl}/rooms/${roomId}/ws?textId=${textData.id}`;
+    const websocketUrl = `${apiUrl}/rooms/${roomId}/ws?textId=${textId}`;
     webSocketRef.current = new WebSocket(websocketUrl);
 
     webSocketRef.current.onopen = () => {
@@ -76,7 +76,7 @@ export const useConnectToRoom = (
         webSocketRef.current?.close(1000, "user left the room");
       }
     };
-  }, [textData?.id, roomId, setUserData]);
+  }, [textId, roomId, setUserData]);
 
   return webSocketRef;
 };

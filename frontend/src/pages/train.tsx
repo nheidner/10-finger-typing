@@ -65,7 +65,7 @@ const TrainPage: NextPage<{
     roomId?: string;
   };
 
-  const webSocketRef = useConnectToRoom(setUserData, roomId, textData);
+  const webSocketRef = useConnectToRoom(setUserData, roomId, textData?.id);
 
   return (
     <>
