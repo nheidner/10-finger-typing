@@ -44,6 +44,10 @@ func main() {
 	tokenService := models.TokenService{
 		DB: models.DB,
 	}
+	// gameService := models.GameService{
+	// 	DB:    models.DB,
+	// 	Redis: models.RedisClient,
+	// }
 	openAiService := models.OpenAiService{
 		ApiKey: os.Getenv("OPENAI_API_KEY"),
 	}
