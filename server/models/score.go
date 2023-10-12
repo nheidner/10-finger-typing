@@ -26,6 +26,7 @@ type Score struct {
 	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
 	UserId         uint            `json:"userId"`
 	TextId         uint            `json:"textId"`
+	GameUsers      []GameUser      `json:"-"`
 }
 
 type CreateScoreInput struct {

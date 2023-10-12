@@ -10,13 +10,13 @@ import (
 )
 
 type Room struct {
-	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	CreatedAt   time.Time       `json:"createdAt"`
-	UpdatedAt   time.Time       `json:"updatedAt"`
-	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	Subscribers []*User         `json:"-" gorm:"many2many:user_rooms"`
-	Texts       []*Text         `json:"-" gorm:"many2many:text_rooms"`
-	Tokens      []Token         `json:"-"`
+	ID           uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	CreatedAt    time.Time       `json:"createdAt"`
+	UpdatedAt    time.Time       `json:"updatedAt"`
+	DeletedAt    *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
+	Subscribers  []*User         `json:"-" gorm:"many2many:user_rooms"`
+	Tokens       []Token         `json:"-"`
+	ActiveGameId uuid.UUID       `json:"activeGameId"`
 }
 
 type FindRoomQuery struct {
@@ -54,13 +54,13 @@ func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput) (*Room, error)
 	}
 
 	// texts
-	for _, textId := range input.TextIds {
-		join := map[string]any{"room_id": room.ID, "text_id": textId}
+	// for _, textId := range input.TextIds {
+	// 	join := map[string]any{"room_id": room.ID, "text_id": textId}
 
-		if err := db.Table("text_rooms").Create(&join).Error; err != nil {
-			return returnAndRollBackIfNeeded(tx, err)
-		}
-	}
+	// 	if err := db.Table("text_rooms").Create(&join).Error; err != nil {
+	// 		return returnAndRollBackIfNeeded(tx, err)
+	// 	}
+	// }
 
 	if tx == nil {
 		db.Commit()

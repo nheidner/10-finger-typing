@@ -10,17 +10,18 @@ import (
 )
 
 type User struct {
-	ID           uint      `json:"id" gorm:"primary_key"`
-	Username     string    `json:"username" gorm:"uniqueIndex;not null;type:varchar(255)"`
-	Password     string    `json:"-" gorm:"-"`
-	PasswordHash string    `json:"-" gorm:"not null;type:varchar(510)"`
-	FirstName    string    `json:"firstName" gorm:"type:varchar(255)"`
-	Email        string    `json:"email" gorm:"uniqueIndex;not null;type:varchar(255)"`
-	LastName     string    `json:"lastName" gorm:"type:varchar(255)"`
-	IsVerified   bool      `json:"isVerified" gorm:"default:false; not null"`
-	Sessions     []Session `json:"-"`
-	Scores       []Score   `json:"-"`
-	Rooms        []*Room   `json:"-" gorm:"many2many:user_rooms"`
+	ID           uint       `json:"id" gorm:"primary_key"`
+	Username     string     `json:"username" gorm:"uniqueIndex;not null;type:varchar(255)"`
+	Password     string     `json:"-" gorm:"-"`
+	PasswordHash string     `json:"-" gorm:"not null;type:varchar(510)"`
+	FirstName    string     `json:"firstName" gorm:"type:varchar(255)"`
+	Email        string     `json:"email" gorm:"uniqueIndex;not null;type:varchar(255)"`
+	LastName     string     `json:"lastName" gorm:"type:varchar(255)"`
+	IsVerified   bool       `json:"isVerified" gorm:"default:false; not null"`
+	Sessions     []Session  `json:"-"`
+	Scores       []Score    `json:"-"`
+	GameUsers    []GameUser `json:"-"`
+	Rooms        []*Room    `json:"-" gorm:"many2many:user_rooms"`
 }
 
 type CreateUserInput struct {

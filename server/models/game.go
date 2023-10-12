@@ -13,8 +13,10 @@ type Game struct {
 	CreatedAt time.Time       `json:"createdAt"`
 	UpdatedAt time.Time       `json:"updatedAt"`
 	DeletedAt *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	TextId    uint            `json:"textId"`
-	RoomId    uuid.UUID       `json:"roomId"`
+	TextId    uint            `json:"textId" gorm:"not null"`
+	RoomId    uuid.UUID       `json:"roomId" gorm:"not null"`
+	Room      Room            `json:"-"`
+	GameUsers []GameUser      `json:"-"`
 }
 
 type GameService struct {
