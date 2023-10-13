@@ -26,7 +26,6 @@ type FindRoomQuery struct {
 type CreateRoomInput struct {
 	UserIds []uint   `json:"userIds"`
 	Emails  []string `json:"emails" binding:"dive,email"`
-	TextIds []uint   `json:"textIds"`
 }
 
 type RoomService struct {
@@ -35,7 +34,7 @@ type RoomService struct {
 
 func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput) (*Room, error) {
 	db := tx
-	if tx == nil {
+	if db == nil {
 		db = rs.DB.Begin()
 	}
 
@@ -52,15 +51,6 @@ func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput) (*Room, error)
 			return returnAndRollBackIfNeeded(tx, err)
 		}
 	}
-
-	// texts
-	// for _, textId := range input.TextIds {
-	// 	join := map[string]any{"room_id": room.ID, "text_id": textId}
-
-	// 	if err := db.Table("text_rooms").Create(&join).Error; err != nil {
-	// 		return returnAndRollBackIfNeeded(tx, err)
-	// 	}
-	// }
 
 	if tx == nil {
 		db.Commit()

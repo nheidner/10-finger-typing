@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -26,7 +27,7 @@ type Score struct {
 	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
 	UserId         uint            `json:"userId"`
 	TextId         uint            `json:"textId"`
-	GameUsers      []GameUser      `json:"-"`
+	GameId         uuid.UUID       `json:"gameId"`
 }
 
 type CreateScoreInput struct {
