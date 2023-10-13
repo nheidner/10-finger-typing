@@ -44,10 +44,10 @@ func main() {
 	tokenService := models.TokenService{
 		DB: models.DB,
 	}
-	// gameService := models.GameService{
-	// 	DB:    models.DB,
-	// 	Redis: models.RedisClient,
-	// }
+	gameService := models.GameService{
+		DB:    models.DB,
+		Redis: models.RedisClient,
+	}
 	openAiService := models.OpenAiService{
 		ApiKey: os.Getenv("OPENAI_API_KEY"),
 	}
@@ -72,6 +72,9 @@ func main() {
 		TokenService:            &tokenService,
 		UserService:             &userService,
 		EmailTransactionService: &emailTransactionService,
+	}
+	gameController := controllers.Games{
+		GameService: &gameService,
 	}
 
 	api := router.Group("/api")
@@ -107,6 +110,7 @@ func main() {
 	// ROOMS
 	api.GET("/rooms/:roomid/ws", userController.AuthRequired, roomController.ConnectToRoom)
 	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
+	api.POST("/rooms/:roomid/games", userController.AuthRequired, gameController.CreateGame)
 
 	router.Run()
 }

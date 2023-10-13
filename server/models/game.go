@@ -22,19 +22,32 @@ const (
 
 type GameStatus int
 
+func (s *SubscriberStatus) String() string {
+	return []string{"undefined", "active", "hasStarted", "hasFinished"}[*s]
+}
+
+func (s *SubscriberStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
 const (
 	UnstartedGameStatus GameStatus = iota
 	StartedGameStatus
 	FinishedGameStatus
 )
 
-func (s SubscriberStatus) String() string {
-	return [...]string{"Undefined", "Active", "HasStarted", "HasFinished"}[s]
+func (s *GameStatus) String() string {
+	return []string{"unstarted", "started", "finished"}[*s]
 }
 
-func (s SubscriberStatus) MarshalJSON() ([]byte, error) {
+func (s *GameStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
+
+// TODO
+// * don't return in json time.Time{}
+// * also how to handle time.Time{} in redis?
+// * use transactions in redis
 
 // active gameuser is saved in redis, game status, status of user, starting time stamp
 // games:[gameId]:users:[userId] { startTimeStamp, status(started, finished),  }
@@ -52,7 +65,7 @@ type WSMessage struct {
 }
 
 type Subscriber struct {
-	UserId         uint             `json:"id"`
+	UserId         uint             `json:"userId"`
 	StartTimeStamp time.Time        `json:"startTime"`
 	Status         SubscriberStatus `json:"status"`
 	// Msgs           chan Message `json:"-"`
@@ -68,7 +81,7 @@ type Game struct {
 	RoomId      uuid.UUID       `json:"roomId" gorm:"not null"`
 	Room        Room            `json:"-"` // active room
 	Scores      []Score         `json:"-"`
-	HasStarted  bool            `json:"hasStarted" gorm:"-"`  // saved in redis
+	Status      GameStatus      `json:"status" gorm:"-"`      // saved in redis
 	Subscribers []*Subscriber   `json:"subscribers" gorm:"-"` // saved in redis
 }
 
@@ -78,19 +91,18 @@ type GameService struct {
 }
 
 type CreateGameInput struct {
-	RoomId uuid.UUID
-	TextId uint
+	TextId uint `json:"textId"`
 }
 
-func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, userId uint) (*Game, error) {
+func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, roomId uuid.UUID, userId uint) (*Game, error) {
 	db := gs.getDbOrTx(tx)
 
 	newGame := Game{
 		TextId: input.TextId,
-		RoomId: input.RoomId,
+		RoomId: roomId,
+		Status: UnstartedGameStatus,
 	}
 
-	// postdb game is inserted
 	if err := db.Create(&newGame).Error; err != nil {
 		return nil, err
 	}
@@ -101,25 +113,34 @@ func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, userId uint) (
 		Status:         UnactiveSubscriberStatus,
 	}
 
-	err := gs.addSubscriber(newGame.ID, &newSubscriber)
+	err := gs.addGameSubscriber(newGame.ID, &newSubscriber)
+	if err != nil {
+		return nil, err
+	}
+
+	err = gs.addGameStatus(newGame.ID, newGame.Status)
 	if err != nil {
 		return nil, err
 	}
 
 	newGame.Subscribers = append(newGame.Subscribers, &newSubscriber)
 
-	// redis: game is created
-	// redis: game:user is created
-	// Game struct is returned
 	return &newGame, nil
 }
 
-func (gs *GameService) addSubscriber(gameId uuid.UUID, subscriber *Subscriber) error {
+func (gs *GameService) addGameStatus(gameId uuid.UUID, status GameStatus) error {
+	value := strconv.Itoa(int(status))
+	key := getGameStatusKey(gameId)
+
+	return gs.Redis.Set(context.Background(), key, value, 0).Err()
+}
+
+func (gs *GameService) addGameSubscriber(gameId uuid.UUID, subscriber *Subscriber) error {
 	fields := map[string]any{
-		"status":    subscriber.Status,
+		"status":    strconv.Itoa(int(subscriber.Status)),
 		"startTime": subscriber.StartTimeStamp.Unix(),
 	}
-	key := "games:" + gameId.String() + "users:" + strconv.FormatUint(uint64(subscriber.UserId), 10)
+	key := getGameSubscriberKey(gameId, int(subscriber.UserId))
 
 	return gs.Redis.HSet(context.Background(), key, fields).Err()
 }
@@ -130,4 +151,12 @@ func (gs *GameService) getDbOrTx(tx *gorm.DB) *gorm.DB {
 	}
 
 	return gs.DB
+}
+
+func getGameSubscriberKey(gameId uuid.UUID, subscriberId int) string {
+	return "games:" + gameId.String() + ":users:" + strconv.Itoa(subscriberId)
+}
+
+func getGameStatusKey(gameId uuid.UUID) string {
+	return "games:" + gameId.String() + ":status"
 }
