@@ -2,10 +2,12 @@ package models
 
 import (
 	custom_errors "10-typing/errors"
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -29,7 +31,8 @@ type CreateRoomInput struct {
 }
 
 type RoomService struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	RDB *redis.Client
 }
 
 func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput) (*Room, error) {
@@ -87,6 +90,18 @@ func (rs *RoomService) Find(roomId uuid.UUID, textId, userId uint) (*Room, error
 	}
 
 	return &room, nil
+}
+
+func (rs *RoomService) HasUnstartedGames(roomId uuid.UUID) (bool, error) {
+	ctx := context.Background()
+	roomUnstartedGamesKey := getUnstartedGamesKey(roomId)
+
+	unstartedGamesSum, err := rs.RDB.SCard(ctx, roomUnstartedGamesKey).Result()
+	if err != nil {
+		return false, err
+	}
+
+	return unstartedGamesSum != 0, nil
 }
 
 func (rs *RoomService) DeleteAll() error {

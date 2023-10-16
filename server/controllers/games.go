@@ -11,9 +11,39 @@ import (
 
 type Games struct {
 	GameService *models.GameService
+	RoomService *models.RoomService
 }
 
 func (g *Games) CreateGame(c *gin.Context) {
+	user, createUserInput, roomId, err := processCreateGameHTTPParams(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// validate that no other unstarted game for this room exists
+	hasUnstartedGames, err := g.RoomService.HasUnstartedGames(roomId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if hasUnstartedGames {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "there are already unstarted games for this room"})
+		return
+	}
+
+	game, err := g.GameService.Create(nil, *createUserInput, roomId, user.ID)
+	if err != nil {
+		log.Println("Error creating room:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": game})
+}
+
+func processCreateGameHTTPParams(c *gin.Context) (*models.User, *models.CreateGameInput, uuid.UUID, error) {
 	var input models.CreateGameInput
 
 	userContext, _ := c.Get("user")
@@ -22,23 +52,12 @@ func (g *Games) CreateGame(c *gin.Context) {
 	roomIdUrlParam := c.Param("roomid")
 	roomId, err := uuid.Parse(roomIdUrlParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return nil, nil, uuid.Nil, err
 	}
-
-	// validate if roomId exists
-	// validate that no other unstarted game exists
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		return nil, nil, uuid.Nil, err
 	}
 
-	game, err := g.GameService.Create(nil, input, roomId, user.ID)
-	if err != nil {
-		log.Println("Error creating room:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": game})
+	return user, &input, roomId, nil
 }

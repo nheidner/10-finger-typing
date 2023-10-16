@@ -83,8 +83,8 @@ type Game struct {
 }
 
 type GameService struct {
-	DB    *gorm.DB
-	Redis *redis.Client
+	DB  *gorm.DB
+	RDB *redis.Client
 }
 
 type CreateGameInput struct {
@@ -130,22 +130,22 @@ func (gs *GameService) addGameStatus(gameId uuid.UUID, status GameStatus) error 
 	key := getGameStatusKey(gameId)
 	ctx := context.Background()
 
-	return gs.Redis.Set(ctx, key, value, 0).Err()
+	return gs.RDB.Set(ctx, key, value, 0).Err()
 }
 
 func (gs *GameService) addGameSubscriber(roomId, gameId uuid.UUID, subscriber *Subscriber) error {
+	roomUnstartedGamesKey := getUnstartedGamesKey(roomId)
+	gameUserIdsKey := getGameUserIdsKey(gameId)
+	userDataKey := getUserDataKey(gameId, subscriber.UserId)
 	userId := strconv.Itoa(int(subscriber.UserId))
-	roomUnstartedGamesKey := "rooms:" + roomId.String() + ":unstarted_games"
-	gameUserIdsKey := "games:" + gameId.String() + ":user_ids"
-	userDataKey := "games:" + gameId.String() + ":user_data:" + userId
 	ctx := context.Background()
 
-	err := gs.Redis.SAdd(ctx, roomUnstartedGamesKey, gameId.String()).Err()
+	err := gs.RDB.SAdd(ctx, roomUnstartedGamesKey, gameId.String()).Err()
 	if err != nil {
 		return err
 	}
 
-	err = gs.Redis.SAdd(ctx, gameUserIdsKey, userId).Err()
+	err = gs.RDB.SAdd(ctx, gameUserIdsKey, userId).Err()
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (gs *GameService) addGameSubscriber(roomId, gameId uuid.UUID, subscriber *S
 		userDataFields["startTime"] = subscriber.StartTimeStamp.Unix()
 	}
 
-	return gs.Redis.HSet(ctx, userDataKey, userDataFields).Err()
+	return gs.RDB.HSet(ctx, userDataKey, userDataFields).Err()
 }
 
 func getGameStatusKey(gameId uuid.UUID) string {

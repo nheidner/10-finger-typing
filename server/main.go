@@ -39,14 +39,15 @@ func main() {
 		DB: models.DB,
 	}
 	roomService := models.RoomService{
-		DB: models.DB,
+		DB:  models.DB,
+		RDB: models.RedisClient,
 	}
 	tokenService := models.TokenService{
 		DB: models.DB,
 	}
 	gameService := models.GameService{
-		DB:    models.DB,
-		Redis: models.RedisClient,
+		DB:  models.DB,
+		RDB: models.RedisClient,
 	}
 	openAiService := models.OpenAiService{
 		ApiKey: os.Getenv("OPENAI_API_KEY"),
@@ -75,6 +76,7 @@ func main() {
 	}
 	gameController := controllers.Games{
 		GameService: &gameService,
+		RoomService: &roomService,
 	}
 
 	api := router.Group("/api")
