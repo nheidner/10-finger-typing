@@ -25,9 +25,9 @@ type Score struct {
 	Accuracy       float64         `json:"accuracy" gorm:"type:DECIMAL GENERATED ALWAYS AS (100.0 - (number_errors::DECIMAL * 100.0 / words_typed::DECIMAL)) STORED"`
 	NumberErrors   int             `json:"numberErrors"`
 	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
-	UserId         uint            `json:"userId"`
-	TextId         uint            `json:"textId"`
-	GameId         uuid.UUID       `json:"gameId"`
+	UserId         uint            `json:"userId" gorm:"not null"`
+	TextId         uint            `json:"textId" gorm:"not null"`
+	GameId         *uuid.UUID      `json:"gameId"`
 }
 
 type CreateScoreInput struct {

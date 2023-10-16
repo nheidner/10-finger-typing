@@ -10,13 +10,12 @@ import (
 )
 
 type Room struct {
-	ID           uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	CreatedAt    time.Time       `json:"createdAt"`
-	UpdatedAt    time.Time       `json:"updatedAt"`
-	DeletedAt    *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	Subscribers  []*User         `json:"-" gorm:"many2many:user_rooms"`
-	Tokens       []Token         `json:"-"`
-	ActiveGameId uuid.UUID       `json:"activeGameId"`
+	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
+	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
+	Subscribers []*User         `json:"-" gorm:"many2many:user_rooms"`
+	Tokens      []Token         `json:"-"`
 }
 
 type FindRoomQuery struct {
