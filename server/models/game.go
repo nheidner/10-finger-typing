@@ -110,12 +110,7 @@ func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, roomId uuid.UU
 		Status:         UnactiveSubscriberStatus,
 	}
 
-	err := gs.addGameSubscriber(newGame.RoomId, newGame.ID, &newSubscriber)
-	if err != nil {
-		return nil, err
-	}
-
-	err = gs.addGameStatus(newGame.ID, newGame.Status)
+	err := gs.addGameSubscriberAndGameStatus(&newGame, &newSubscriber)
 	if err != nil {
 		return nil, err
 	}
@@ -125,27 +120,39 @@ func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, roomId uuid.UU
 	return &newGame, nil
 }
 
-func (gs *GameService) addGameStatus(gameId uuid.UUID, status GameStatus) error {
-	value := strconv.Itoa(int(status))
-	key := getGameStatusKey(gameId)
+func (gs *GameService) addGameSubscriberAndGameStatus(newGame *Game, newSubscriber *Subscriber) error {
 	ctx := context.Background()
 
-	return gs.RDB.Set(ctx, key, value, 0).Err()
+	_, err := gs.RDB.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+		if err := addGameSubscriber(pipe, ctx, newGame.RoomId, newGame.ID, newSubscriber); err != nil {
+			return err
+		}
+
+		return addGameStatus(pipe, ctx, newGame.ID, newGame.Status)
+	})
+
+	return err
 }
 
-func (gs *GameService) addGameSubscriber(roomId, gameId uuid.UUID, subscriber *Subscriber) error {
+func addGameStatus(pipe redis.Pipeliner, ctx context.Context, gameId uuid.UUID, status GameStatus) error {
+	value := strconv.Itoa(int(status))
+	key := getGameStatusKey(gameId)
+
+	return pipe.Set(ctx, key, value, 0).Err()
+}
+
+func addGameSubscriber(pipe redis.Pipeliner, ctx context.Context, roomId, gameId uuid.UUID, subscriber *Subscriber) error {
 	roomUnstartedGamesKey := getUnstartedGamesKey(roomId)
 	gameUserIdsKey := getGameUserIdsKey(gameId)
 	userDataKey := getUserDataKey(gameId, subscriber.UserId)
 	userId := strconv.Itoa(int(subscriber.UserId))
-	ctx := context.Background()
 
-	err := gs.RDB.SAdd(ctx, roomUnstartedGamesKey, gameId.String()).Err()
+	err := pipe.SAdd(ctx, roomUnstartedGamesKey, gameId.String()).Err()
 	if err != nil {
 		return err
 	}
 
-	err = gs.RDB.SAdd(ctx, gameUserIdsKey, userId).Err()
+	err = pipe.SAdd(ctx, gameUserIdsKey, userId).Err()
 	if err != nil {
 		return err
 	}
@@ -158,11 +165,7 @@ func (gs *GameService) addGameSubscriber(roomId, gameId uuid.UUID, subscriber *S
 		userDataFields["startTime"] = subscriber.StartTimeStamp.Unix()
 	}
 
-	return gs.RDB.HSet(ctx, userDataKey, userDataFields).Err()
-}
-
-func getGameStatusKey(gameId uuid.UUID) string {
-	return "games:" + gameId.String() + ":status"
+	return pipe.HSet(ctx, userDataKey, userDataFields).Err()
 }
 
 func (gs *GameService) getDbOrTx(tx *gorm.DB) *gorm.DB {
