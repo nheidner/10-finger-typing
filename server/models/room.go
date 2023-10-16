@@ -16,6 +16,7 @@ type Room struct {
 	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
 	Subscribers []*User         `json:"-" gorm:"many2many:user_rooms"`
 	Tokens      []Token         `json:"-"`
+	Games       []Game          `json:"-"`
 }
 
 type FindRoomQuery struct {
