@@ -45,13 +45,13 @@ func (s *GameStatus) MarshalJSON() ([]byte, error) {
 }
 
 // TODO
-// * don't return in json time.Time{}
-// * also how to handle time.Time{} in redis?
 // * use transactions in redis
 
 // active gameuser is saved in redis, game status, status of user, starting time stamp
-// games:[gameId]:users:[userId] { startTimeStamp, status(started, finished),  }
+// user_data:[userId] { startTimeStamp, status(started, finished),  }
 // games:[gameId]:status
+// rooms:[roomId]:unstarted_games
+// games:[gameId]:user_ids [userId]
 
 // userStartGame(startTimestamp) => startTimeStamp, status: started,
 // startGame() => game:isActive: true
@@ -66,10 +66,8 @@ type WSMessage struct {
 
 type Subscriber struct {
 	UserId         uint             `json:"userId"`
-	StartTimeStamp time.Time        `json:"startTime"`
+	StartTimeStamp *time.Time       `json:"startTime"`
 	Status         SubscriberStatus `json:"status"`
-	// Msgs           chan Message `json:"-"`
-	// CloseSlow      func()       `json:"-"`
 }
 
 type Game struct {
@@ -79,7 +77,6 @@ type Game struct {
 	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
 	TextId      uint            `json:"textId" gorm:"not null"`
 	RoomId      uuid.UUID       `json:"roomId" gorm:"not null"`
-	Room        Room            `json:"-"` // active room
 	Scores      []Score         `json:"-"`
 	Status      GameStatus      `json:"status" gorm:"-"`      // saved in redis
 	Subscribers []*Subscriber   `json:"subscribers" gorm:"-"` // saved in redis
@@ -109,11 +106,11 @@ func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, roomId uuid.UU
 
 	newSubscriber := Subscriber{
 		UserId:         userId,
-		StartTimeStamp: time.Time{},
+		StartTimeStamp: nil,
 		Status:         UnactiveSubscriberStatus,
 	}
 
-	err := gs.addGameSubscriber(newGame.ID, &newSubscriber)
+	err := gs.addGameSubscriber(newGame.RoomId, newGame.ID, &newSubscriber)
 	if err != nil {
 		return nil, err
 	}
@@ -131,18 +128,41 @@ func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, roomId uuid.UU
 func (gs *GameService) addGameStatus(gameId uuid.UUID, status GameStatus) error {
 	value := strconv.Itoa(int(status))
 	key := getGameStatusKey(gameId)
+	ctx := context.Background()
 
-	return gs.Redis.Set(context.Background(), key, value, 0).Err()
+	return gs.Redis.Set(ctx, key, value, 0).Err()
 }
 
-func (gs *GameService) addGameSubscriber(gameId uuid.UUID, subscriber *Subscriber) error {
-	fields := map[string]any{
-		"status":    strconv.Itoa(int(subscriber.Status)),
-		"startTime": subscriber.StartTimeStamp.Unix(),
-	}
-	key := getGameSubscriberKey(gameId, int(subscriber.UserId))
+func (gs *GameService) addGameSubscriber(roomId, gameId uuid.UUID, subscriber *Subscriber) error {
+	userId := strconv.Itoa(int(subscriber.UserId))
+	roomUnstartedGamesKey := "rooms:" + roomId.String() + ":unstarted_games"
+	gameUserIdsKey := "games:" + gameId.String() + ":user_ids"
+	userDataKey := "games:" + gameId.String() + ":user_data:" + userId
+	ctx := context.Background()
 
-	return gs.Redis.HSet(context.Background(), key, fields).Err()
+	err := gs.Redis.SAdd(ctx, roomUnstartedGamesKey, gameId.String()).Err()
+	if err != nil {
+		return err
+	}
+
+	err = gs.Redis.SAdd(ctx, gameUserIdsKey, userId).Err()
+	if err != nil {
+		return err
+	}
+
+	userDataFields := map[string]any{
+		"status": strconv.Itoa(int(subscriber.Status)),
+	}
+
+	if subscriber.StartTimeStamp != nil {
+		userDataFields["startTime"] = subscriber.StartTimeStamp.Unix()
+	}
+
+	return gs.Redis.HSet(ctx, userDataKey, userDataFields).Err()
+}
+
+func getGameStatusKey(gameId uuid.UUID) string {
+	return "games:" + gameId.String() + ":status"
 }
 
 func (gs *GameService) getDbOrTx(tx *gorm.DB) *gorm.DB {
@@ -151,12 +171,4 @@ func (gs *GameService) getDbOrTx(tx *gorm.DB) *gorm.DB {
 	}
 
 	return gs.DB
-}
-
-func getGameSubscriberKey(gameId uuid.UUID, subscriberId int) string {
-	return "games:" + gameId.String() + ":users:" + strconv.Itoa(subscriberId)
-}
-
-func getGameStatusKey(gameId uuid.UUID) string {
-	return "games:" + gameId.String() + ":status"
 }
