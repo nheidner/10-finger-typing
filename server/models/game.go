@@ -30,8 +30,6 @@ func (s *SubscriberStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-var ctx context.Context
-
 const (
 	UnstartedGameStatus GameStatus = iota
 	StartedGameStatus
@@ -112,7 +110,7 @@ func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, roomId uuid.UU
 		Status:         UnactiveSubscriberStatus,
 	}
 
-	err := gs.addGameSubscriberAndGameStatus(&newGame, &newSubscriber)
+	err := gs.addGameSubscriberAndGameStatus(context.Background(), &newGame, &newSubscriber)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +120,7 @@ func (gs *GameService) Create(tx *gorm.DB, input CreateGameInput, roomId uuid.UU
 	return &newGame, nil
 }
 
-func (gs *GameService) Find(gameId uuid.UUID) (*Game, error) {
+func (gs *GameService) Find(gameId, roomId uuid.UUID, userId uint) (*Game, error) {
 	game := Game{
 		ID: gameId,
 	}
@@ -131,12 +129,14 @@ func (gs *GameService) Find(gameId uuid.UUID) (*Game, error) {
 		return nil, err
 	}
 
-	gameStatus, err := gs.getGameStatus(gameId)
+	ctx := context.Background()
+
+	gameStatus, err := gs.getGameStatus(ctx, gameId)
 	if err != nil {
 		return nil, err
 	}
 
-	gameSubscribers, err := gs.getSubscribers(gameId)
+	gameSubscribers, err := gs.getSubscribers(ctx, gameId)
 	if err != nil {
 		return nil, err
 	}
@@ -147,23 +147,20 @@ func (gs *GameService) Find(gameId uuid.UUID) (*Game, error) {
 	return &game, nil
 }
 
-func (gs *GameService) addGameSubscriberAndGameStatus(newGame *Game, newSubscriber *Subscriber) error {
-	ctx := context.Background()
-
+func (gs *GameService) addGameSubscriberAndGameStatus(ctx context.Context, newGame *Game, newSubscriber *Subscriber) error {
 	_, err := gs.RDB.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-		if err := addGameSubscriber(pipe, newGame.RoomId, newGame.ID, newSubscriber); err != nil {
+		if err := addGameSubscriber(ctx, pipe, newGame.RoomId, newGame.ID, newSubscriber); err != nil {
 			return err
 		}
 
-		return addGameStatus(pipe, newGame.ID, newGame.Status)
+		return addGameStatus(ctx, pipe, newGame.ID, newGame.Status)
 	})
 
 	return err
 }
 
-func (gs *GameService) getGameStatus(gameId uuid.UUID) (GameStatus, error) {
+func (gs *GameService) getGameStatus(ctx context.Context, gameId uuid.UUID) (GameStatus, error) {
 	gameStatusKey := getGameStatusKey(gameId)
-
 	gameStatusStr, err := gs.RDB.Get(ctx, gameStatusKey).Result()
 	if err != nil {
 		return UnstartedGameStatus, err
@@ -177,7 +174,7 @@ func (gs *GameService) getGameStatus(gameId uuid.UUID) (GameStatus, error) {
 	return GameStatus(gameStatus), nil
 }
 
-func (gs *GameService) getSubscribers(gameId uuid.UUID) ([]Subscriber, error) {
+func (gs *GameService) getSubscribers(ctx context.Context, gameId uuid.UUID) ([]Subscriber, error) {
 	gameUserIdsKey := getGameUserIdsKey(gameId)
 
 	subscriberIds, err := gs.RDB.SMembers(ctx, gameUserIdsKey).Result()
@@ -187,7 +184,7 @@ func (gs *GameService) getSubscribers(gameId uuid.UUID) ([]Subscriber, error) {
 
 	subscribers := []Subscriber{}
 	for _, subscriberId := range subscriberIds {
-		subscriber, err := gs.getSubscriber(gameId, subscriberId)
+		subscriber, err := gs.getSubscriber(ctx, gameId, subscriberId)
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +195,7 @@ func (gs *GameService) getSubscribers(gameId uuid.UUID) ([]Subscriber, error) {
 	return subscribers, nil
 }
 
-func (gs *GameService) getSubscriber(gameId uuid.UUID, subscriberId string) (*Subscriber, error) {
+func (gs *GameService) getSubscriber(ctx context.Context, gameId uuid.UUID, subscriberId string) (*Subscriber, error) {
 	userDataKey := getUserDataKey(gameId, subscriberId)
 
 	f, err := gs.RDB.HGetAll(ctx, userDataKey).Result()
@@ -246,14 +243,14 @@ func mapRedisHashToSubscriber(hashData map[string]string) (*Subscriber, error) {
 	return &subscriber, nil
 }
 
-func addGameStatus(pipe redis.Pipeliner, gameId uuid.UUID, status GameStatus) error {
+func addGameStatus(ctx context.Context, pipe redis.Pipeliner, gameId uuid.UUID, status GameStatus) error {
 	value := strconv.Itoa(int(status))
 	key := getGameStatusKey(gameId)
 
 	return pipe.Set(ctx, key, value, 0).Err()
 }
 
-func addGameSubscriber(pipe redis.Pipeliner, roomId, gameId uuid.UUID, subscriber *Subscriber) error {
+func addGameSubscriber(ctx context.Context, pipe redis.Pipeliner, roomId, gameId uuid.UUID, subscriber *Subscriber) error {
 	roomUnstartedGamesKey := getUnstartedGamesKey(roomId)
 	gameUserIdsKey := getGameUserIdsKey(gameId)
 	userDataKey := getUserDataKey(gameId, strconv.Itoa(int(subscriber.UserId)))
