@@ -1,8 +1,6 @@
 package models
 
 import (
-	"strconv"
-
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -36,10 +34,8 @@ func getGameUserIdsKey(gameId uuid.UUID) string {
 	return "games:" + gameId.String() + ":user_ids"
 }
 
-func getUserDataKey(gameId uuid.UUID, userId uint) string {
-	userIdStr := strconv.Itoa(int(userId))
-
-	return "games:" + gameId.String() + ":user_data:" + userIdStr
+func getUserDataKey(gameId uuid.UUID, userId string) string {
+	return "games:" + gameId.String() + ":user_data:" + userId
 }
 
 func getGameStatusKey(gameId uuid.UUID) string {
