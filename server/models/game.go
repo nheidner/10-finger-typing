@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -125,8 +126,18 @@ func (gs *GameService) Find(gameId, roomId uuid.UUID, userId uint) (*Game, error
 		ID: gameId,
 	}
 
-	if err := gs.DB.Find(&game).Error; err != nil {
-		return nil, err
+	result := gs.DB.
+		Joins("INNER JOIN user_rooms ur ON ur.room_id = games.room_id").
+		Where("games.room_id = ?", roomId).
+		Where("ur.user_id = ?", userId).
+		Find(&game)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, fmt.Errorf("no game found")
 	}
 
 	ctx := context.Background()

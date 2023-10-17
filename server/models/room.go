@@ -84,7 +84,7 @@ func (rs *RoomService) Find(roomId uuid.UUID, textId, userId uint) (*Room, error
 		Where("rooms.id = ?", roomId).
 		Where("tr.text_id = ?", textId).
 		Where("ur.user_id = ?", userId).
-		First(&room); (result.Error != nil) || (result.RowsAffected == 0) {
+		Find(&room); (result.Error != nil) || (result.RowsAffected == 0) {
 		badRequestError := custom_errors.HTTPError{Message: "no room found", Status: http.StatusBadRequest, Details: result.Error.Error()}
 		return nil, badRequestError
 	}
