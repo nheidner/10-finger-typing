@@ -14,6 +14,8 @@ type Games struct {
 	RoomService *models.RoomService
 }
 
+// middleware function: isRoomMember, isRoomAdmin
+
 func (g *Games) CreateGame(c *gin.Context) {
 	user, createUserInput, roomId, err := processCreateGameHTTPParams(c)
 	if err != nil {
