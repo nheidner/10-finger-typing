@@ -80,9 +80,7 @@ func (rs *RoomService) Find(roomId uuid.UUID, textId, userId uint) (*Room, error
 
 	if result := rs.DB.
 		Joins("INNER JOIN user_rooms ur ON ur.room_id = rooms.id").
-		Joins("INNER JOIN text_rooms tr ON tr.room_id = rooms.id").
 		Where("rooms.id = ?", roomId).
-		Where("tr.text_id = ?", textId).
 		Where("ur.user_id = ?", userId).
 		Find(&room); (result.Error != nil) || (result.RowsAffected == 0) {
 		badRequestError := custom_errors.HTTPError{Message: "no room found", Status: http.StatusBadRequest, Details: result.Error.Error()}
