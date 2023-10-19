@@ -1,11 +1,9 @@
 package models
 
 import (
-	custom_errors "10-typing/errors"
 	"10-typing/utils"
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -13,51 +11,72 @@ import (
 )
 
 func (rs *RoomService) Find(roomId uuid.UUID, userId uint) (*Room, error) {
-	room, _ := rs.findInRedis(context.Background(), roomId, userId)
-	if room != nil {
-		return room, nil
+	cachedRoom, err := rs.findInRedis(context.Background(), roomId, userId)
+	if cachedRoom != nil {
+		return cachedRoom, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	if result := rs.DB.
+	var room Room
+	result := rs.DB.
 		Joins("INNER JOIN user_rooms ur ON ur.room_id = rooms.id").
 		Where("rooms.id = ?", roomId).
 		Where("ur.user_id = ?", userId).
-		Find(room); (result.Error != nil) || (result.RowsAffected == 0) {
-		badRequestError := custom_errors.HTTPError{Message: "no room found", Status: http.StatusBadRequest, Details: result.Error.Error()}
-		return nil, badRequestError
+		Find(&room)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, fmt.Errorf("no room found")
 	}
 
-	// update the cache
+	if err := rs.DB.Model(room).Association("Subscribers").Find(&(room.Subscribers)); err != nil {
+		return nil, err
+	}
 
-	return room, nil
+	// no error needs to be returned
+	rs.createInRedis(context.Background(), &room)
+
+	return &room, nil
 }
 
 func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId uint) (*Room, error) {
 	roomKey := getRoomKey(roomId)
 
-	f, err := rs.RDB.HGetAll(ctx, roomKey).Result()
+	roomData, err := rs.RDB.HGetAll(ctx, roomKey).Result()
 	if err != nil {
 		return nil, err
+	}
+	if len(roomData) == 0 {
+		return nil, nil
 	}
 
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
-	s, err := rs.RDB.SMembers(ctx, roomSubscriberIdsKey).Result()
+	roomSubscriberIds, err := rs.RDB.SMembers(ctx, roomSubscriberIdsKey).Result()
 	if err != nil {
 		return nil, err
 	}
+	if len(roomSubscriberIds) == 0 {
+		return nil, nil
+	}
 
-	if !utils.SliceContains[string](s, strconv.Itoa(int(userId))) {
+	userIdStr := strconv.Itoa(int(userId))
+	if !utils.SliceContains[string](roomSubscriberIds, userIdStr) {
 		return nil, fmt.Errorf("user is not subscribed to room")
 	}
 
-	roomSubscribers := make([]*User, 0, len(s))
-	for _, roomSubscriberId := range s {
-
+	roomSubscribers := make([]User, 0, len(roomSubscriberIds))
+	for _, roomSubscriberId := range roomSubscriberIds {
 		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
 
-		rs, err := rs.RDB.HGetAll(ctx, roomSubscriberKey).Result()
+		roomSubscriber, err := rs.RDB.HGetAll(ctx, roomSubscriberKey).Result()
 		if err != nil {
 			return nil, err
+		}
+		if len(roomSubscriber) == 0 {
+			return nil, nil
 		}
 
 		roomSubscriberIdUint, err := strconv.Atoi(roomSubscriberId)
@@ -67,17 +86,17 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 
 		subscriber := User{
 			ID:       uint(roomSubscriberIdUint),
-			Username: rs["username"],
+			Username: roomSubscriber["username"],
 		}
 
-		roomSubscribers = append(roomSubscribers, &subscriber)
+		roomSubscribers = append(roomSubscribers, subscriber)
 	}
 
-	createdAtInt, err := strconv.Atoi(f["createdAt"])
+	createdAtInt, err := strconv.Atoi(roomData["createdAt"])
 	if err != nil {
 		return nil, err
 	}
-	updatedAtInt, err := strconv.Atoi(f["createdAt"])
+	updatedAtInt, err := strconv.Atoi(roomData["createdAt"])
 	if err != nil {
 		return nil, err
 	}

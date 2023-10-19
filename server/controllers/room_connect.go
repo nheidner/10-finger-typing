@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	custom_errors "10-typing/errors"
 	"10-typing/memory"
 	"10-typing/models"
 	"context"
@@ -42,7 +41,7 @@ func (r Rooms) ConnectToRoom(c *gin.Context) {
 	_, err = r.RoomService.Find(roomId, user.ID)
 	if err != nil {
 		log.Println("Error finding the room:", err)
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
