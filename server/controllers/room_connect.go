@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -32,7 +31,7 @@ import (
 // * error handling (how to send errors back from server here), add context (f.e. timeouts)
 
 func (r Rooms) ConnectToRoom(c *gin.Context) {
-	roomId, textId, user, err := processHTTPParams(c)
+	roomId, user, err := processHTTPParams(c)
 
 	if err != nil {
 		log.Println("Error processing the HTTP params:", err)
@@ -40,7 +39,7 @@ func (r Rooms) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	_, err = r.RoomService.Find(roomId, uint(textId), user.ID)
+	_, err = r.RoomService.Find(roomId, user.ID)
 	if err != nil {
 		log.Println("Error finding the room:", err)
 		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
@@ -66,12 +65,12 @@ func (r Rooms) ConnectToRoom(c *gin.Context) {
 	publishToSubscribers(c.Request.Context(), subscriber, conn, user, room)
 }
 
-func processHTTPParams(c *gin.Context) (roomId uuid.UUID, textId uint64, user *models.User, err error) {
+func processHTTPParams(c *gin.Context) (roomId uuid.UUID, user *models.User, err error) {
 	// userId
 	userContext, _ := c.Get("user")
 	user, ok := userContext.(*models.User)
 	if !ok {
-		return uuid.Nil, 0, nil, fmt.Errorf("could not read user from route context")
+		return uuid.Nil, nil, fmt.Errorf("could not read user from route context")
 	}
 
 	// roomId
@@ -79,22 +78,10 @@ func processHTTPParams(c *gin.Context) (roomId uuid.UUID, textId uint64, user *m
 
 	roomId, err = uuid.Parse(roomIdUrlParam)
 	if err != nil {
-		return uuid.Nil, 0, nil, fmt.Errorf("error parsing the room id: %w", err)
+		return uuid.Nil, nil, fmt.Errorf("error parsing the room id: %w", err)
 	}
 
-	// textId
-	var query models.FindRoomQuery
-
-	if err = c.ShouldBindQuery(&query); err != nil {
-		return uuid.Nil, 0, nil, fmt.Errorf("textId query string field has to be specified")
-	}
-
-	textId, err = strconv.ParseUint(query.TextId, 10, 0)
-	if err != nil {
-		return uuid.Nil, 0, nil, fmt.Errorf("error parsing the text id: %w", err)
-	}
-
-	return roomId, textId, user, nil
+	return roomId, user, nil
 }
 
 func publishToSubscribers(ctx context.Context, subscriber *memory.Subscriber, conn *websocket.Conn, user *models.User, room *memory.Room) {
