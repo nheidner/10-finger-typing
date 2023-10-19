@@ -38,7 +38,7 @@ func (r Rooms) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	_, err = r.RoomService.Find(roomId, user.ID)
+	_, err = r.RoomService.Find(context.Background(), roomId, user.ID)
 	if err != nil {
 		log.Println("Error finding the room:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

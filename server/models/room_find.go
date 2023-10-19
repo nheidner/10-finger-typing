@@ -4,21 +4,35 @@ import (
 	"10-typing/utils"
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-func (rs *RoomService) Find(roomId uuid.UUID, userId uint) (*Room, error) {
-	cachedRoom, err := rs.findInRedis(context.Background(), roomId, userId)
-	if cachedRoom != nil {
-		return cachedRoom, nil
-	}
+func (rs *RoomService) Find(ctx context.Context, roomId uuid.UUID, userId uint) (*Room, error) {
+	room, err := rs.findRoomFromCache(ctx, roomId, userId)
 	if err != nil {
 		return nil, err
 	}
 
+	if room == nil {
+		room, err = rs.findRoomFromDB(roomId, userId)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = rs.storeRoomToCache(ctx, room); err != nil {
+			// no error should be returned
+			log.Println(err)
+		}
+	}
+
+	return room, nil
+}
+
+func (rs *RoomService) findRoomFromDB(roomId uuid.UUID, userId uint) (*Room, error) {
 	var room Room
 	result := rs.DB.
 		Joins("INNER JOIN user_rooms ur ON ur.room_id = rooms.id").
@@ -36,10 +50,15 @@ func (rs *RoomService) Find(roomId uuid.UUID, userId uint) (*Room, error) {
 		return nil, err
 	}
 
-	// no error needs to be returned
-	rs.createInRedis(context.Background(), &room)
-
 	return &room, nil
+}
+
+func (rs *RoomService) findRoomFromCache(ctx context.Context, roomId uuid.UUID, userId uint) (*Room, error) {
+	return rs.findInRedis(ctx, roomId, userId)
+}
+
+func (rs *RoomService) storeRoomToCache(ctx context.Context, room *Room) error {
+	return rs.createInRedis(ctx, room)
 }
 
 func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId uint) (*Room, error) {
@@ -92,19 +111,28 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 		roomSubscribers = append(roomSubscribers, subscriber)
 	}
 
-	createdAtInt, err := strconv.Atoi(roomData["createdAt"])
+	createdAt, err := stringToTime(roomData["createdAt"])
 	if err != nil {
 		return nil, err
 	}
-	updatedAtInt, err := strconv.Atoi(roomData["createdAt"])
+	updatedAt, err := stringToTime(roomData["updatedAt"])
 	if err != nil {
 		return nil, err
 	}
 
 	return &Room{
 		ID:          roomId,
-		CreatedAt:   time.Unix(int64(createdAtInt), int64((createdAtInt%1000)*1e6)),
-		UpdatedAt:   time.Unix(int64(updatedAtInt), int64((updatedAtInt%1000)*1e6)),
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
 		Subscribers: roomSubscribers,
 	}, nil
+}
+
+func stringToTime(data string) (time.Time, error) {
+	intVal, err := strconv.Atoi(data)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(int64(intVal), 0), nil
 }
