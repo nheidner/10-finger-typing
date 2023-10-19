@@ -26,8 +26,20 @@ func connectRedis() {
 	})
 }
 
+func getRoomKey(roomId uuid.UUID) string {
+	return "rooms:" + roomId.String()
+}
+
+func getRoomSubscriberIdsKey(roomId uuid.UUID) string {
+	return getRoomKey(roomId) + ":subscribers_ids"
+}
+
+func getRoomSubscriberKey(roomId uuid.UUID, userId string) string {
+	return getRoomKey(roomId) + ":subscribers:" + userId
+}
+
 func getUnstartedGamesKey(roomId uuid.UUID) string {
-	return "rooms:" + roomId.String() + ":unstarted_games"
+	return getRoomKey(roomId) + ":unstarted_games"
 }
 
 func getGameUserIdsKey(gameId uuid.UUID) string {
