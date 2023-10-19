@@ -19,7 +19,7 @@ type Room struct {
 	CreatedAt   time.Time       `json:"createdAt"`
 	UpdatedAt   time.Time       `json:"updatedAt"`
 	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	Subscribers []*User         `json:"subscribers" gorm:"many2many:user_rooms"`
+	Subscribers []User          `json:"subscribers" gorm:"many2many:user_rooms"`
 	Tokens      []Token         `json:"-"`
 	Games       []Game          `json:"-"`
 }

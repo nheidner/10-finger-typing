@@ -147,3 +147,17 @@ func (us *UserService) Verify(userId uint) error {
 func (us *UserService) DeleteAll() error {
 	return us.DB.Exec("TRUNCATE users RESTART IDENTITY CASCADE").Error
 }
+
+// strips sensitive user information from users ex
+func StripSensitiveUserInformation(users []User, exception *User) {
+	for i := range users {
+		if exception != nil && users[i].ID == exception.ID {
+			continue
+		}
+
+		users[i].FirstName = ""
+		users[i].Email = ""
+		users[i].LastName = ""
+		users[i].IsVerified = false
+	}
+}

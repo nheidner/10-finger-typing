@@ -74,6 +74,8 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 
 	tx.Commit()
 
+	models.StripSensitiveUserInformation(room.Subscribers, user)
+
 	c.JSON(http.StatusOK, gin.H{"data": room})
 }
 
