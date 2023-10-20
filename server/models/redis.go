@@ -57,3 +57,11 @@ func getGameStatusKey(gameId uuid.UUID) string {
 func getTextIdsKey() string {
 	return "text_ids"
 }
+
+func getCurrentGameKey(roomId uuid.UUID) string {
+	return "rooms:" + roomId.String() + ":current_game"
+}
+
+func getCurrentGameUserIdsKey(roomId uuid.UUID) string {
+	return getCurrentGameKey(roomId) + ":user_ids"
+}
