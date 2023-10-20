@@ -35,7 +35,7 @@ func (g *Games) CreateGame(c *gin.Context) {
 		return
 	}
 
-	game, err := g.GameService.Create(nil, *createUserInput, roomId, user.ID)
+	game, err := g.GameService.CreateOld(nil, *createUserInput, roomId, user.ID)
 	if err != nil {
 		log.Println("Error creating room:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
