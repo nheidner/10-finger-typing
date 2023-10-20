@@ -2,6 +2,7 @@ package main
 
 import (
 	"10-typing/models"
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -129,7 +130,7 @@ func seedFakeTexts(n int) ([]*models.Text, error) {
 			return nil, err
 		}
 
-		text, err := textService.Create(*textInputData, gptText)
+		text, err := textService.Create(context.Background(), *textInputData, gptText)
 		if err != nil {
 			return nil, err
 		}

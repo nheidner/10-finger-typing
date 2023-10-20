@@ -53,3 +53,7 @@ func getUserDataKey(gameId uuid.UUID, userId string) string {
 func getGameStatusKey(gameId uuid.UUID) string {
 	return "games:" + gameId.String() + ":status"
 }
+
+func getTextIdsKey() string {
+	return "text_ids"
+}

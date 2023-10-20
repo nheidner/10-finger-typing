@@ -3,6 +3,7 @@ package controllers
 import (
 	custom_errors "10-typing/errors"
 	"10-typing/models"
+	"context"
 	"fmt"
 	"net/http"
 
@@ -54,9 +55,9 @@ func (t Texts) CreateText(c *gin.Context) {
 		return
 	}
 
-	text, err := t.TextService.Create(input, gptText)
+	text, err := t.TextService.Create(context.Background(), input, gptText)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

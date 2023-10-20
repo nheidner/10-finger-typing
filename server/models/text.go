@@ -2,11 +2,13 @@ package models
 
 import (
 	custom_errors "10-typing/errors"
+	"context"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -41,7 +43,8 @@ type CreateTextInput struct {
 }
 
 type TextService struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	RDB *redis.Client
 }
 
 func (ti *CreateTextInput) String() string {
@@ -86,7 +89,7 @@ func (ts TextService) FindNewOneByUserId(userId uuid.UUID, query FindTextQuery) 
 	return &text, nil
 }
 
-func (ts TextService) Create(input CreateTextInput, gptText string) (*Text, error) {
+func (ts TextService) Create(ctx context.Context, input CreateTextInput, gptText string) (*Text, error) {
 	text := Text{
 		Language:          input.Language,
 		Text:              gptText,
@@ -97,13 +100,58 @@ func (ts TextService) Create(input CreateTextInput, gptText string) (*Text, erro
 
 	createResult := ts.DB.Create(&text)
 	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
+		return nil, createResult.Error
+	}
+
+	if err := ts.CreateInRedis(ctx, text.ID); err != nil {
+		return nil, err
 	}
 
 	return &text, nil
 }
 
-func (tx *TextService) DeleteAll() error {
-	return tx.DB.Exec("TRUNCATE texts RESTART IDENTITY CASCADE").Error
+func (ts *TextService) CreateInRedis(ctx context.Context, textId uuid.UUID) error {
+	textIdsKey := getTextIdsKey()
+
+	r, err := ts.RDB.Exists(ctx, textIdsKey).Result()
+	if err != nil {
+		return err
+	}
+	if r != 0 {
+		return ts.RDB.SAdd(ctx, textIdsKey, textId.String()).Err()
+	}
+
+	// if no text id key exists, new one with all text ids from DB is created
+	allTexts, err := ts.GetAllTexts()
+	if err != nil {
+		return err
+	}
+
+	allTextIds := make([]interface{}, 0, len(allTexts)+1)
+	for _, text := range allTexts {
+		allTextIds = append(allTextIds, text.ID.String())
+	}
+
+	allTextIds = append(allTextIds, textId.String())
+
+	return ts.RDB.SAdd(ctx, textIdsKey, allTextIds...).Err()
+}
+
+func (tx *TextService) GetAllTexts() ([]Text, error) {
+	var texts []Text
+
+	if err := tx.DB.Select("id").Find(&texts).Error; err != nil {
+		return nil, err
+	}
+
+	return texts, nil
+}
+
+func (ts *TextService) DeleteAll() error {
+	textIdsKey := getTextIdsKey()
+	if err := ts.RDB.Del(context.Background(), textIdsKey).Err(); err != nil {
+		return err
+	}
+
+	return ts.DB.Exec("TRUNCATE texts RESTART IDENTITY CASCADE").Error
 }
