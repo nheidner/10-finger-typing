@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type Text struct {
-	ID                uint            `json:"id" gorm:"primary_key"`
+	ID                uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	CreatedAt         time.Time       `json:"createdAt"`
 	UpdatedAt         time.Time       `json:"updatedAt"`
 	DeletedAt         *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
@@ -47,7 +48,7 @@ func (ti *CreateTextInput) String() string {
 	return fmt.Sprintf("language: %s, punctuation: %t, number of special characters: %d, number of numbers: %d, length: 100 words", ti.Language, ti.Punctuation, ti.SpecialCharacters, ti.Numbers)
 }
 
-func (ts TextService) FindNewOneByUserId(userId uint, query FindTextQuery) (*Text, error) {
+func (ts TextService) FindNewOneByUserId(userId uuid.UUID, query FindTextQuery) (*Text, error) {
 	var text Text
 
 	result := ts.DB.

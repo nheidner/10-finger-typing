@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type User struct {
-	ID           uint      `json:"id" gorm:"primary_key"`
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	Username     string    `json:"username" gorm:"uniqueIndex;not null;type:varchar(255)"`
 	Password     string    `json:"-" gorm:"-"`
 	PasswordHash string    `json:"-" gorm:"not null;type:varchar(510)"`
@@ -78,9 +79,11 @@ func (us *UserService) FindByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
-func (us UserService) FindOneById(id uint) (*User, error) {
-	var user User
-	result := us.DB.First(&user, id)
+func (us UserService) FindOneById(id uuid.UUID) (*User, error) {
+	user := User{
+		ID: id,
+	}
+	result := us.DB.Find(&user)
 	if result.Error != nil {
 		badRequestError := custom_errors.HTTPError{Message: "error querying user", Status: http.StatusBadRequest, Details: result.Error.Error()}
 		return nil, badRequestError
@@ -140,7 +143,7 @@ func (us UserService) Authenticate(email, password string) (*User, error) {
 	return &user, nil
 }
 
-func (us *UserService) Verify(userId uint) error {
+func (us *UserService) Verify(userId uuid.UUID) error {
 	return us.DB.Model(&User{}).Where("id = ?", userId).Update("is_verified", true).Error
 }
 

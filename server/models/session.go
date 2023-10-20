@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	custom_errors "10-typing/errors"
@@ -19,11 +20,10 @@ const (
 
 type Session struct {
 	*gorm.Model
-	ID     uint `json:"id" gorm:"primary_key"`
-	UserId uint `json:"userId"`
-	// token that is not saved in the database
-	Token     string `json:"token" gorm:"-"`
-	TokenHash string `json:"tokenHash" gorm:"not null;type:varchar(510)"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	UserId    uuid.UUID `json:"userId"`
+	Token     string    `json:"token" gorm:"-"` // token that is not saved in the database
+	TokenHash string    `json:"tokenHash" gorm:"not null;type:varchar(510)"`
 }
 
 type SessionService struct {
@@ -34,7 +34,7 @@ type SessionService struct {
 // Create will create a new session for the user provided. The session token
 // will be returned as the Token field on the Session type, but only the hashed
 // session token is stored in the database.
-func (ss *SessionService) Create(userId uint) (*Session, error) {
+func (ss *SessionService) Create(userId uuid.UUID) (*Session, error) {
 	bytesPerToken := ss.BytesPerToken
 	if bytesPerToken < MinBytesPerToken {
 		bytesPerToken = MinBytesPerToken
@@ -74,9 +74,9 @@ func (ss *SessionService) Delete(token string) error {
 func (ss *SessionService) User(token string) (*User, error) {
 	var user User
 	tokenHash := ss.hash(token)
-	queryUserResult := ss.DB.Joins("inner join sessions on users.id = sessions.user_id").
+	queryUserResult := ss.DB.Joins("INNER JOIN sessions on users.id = sessions.user_id").
 		Where("sessions.token_hash = ? AND sessions.created_at > ?", tokenHash, time.Now().Add(-SessionDuration*time.Second)).
-		First(&user)
+		Find(&user)
 	if (queryUserResult.Error != nil) || (queryUserResult.RowsAffected == 0) {
 		notFoundError := custom_errors.HTTPError{Message: "Not Found", Status: http.StatusNotFound}
 		return nil, notFoundError

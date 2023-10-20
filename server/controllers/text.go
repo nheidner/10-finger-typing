@@ -5,9 +5,9 @@ import (
 	"10-typing/models"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Texts struct {
@@ -17,7 +17,7 @@ type Texts struct {
 
 func (t Texts) FindText(c *gin.Context) {
 	userIdUrlParam := c.Param("userid")
-	userId, err := strconv.ParseUint(userIdUrlParam, 10, 32)
+	userId, err := uuid.Parse(userIdUrlParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -30,7 +30,7 @@ func (t Texts) FindText(c *gin.Context) {
 		return
 	}
 
-	text, err := t.TextService.FindNewOneByUserId(uint(userId), query)
+	text, err := t.TextService.FindNewOneByUserId(userId, query)
 	if err != nil {
 		fmt.Println("err :>>", err.(custom_errors.HTTPError).Details)
 		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})

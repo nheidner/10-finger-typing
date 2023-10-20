@@ -5,9 +5,9 @@ import (
 	"10-typing/models"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Users struct {
@@ -37,13 +37,13 @@ func (u Users) FindUsers(c *gin.Context) {
 
 func (u Users) FindUser(c *gin.Context) {
 	userIdParam := c.Param("userid")
-	userId, err := strconv.ParseUint(userIdParam, 10, 32)
+	userId, err := uuid.Parse(userIdParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, err := u.UserService.FindOneById(uint(userId))
+	user, err := u.UserService.FindOneById(userId)
 	if err != nil {
 		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
 		return
@@ -147,14 +147,14 @@ func (u Users) UserIdUrlParamMatchesAuthorizedUser(c *gin.Context) {
 	}
 
 	userIdParam := c.Param("userid")
-	userId, err := strconv.ParseUint(userIdParam, 10, 32)
+	userId, err := uuid.Parse(userIdParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		c.Abort()
 		return
 	}
 
-	if uint(userId) != user.ID {
+	if userId != user.ID {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		c.Abort()
 		return

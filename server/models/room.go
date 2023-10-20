@@ -25,8 +25,8 @@ type Room struct {
 }
 
 type CreateRoomInput struct {
-	UserIds []uint   `json:"userIds"`
-	Emails  []string `json:"emails" binding:"dive,email"`
+	UserIds []uuid.UUID `json:"userIds"`
+	Emails  []string    `json:"emails" binding:"dive,email"`
 }
 
 type RoomService struct {

@@ -15,7 +15,7 @@ import (
 type ErrorsJSON map[string]int
 
 type Score struct {
-	ID             uint            `json:"id" gorm:"primary_key"`
+	ID             uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	CreatedAt      time.Time       `json:"createdAt"`
 	UpdatedAt      time.Time       `json:"updatedAt"`
 	DeletedAt      *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
@@ -25,8 +25,8 @@ type Score struct {
 	Accuracy       float64         `json:"accuracy" gorm:"type:DECIMAL GENERATED ALWAYS AS (100.0 - (number_errors::DECIMAL * 100.0 / words_typed::DECIMAL)) STORED"`
 	NumberErrors   int             `json:"numberErrors"`
 	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
-	UserId         uint            `json:"userId" gorm:"not null"`
-	TextId         uint            `json:"textId" gorm:"not null"`
+	UserId         uuid.UUID       `json:"userId" gorm:"not null"`
+	TextId         uuid.UUID       `json:"textId" gorm:"not null"`
 	GameId         *uuid.UUID      `json:"gameId"`
 }
 
@@ -34,13 +34,13 @@ type CreateScoreInput struct {
 	WordsTyped  int        `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=250"`
 	TimeElapsed float64    `json:"timeElapsed" binding:"required" faker:"oneof: 60.0, 120.0, 180.0"`
 	Errors      ErrorsJSON `json:"errors" binding:"required,typingerrors"`
-	TextId      uint       `json:"textId" binding:"required"`
-	UserId      uint
+	TextId      uuid.UUID  `json:"textId" binding:"required"`
+	UserId      uuid.UUID
 }
 
 type FindScoresQuery struct {
 	SortOptions []SortOption
-	UserId      uint
+	UserId      uuid.UUID
 	Username    string `form:"username"`
 }
 
@@ -69,7 +69,7 @@ func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
 	var scores []Score
 
 	findScoresDbQuery := ss.DB
-	if query.UserId != 0 {
+	if query.UserId != uuid.Nil {
 		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", query.UserId)
 	}
 	if query.Username != "" {

@@ -3,7 +3,6 @@ package models
 import (
 	"context"
 	"log"
-	"strconv"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -59,8 +58,7 @@ func (rs *RoomService) createInRedis(ctx context.Context, room *Room) error {
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(room.ID)
 	roomSubscriberIdsValue := make([]string, 0, len(room.Subscribers))
 	for _, subscriber := range room.Subscribers {
-		subscriberId := strconv.Itoa(int(subscriber.ID))
-		roomSubscriberIdsValue = append(roomSubscriberIdsValue, subscriberId)
+		roomSubscriberIdsValue = append(roomSubscriberIdsValue, subscriber.ID.String())
 	}
 
 	if err := rs.RDB.SAdd(ctx, roomSubscriberIdsKey, roomSubscriberIdsValue).Err(); err != nil {
@@ -69,7 +67,7 @@ func (rs *RoomService) createInRedis(ctx context.Context, room *Room) error {
 
 	// add room subscribers
 	for _, subscriber := range room.Subscribers {
-		roomSubscriberKey := getRoomSubscriberKey(room.ID, strconv.Itoa(int(subscriber.ID)))
+		roomSubscriberKey := getRoomSubscriberKey(room.ID, subscriber.ID.String())
 		roomSubscriberValue := map[string]any{
 			"username": subscriber.Username,
 		}

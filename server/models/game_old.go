@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (gs *GameService) CreateOld(tx *gorm.DB, input CreateGameInput, roomId uuid.UUID, userId uint) (*Game, error) {
+func (gs *GameService) CreateOld(tx *gorm.DB, input CreateGameInput, roomId uuid.UUID, userId uuid.UUID) (*Game, error) {
 	db := gs.getDbOrTx(tx)
 
 	newGame := Game{
@@ -40,7 +40,7 @@ func (gs *GameService) CreateOld(tx *gorm.DB, input CreateGameInput, roomId uuid
 	return &newGame, nil
 }
 
-func (gs *GameService) Find(gameId, roomId uuid.UUID, userId uint) (*Game, error) {
+func (gs *GameService) Find(gameId, roomId uuid.UUID, userId uuid.UUID) (*Game, error) {
 	game := Game{
 		ID: gameId,
 	}
@@ -125,8 +125,8 @@ func (gs *GameService) getSubscribers(ctx context.Context, gameId uuid.UUID) ([]
 	return subscribers, nil
 }
 
-func (gs *GameService) getSubscriber(ctx context.Context, gameId uuid.UUID, subscriberId string) (*Subscriber, error) {
-	userDataKey := getUserDataKey(gameId, subscriberId)
+func (gs *GameService) getSubscriber(ctx context.Context, gameId uuid.UUID, subscriberIdStr string) (*Subscriber, error) {
+	userDataKey := getUserDataKey(gameId, subscriberIdStr)
 
 	f, err := gs.RDB.HGetAll(ctx, userDataKey).Result()
 	if err != nil {
@@ -138,12 +138,12 @@ func (gs *GameService) getSubscriber(ctx context.Context, gameId uuid.UUID, subs
 		return nil, err
 	}
 
-	subscriberIdInt, err := strconv.Atoi(subscriberId)
+	subscriberId, err := uuid.Parse(subscriberIdStr)
 	if err != nil {
 		return nil, err
 	}
 
-	subscriber.UserId = uint(subscriberIdInt)
+	subscriber.UserId = subscriberId
 
 	return subscriber, nil
 }
@@ -181,17 +181,17 @@ func addGameStatus(ctx context.Context, pipe redis.Pipeliner, gameId uuid.UUID, 
 }
 
 func addGameSubscriber(ctx context.Context, pipe redis.Pipeliner, roomId, gameId uuid.UUID, subscriber *Subscriber) error {
+	userIdStr := subscriber.UserId.String()
 	roomUnstartedGamesKey := getUnstartedGamesKey(roomId)
 	gameUserIdsKey := getGameUserIdsKey(gameId)
-	userDataKey := getUserDataKey(gameId, strconv.Itoa(int(subscriber.UserId)))
-	userId := strconv.Itoa(int(subscriber.UserId))
+	userDataKey := getUserDataKey(gameId, userIdStr)
 
 	err := pipe.SAdd(ctx, roomUnstartedGamesKey, gameId.String()).Err()
 	if err != nil {
 		return err
 	}
 
-	err = pipe.SAdd(ctx, gameUserIdsKey, userId).Err()
+	err = pipe.SAdd(ctx, gameUserIdsKey, userIdStr).Err()
 	if err != nil {
 		return err
 	}

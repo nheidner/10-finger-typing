@@ -4,9 +4,9 @@ import (
 	custom_errors "10-typing/errors"
 	"10-typing/models"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Scores struct {
@@ -23,13 +23,13 @@ func (s Scores) CreateScore(c *gin.Context) {
 	}
 
 	userIdUrlParam := c.Param("userid")
-	userId, err := strconv.ParseUint(userIdUrlParam, 10, 32)
+	userId, err := uuid.Parse(userIdUrlParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	input.UserId = uint(userId)
+	input.UserId = userId
 
 	score, err := s.ScoreService.Create(input)
 	if err != nil {
@@ -41,15 +41,15 @@ func (s Scores) CreateScore(c *gin.Context) {
 }
 
 func (s Scores) FindScoresByUser(c *gin.Context) {
-	userIdParam := c.Param("userid")
-	userId, err := strconv.ParseUint(userIdParam, 10, 32)
+	userIdUrlParam := c.Param("userid")
+	userId, err := uuid.Parse(userIdUrlParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	query := models.FindScoresQuery{
-		UserId: uint(userId),
+		UserId: userId,
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {

@@ -63,7 +63,7 @@ type WSMessage struct {
 }
 
 type Subscriber struct {
-	UserId         uint             `json:"userId"`
+	UserId         uuid.UUID        `json:"userId"`
 	StartTimeStamp *time.Time       `json:"startTime"`
 	Status         SubscriberStatus `json:"status"`
 }
@@ -73,7 +73,7 @@ type Game struct {
 	CreatedAt   time.Time       `json:"createdAt"`
 	UpdatedAt   time.Time       `json:"updatedAt"`
 	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	TextId      uint            `json:"textId" gorm:"not null"`
+	TextId      uuid.UUID       `json:"textId" gorm:"not null"`
 	RoomId      uuid.UUID       `json:"roomId" gorm:"not null"`
 	Scores      []Score         `json:"-"`
 	Status      GameStatus      `json:"status" gorm:"-"`      // saved in redis
@@ -86,5 +86,5 @@ type GameService struct {
 }
 
 type CreateGameInput struct {
-	TextId uint `json:"textId"`
+	TextId uuid.UUID `json:"textId"`
 }

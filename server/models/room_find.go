@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (rs *RoomService) Find(ctx context.Context, roomId uuid.UUID, userId uint) (*Room, error) {
+func (rs *RoomService) Find(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*Room, error) {
 	room, err := rs.findRoomFromCache(ctx, roomId, userId)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (rs *RoomService) Find(ctx context.Context, roomId uuid.UUID, userId uint) 
 	return room, nil
 }
 
-func (rs *RoomService) findRoomFromDB(roomId uuid.UUID, userId uint) (*Room, error) {
+func (rs *RoomService) findRoomFromDB(roomId uuid.UUID, userId uuid.UUID) (*Room, error) {
 	var room Room
 	result := rs.DB.
 		Joins("INNER JOIN user_rooms ur ON ur.room_id = rooms.id").
@@ -53,7 +53,7 @@ func (rs *RoomService) findRoomFromDB(roomId uuid.UUID, userId uint) (*Room, err
 	return &room, nil
 }
 
-func (rs *RoomService) findRoomFromCache(ctx context.Context, roomId uuid.UUID, userId uint) (*Room, error) {
+func (rs *RoomService) findRoomFromCache(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*Room, error) {
 	return rs.findInRedis(ctx, roomId, userId)
 }
 
@@ -61,7 +61,7 @@ func (rs *RoomService) storeRoomToCache(ctx context.Context, room *Room) error {
 	return rs.createInRedis(ctx, room)
 }
 
-func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId uint) (*Room, error) {
+func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*Room, error) {
 	roomKey := getRoomKey(roomId)
 
 	roomData, err := rs.RDB.HGetAll(ctx, roomKey).Result()
@@ -81,14 +81,14 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 		return nil, nil
 	}
 
-	userIdStr := strconv.Itoa(int(userId))
+	userIdStr := userId.String()
 	if !utils.SliceContains[string](roomSubscriberIds, userIdStr) {
 		return nil, fmt.Errorf("user is not subscribed to room")
 	}
 
 	roomSubscribers := make([]User, 0, len(roomSubscriberIds))
-	for _, roomSubscriberId := range roomSubscriberIds {
-		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
+	for _, roomSubscriberIdStr := range roomSubscriberIds {
+		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberIdStr)
 
 		roomSubscriber, err := rs.RDB.HGetAll(ctx, roomSubscriberKey).Result()
 		if err != nil {
@@ -98,13 +98,13 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 			return nil, nil
 		}
 
-		roomSubscriberIdUint, err := strconv.Atoi(roomSubscriberId)
+		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
 		if err != nil {
 			return nil, err
 		}
 
 		subscriber := User{
-			ID:       uint(roomSubscriberIdUint),
+			ID:       roomSubscriberId,
 			Username: roomSubscriber["username"],
 		}
 
