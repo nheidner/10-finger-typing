@@ -18,10 +18,12 @@ func main() {
 		DB: models.DB,
 	}
 	textService := models.TextService{
-		DB: models.DB,
+		DB:  models.DB,
+		RDB: models.RedisClient,
 	}
 	roomService := models.RoomService{
-		DB: models.DB,
+		DB:  models.DB,
+		RDB: models.RedisClient,
 	}
 
 	err := userService.DeleteAll()

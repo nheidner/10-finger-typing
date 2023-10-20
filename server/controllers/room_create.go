@@ -11,7 +11,7 @@ import (
 func (r *Rooms) CreateRoom(c *gin.Context) {
 	var input models.CreateRoomInput
 
-	user, err := processCreateRoomHTTPParams(c, &input)
+	authenticatedUser, err := processCreateRoomHTTPParams(c, &input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -37,7 +37,7 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 	}
 
 	// create room
-	room, err := r.RoomService.Create(tx, input)
+	room, err := r.RoomService.Create(tx, input, authenticatedUser.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		tx.Rollback()
@@ -61,7 +61,7 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 
 	// send invites to registered users
 	for _, roomSubscriber := range room.Subscribers {
-		if roomSubscriber.ID == user.ID {
+		if roomSubscriber.ID == authenticatedUser.ID {
 			continue
 		}
 
@@ -74,7 +74,7 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 
 	tx.Commit()
 
-	models.StripSensitiveUserInformation(room.Subscribers, user)
+	models.StripSensitiveUserInformation(room.Subscribers, authenticatedUser)
 
 	c.JSON(http.StatusOK, gin.H{"data": room})
 }

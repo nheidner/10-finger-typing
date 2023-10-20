@@ -22,6 +22,7 @@ type User struct {
 	Sessions     []Session `json:"-"`
 	Scores       []Score   `json:"-"`
 	Rooms        []*Room   `json:"-" gorm:"many2many:user_rooms"`
+	RoomsAdmin   []Room    `json:"-" gorm:"foreignKey:AdminId"`
 }
 
 type CreateUserInput struct {

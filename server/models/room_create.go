@@ -4,16 +4,24 @@ import (
 	"context"
 	"log"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput) (*Room, error) {
+type CreateRoomInput struct {
+	UserIds []uuid.UUID `json:"userIds"`
+	Emails  []string    `json:"emails" binding:"dive,email"`
+}
+
+func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput, adminId uuid.UUID) (*Room, error) {
 	db := tx
 	if db == nil {
 		db = rs.DB.Begin()
 	}
 
-	var room Room
+	var room = Room{
+		AdminId: adminId,
+	}
 	if err := db.Create(&room).Error; err != nil {
 		return returnAndRollBackIfNeeded(tx, err)
 	}
@@ -46,6 +54,7 @@ func (rs *RoomService) createInRedis(ctx context.Context, room *Room) error {
 	// add room
 	roomKey := getRoomKey(room.ID)
 	roomValue := map[string]any{
+		"adminId":   room.AdminId.String(),
 		"createdAt": room.CreatedAt.Unix(),
 		"updatedAt": room.UpdatedAt.Unix(),
 	}

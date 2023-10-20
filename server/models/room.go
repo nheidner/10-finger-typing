@@ -23,13 +23,10 @@ type Room struct {
 	UpdatedAt   time.Time       `json:"updatedAt"`
 	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
 	Subscribers []User          `json:"subscribers" gorm:"many2many:user_rooms"`
+	AdminId     uuid.UUID       `json:"adminId" gorm:"not null"`
+	Admin       User            `json:"-" gorm:"foreignKey:AdminId"`
 	Tokens      []Token         `json:"-"`
 	Games       []Game          `json:"-"`
-}
-
-type CreateRoomInput struct {
-	UserIds []uuid.UUID `json:"userIds"`
-	Emails  []string    `json:"emails" binding:"dive,email"`
 }
 
 type RoomService struct {

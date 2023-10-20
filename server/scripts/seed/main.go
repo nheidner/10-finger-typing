@@ -19,7 +19,7 @@ var (
 
 func init() {
 	userService = &models.UserService{DB: models.DB}
-	textService = &models.TextService{DB: models.DB}
+	textService = &models.TextService{DB: models.DB, RDB: models.RedisClient}
 	scoreService = &models.ScoreService{DB: models.DB}
 }
 
