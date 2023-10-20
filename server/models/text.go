@@ -147,6 +147,17 @@ func (tx *TextService) GetAllTexts() ([]Text, error) {
 	return texts, nil
 }
 
+func (ts *TextService) TextExists(ctx context.Context, textId uuid.UUID) (bool, error) {
+	textIdsKey := getTextIdsKey()
+
+	r, err := ts.RDB.SMIsMember(ctx, textIdsKey, textId.String()).Result()
+	if err != nil {
+		return false, err
+	}
+
+	return r[0], nil
+}
+
 func (ts *TextService) DeleteAll() error {
 	textIdsKey := getTextIdsKey()
 	if err := ts.RDB.Del(context.Background(), textIdsKey).Err(); err != nil {
