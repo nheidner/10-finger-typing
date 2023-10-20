@@ -1,7 +1,10 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -87,4 +90,35 @@ type GameService struct {
 
 type CreateGameInput struct {
 	TextId uuid.UUID `json:"textId"`
+}
+
+// rooms:[roomId]:current_game:user_ids
+// rooms:[roomId]:current_game text_id status
+func (gs *GameService) SetNewCurrentGame(ctx context.Context, newGameId, textId, roomId uuid.UUID, userIds ...uuid.UUID) error {
+	if len(userIds) == 0 {
+		return fmt.Errorf("at least one user id must be specified")
+	}
+
+	currentGameKey := getCurrentGameKey(roomId)
+	statusStr := strconv.Itoa(int(UnstartedGameStatus))
+	gameIdStr := newGameId.String()
+	currentGameValue := map[string]string{
+		"id":      gameIdStr,
+		"text_id": textId.String(),
+		"status":  statusStr,
+	}
+	if err := gs.RDB.HSet(ctx, currentGameKey, currentGameValue).Err(); err != nil {
+		return err
+	}
+
+	currentGameUseridsKey := getCurrentGameUserIdsKey(roomId)
+	userIdStrs := make([]interface{}, 0, len(userIds))
+	for _, userId := range userIds {
+		userIdStrs = append(userIdStrs, userId.String())
+	}
+	if err := gs.RDB.SAdd(ctx, currentGameUseridsKey, userIdStrs...).Err(); err != nil {
+		return err
+	}
+
+	return nil
 }

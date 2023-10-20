@@ -78,6 +78,7 @@ func main() {
 	gameController := controllers.Games{
 		GameService: &gameService,
 		RoomService: &roomService,
+		TextService: &textService,
 	}
 
 	api := router.Group("/api")
@@ -113,8 +114,8 @@ func main() {
 	// ROOMS
 	api.GET("/rooms/:roomid/ws", userController.AuthRequired, roomController.ConnectToRoom)
 	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
-	api.POST("/rooms/:roomid/games", userController.AuthRequired, gameController.CreateGameOld)
-	api.GET("/rooms/:roomid/games/:gameid", userController.AuthRequired, gameController.FindGame)
+	api.POST("/rooms/:roomid/games", userController.AuthRequired, gameController.CreateGame)
+	// api.GET("/rooms/:roomid/games/:gameid", userController.AuthRequired, gameController.FindGame)
 
 	router.Run()
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -87,18 +86,6 @@ func returnAndRollBackIfNeeded(tx *gorm.DB, err error) (*Room, error) {
 	}
 
 	return nil, err
-}
-
-func (rs *RoomService) HasUnstartedGames(roomId uuid.UUID) (bool, error) {
-	ctx := context.Background()
-	roomUnstartedGamesKey := getUnstartedGamesKey(roomId)
-
-	unstartedGamesSum, err := rs.RDB.SCard(ctx, roomUnstartedGamesKey).Result()
-	if err != nil {
-		return false, err
-	}
-
-	return unstartedGamesSum != 0, nil
 }
 
 func (rs *RoomService) DeleteAll() error {
