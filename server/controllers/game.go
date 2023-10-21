@@ -3,6 +3,7 @@ package controllers
 import (
 	"10-typing/models"
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,8 +15,6 @@ type Games struct {
 	RoomService *models.RoomService
 	TextService *models.TextService
 }
-
-// middleware function: isRoomMember, isRoomAdmin
 
 func (g *Games) CreateGame(c *gin.Context) {
 	user, textId, roomId, err := processCreateGameHTTPParams(c)
@@ -42,6 +41,7 @@ func (g *Games) CreateGame(c *gin.Context) {
 
 	roomHasActiveGame, err := g.RoomService.RoomHasActiveGame(ctx, roomId)
 	if err != nil {
+		log.Println("RoomHasActiveGame error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -51,11 +51,14 @@ func (g *Games) CreateGame(c *gin.Context) {
 	}
 
 	if err := g.GameService.SetNewCurrentGame(ctx, game.ID, textId, roomId, user.ID); err != nil {
+		log.Println("SetNewCurrentGame", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": game})
+	c.JSON(http.StatusOK, gin.H{"data": map[string]string{
+		"id": game.ID.String(),
+	}})
 }
 
 // func (g *Games) FindGame(c *gin.Context) {

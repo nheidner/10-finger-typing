@@ -39,11 +39,11 @@ func (rs *RoomService) RoomHasActiveGame(ctx context.Context, roomId uuid.UUID) 
 	statusField := "status"
 
 	r, err := rs.RDB.HGet(ctx, currentGameKey, statusField).Result()
-	if err != nil {
-		return false, err
-	}
-	if r == "" {
+	switch {
+	case err == redis.Nil:
 		return false, nil
+	case err != nil:
+		return false, err
 	}
 
 	gameStatus, err := strconv.Atoi(r)
@@ -52,6 +52,18 @@ func (rs *RoomService) RoomHasActiveGame(ctx context.Context, roomId uuid.UUID) 
 	}
 
 	return GameStatus(gameStatus) == StartedGameStatus, nil
+}
+
+func (rs *RoomService) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
+	roomKey := getRoomKey(roomId)
+	adminIdField := "adminId"
+
+	r, err := rs.RDB.HGet(ctx, roomKey, adminIdField).Result()
+	if err != nil {
+		return false, err
+	}
+
+	return r == adminId.String(), nil
 }
 
 func (rs *RoomService) RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error) {

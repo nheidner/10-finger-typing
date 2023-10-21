@@ -92,8 +92,6 @@ type CreateGameInput struct {
 	TextId uuid.UUID `json:"textId"`
 }
 
-// rooms:[roomId]:current_game:user_ids
-// rooms:[roomId]:current_game text_id status
 func (gs *GameService) SetNewCurrentGame(ctx context.Context, newGameId, textId, roomId uuid.UUID, userIds ...uuid.UUID) error {
 	if len(userIds) == 0 {
 		return fmt.Errorf("at least one user id must be specified")
