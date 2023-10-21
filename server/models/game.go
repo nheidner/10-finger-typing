@@ -45,20 +45,6 @@ func (s *GameStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-// TODO
-// * use transactions in redis
-
-// active gameuser is saved in redis, game status, status of user, starting time stamp
-// user_data:[userId] { startTimeStamp, status(started, finished),  }
-// games:[gameId]:status
-// rooms:[roomId]:unstarted_games
-// games:[gameId]:user_ids [userId]
-
-// userStartGame(startTimestamp) => startTimeStamp, status: started,
-// startGame() => game:isActive: true
-// finishGame() => status: finished (if last one then game:isActive: false)
-// joinGame() => games:user = {}	// when joining game channel is already opened, then, when websocket connection is ready, data is flushed to user
-
 type WSMessage struct {
 	Type    string                 `json:"type"`    // cursor, start, finish, user_added, countdown
 	User    *User                  `json:"user"`    // user that sent the message except for user_added
@@ -79,8 +65,8 @@ type Game struct {
 	TextId      uuid.UUID       `json:"textId" gorm:"not null"`
 	RoomId      uuid.UUID       `json:"roomId" gorm:"not null"`
 	Scores      []Score         `json:"-"`
-	Status      GameStatus      `json:"status" gorm:"-"`      // saved in redis
-	Subscribers []Subscriber    `json:"subscribers" gorm:"-"` // saved in redis
+	Status      GameStatus      `json:"status" gorm:"-"`
+	Subscribers []Subscriber    `json:"subscribers" gorm:"-"`
 }
 
 type GameService struct {

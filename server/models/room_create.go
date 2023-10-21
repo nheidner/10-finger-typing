@@ -75,7 +75,7 @@ func (rs *RoomService) createInRedis(ctx context.Context, room *Room) error {
 
 	// add room subscribers
 	for _, subscriber := range room.Subscribers {
-		roomSubscriberKey := getRoomSubscriberKey(room.ID, subscriber.ID.String())
+		roomSubscriberKey := getRoomSubscriberKey(room.ID, subscriber.ID)
 		roomSubscriberValue := map[string]any{
 			"username": subscriber.Username,
 		}

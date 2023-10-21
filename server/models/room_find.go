@@ -39,10 +39,10 @@ func (rs *RoomService) findRoomFromDB(roomId uuid.UUID, userId uuid.UUID) (*Room
 		Where("rooms.id = ?", roomId).
 		Where("ur.user_id = ?", userId).
 		Find(&room)
-	if result.Error != nil {
+	switch {
+	case result.Error != nil:
 		return nil, result.Error
-	}
-	if result.RowsAffected == 0 {
+	case result.RowsAffected == 0:
 		return nil, fmt.Errorf("no room found")
 	}
 
@@ -65,10 +65,10 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 	roomKey := getRoomKey(roomId)
 
 	roomData, err := rs.RDB.HGetAll(ctx, roomKey).Result()
-	if err != nil {
+	switch {
+	case err != nil:
 		return nil, err
-	}
-	if len(roomData) == 0 {
+	case len(roomData) == 0:
 		return nil, nil
 	}
 
@@ -76,9 +76,6 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 	roomSubscriberIds, err := rs.RDB.SMembers(ctx, roomSubscriberIdsKey).Result()
 	if err != nil {
 		return nil, err
-	}
-	if len(roomSubscriberIds) == 0 {
-		return nil, nil
 	}
 
 	userIdStr := userId.String()
@@ -88,17 +85,14 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 
 	roomSubscribers := make([]User, 0, len(roomSubscriberIds))
 	for _, roomSubscriberIdStr := range roomSubscriberIds {
-		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberIdStr)
-
-		roomSubscriber, err := rs.RDB.HGetAll(ctx, roomSubscriberKey).Result()
+		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
 		if err != nil {
 			return nil, err
 		}
-		if len(roomSubscriber) == 0 {
-			return nil, nil
-		}
 
-		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
+		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
+
+		roomSubscriber, err := rs.RDB.HGetAll(ctx, roomSubscriberKey).Result()
 		if err != nil {
 			return nil, err
 		}

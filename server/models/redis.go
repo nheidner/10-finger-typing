@@ -34,34 +34,18 @@ func getRoomSubscriberIdsKey(roomId uuid.UUID) string {
 	return getRoomKey(roomId) + ":subscribers_ids"
 }
 
-func getRoomSubscriberKey(roomId uuid.UUID, userId string) string {
-	return getRoomKey(roomId) + ":subscribers:" + userId
-}
-
-func getUnstartedGamesKey(roomId uuid.UUID) string {
-	return getRoomKey(roomId) + ":unstarted_games"
-}
-
-func getGameUserIdsKey(gameId uuid.UUID) string {
-	return "games:" + gameId.String() + ":user_ids"
-}
-
-func getUserDataKey(gameId uuid.UUID, userId string) string {
-	return "games:" + gameId.String() + ":user_data:" + userId
-}
-
-func getGameStatusKey(gameId uuid.UUID) string {
-	return "games:" + gameId.String() + ":status"
-}
-
-func getTextIdsKey() string {
-	return "text_ids"
+func getRoomSubscriberKey(roomId, userId uuid.UUID) string {
+	return getRoomKey(roomId) + ":subscribers:" + userId.String()
 }
 
 func getCurrentGameKey(roomId uuid.UUID) string {
-	return "rooms:" + roomId.String() + ":current_game"
+	return getRoomKey(roomId) + ":current_game"
 }
 
 func getCurrentGameUserIdsKey(roomId uuid.UUID) string {
 	return getCurrentGameKey(roomId) + ":user_ids"
+}
+
+func getTextIdsKey() string {
+	return "text_ids"
 }

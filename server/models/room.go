@@ -3,7 +3,6 @@ package models
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,7 +37,7 @@ func (rs *RoomService) RoomHasActiveGame(ctx context.Context, roomId uuid.UUID) 
 	currentGameKey := getCurrentGameKey(roomId)
 	statusField := "status"
 
-	r, err := rs.RDB.HGet(ctx, currentGameKey, statusField).Result()
+	gameStatusInt, err := rs.RDB.HGet(ctx, currentGameKey, statusField).Int()
 	switch {
 	case err == redis.Nil:
 		return false, nil
@@ -46,12 +45,7 @@ func (rs *RoomService) RoomHasActiveGame(ctx context.Context, roomId uuid.UUID) 
 		return false, err
 	}
 
-	gameStatus, err := strconv.Atoi(r)
-	if err != nil {
-		return false, err
-	}
-
-	return GameStatus(gameStatus) == StartedGameStatus, nil
+	return GameStatus(gameStatusInt) == StartedGameStatus, nil
 }
 
 func (rs *RoomService) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {

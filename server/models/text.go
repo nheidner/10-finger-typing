@@ -110,14 +110,15 @@ func (ts TextService) Create(ctx context.Context, input CreateTextInput, gptText
 	return &text, nil
 }
 
+// create text in redis and additionally: if no text ids key exists, query all text ids from DB and write them to text ids key
 func (ts *TextService) CreateInRedis(ctx context.Context, textId uuid.UUID) error {
 	textIdsKey := getTextIdsKey()
 
 	r, err := ts.RDB.Exists(ctx, textIdsKey).Result()
-	if err != nil {
-		return err
-	}
-	if r != 0 {
+	switch {
+	case err != nil:
+		return nil
+	case r != 0:
 		return ts.RDB.SAdd(ctx, textIdsKey, textId.String()).Err()
 	}
 
