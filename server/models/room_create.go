@@ -55,8 +55,8 @@ func (rs *RoomService) createInRedis(ctx context.Context, room *Room) error {
 	roomKey := getRoomKey(room.ID)
 	roomValue := map[string]any{
 		"adminId":   room.AdminId.String(),
-		"createdAt": room.CreatedAt.Unix(),
-		"updatedAt": room.UpdatedAt.Unix(),
+		"createdAt": room.CreatedAt.UnixMilli(),
+		"updatedAt": room.UpdatedAt.UnixMilli(),
 	}
 	if err := rs.RDB.HSet(ctx, roomKey, roomValue).Err(); err != nil {
 		return err

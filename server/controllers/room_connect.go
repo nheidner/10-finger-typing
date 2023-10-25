@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"10-typing/models"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,52 @@ import (
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 )
+
+type RoomSubscriber struct {
+	ConnectionId uuid.UUID
+	RoomId       uuid.UUID
+	UserId       uuid.UUID
+	Conn         *websocket.Conn
+	Rss          *models.RoomSubscriberService
+}
+
+func newRoomSubscriber(conn *websocket.Conn, roomId, userId uuid.UUID, rss *models.RoomSubscriberService) *RoomSubscriber {
+	roomSubscriberConnectionId := uuid.New()
+
+	return &RoomSubscriber{
+		ConnectionId: roomSubscriberConnectionId,
+		RoomId:       roomId,
+		UserId:       userId,
+		Conn:         conn,
+		Rss:          rss,
+	}
+}
+
+func (rs *RoomSubscriber) initRoomSubscriber(ctx context.Context) error {
+	err := rs.Rss.SetRoomSubscriberConnection(ctx, rs.RoomId, rs.UserId, rs.ConnectionId)
+	if err != nil {
+		return err
+	}
+
+	return rs.Rss.SetRoomSubscriberStatus(ctx, rs.RoomId, rs.UserId, models.ActiveSubscriberStatus)
+}
+
+func (rs *RoomSubscriber) close(ctx context.Context) error {
+	rs.Rss.RemoveRoomSubscriberConnection(ctx, rs.RoomId, rs.UserId, rs.ConnectionId)
+
+	err := rs.Rss.SetRoomSubscriberStatus(ctx, rs.RoomId, rs.UserId, models.InactiveSubscriberStatus)
+	if err != nil {
+		return err
+	}
+
+	return rs.Conn.Close(websocket.StatusPolicyViolation, "connection too slow to keep up with messages")
+}
+
+func (rs *RoomSubscriber) subscribe(ctx context.Context, startTimestamp time.Time) {
+	for message := range rs.Rss.GetMessages(ctx, rs.RoomId, startTimestamp) {
+		rs.Conn.Write(ctx, websocket.MessageText, message)
+	}
+}
 
 func (r *Rooms) ConnectToRoom(c *gin.Context) {
 	roomId, user, err := r.processHTTPParams(c)
@@ -39,10 +86,10 @@ func (r *Rooms) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	roomSubscriber := r.RoomSubscriberService.NewRoomSubscriber(c.Request.Context(), conn, roomId, user.ID)
-	defer r.RoomSubscriberService.Close(c.Request.Context(), roomSubscriber)
+	roomSubscriber := newRoomSubscriber(conn, roomId, user.ID, r.RoomSubscriberService)
+	defer roomSubscriber.close(c.Request.Context())
 
-	err = r.RoomSubscriberService.InitRoomSubscriber(c.Request.Context(), roomSubscriber)
+	err = roomSubscriber.initRoomSubscriber(c.Request.Context())
 	if err != nil {
 		log.Println("Failed to initialise room subscriber:", err)
 		return
@@ -50,7 +97,7 @@ func (r *Rooms) ConnectToRoom(c *gin.Context) {
 
 	wsjson.Write(c.Request.Context(), roomSubscriber.Conn, room)
 
-	r.RoomSubscriberService.Subscribe(c.Request.Context(), roomSubscriber, timeStamp)
+	roomSubscriber.subscribe(c.Request.Context(), timeStamp)
 }
 
 func (r *Rooms) processHTTPParams(c *gin.Context) (roomId uuid.UUID, user *models.User, err error) {

@@ -9,8 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 const (
@@ -60,42 +58,26 @@ type WSMessage struct {
 	Payload map[string]interface{} `json:"payload"` // cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
 }
 
-type RoomSubscriber struct {
-	ConnectionId uuid.UUID
-	RoomId       uuid.UUID
-	UserId       uuid.UUID
-	Conn         *websocket.Conn
+func (rss *RoomSubscriberService) SetRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) error {
+	roomSubscriberConnectionsKey := getRoomSubscriberConnectionsKey(roomId, userId)
+
+	return rss.RDB.SAdd(ctx, roomSubscriberConnectionsKey, connectionId.String()).Err()
 }
 
-func (rss *RoomSubscriberService) NewRoomSubscriber(ctx context.Context, conn *websocket.Conn, roomId, userId uuid.UUID) *RoomSubscriber {
-	roomSubscriberConnectionId := uuid.New()
+func (rss *RoomSubscriberService) RemoveRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) error {
+	roomSubscriberConnectionsKey := getRoomSubscriberConnectionsKey(roomId, userId)
 
-	return &RoomSubscriber{
-		ConnectionId: roomSubscriberConnectionId,
-		RoomId:       roomId,
-		UserId:       userId,
-		Conn:         conn,
-	}
+	return rss.RDB.SRem(ctx, roomSubscriberConnectionsKey, connectionId).Err()
 }
 
-func (rss *RoomSubscriberService) InitRoomSubscriber(ctx context.Context, rs *RoomSubscriber) error {
-	roomSubscriberConnectionsKey := getRoomSubscriberConnectionsKey(rs.RoomId, rs.UserId)
-	err := rss.RDB.SAdd(ctx, roomSubscriberConnectionsKey, rs.ConnectionId.String()).Err()
-	if err != nil {
-		return err
-	}
-
-	return rss.SetRoomSubscriberStatus(ctx, rs, ActiveSubscriberStatus)
-}
-
-func (rss *RoomSubscriberService) SetRoomSubscriberStatus(ctx context.Context, rs *RoomSubscriber, status SubscriberStatus) error {
-	roomSubscriberKey := getRoomSubscriberKey(rs.RoomId, rs.UserId)
+func (rss *RoomSubscriberService) SetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID, status SubscriberStatus) error {
+	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
 	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberStatusField: status.String()}).Err()
 }
 
-func (rss *RoomSubscriberService) GetRoomSubscriberStatus(ctx context.Context, rs *RoomSubscriber) (SubscriberStatus, error) {
-	roomSubscriberKey := getRoomSubscriberKey(rs.RoomId, rs.UserId)
+func (rss *RoomSubscriberService) GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (SubscriberStatus, error) {
+	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
 	status, err := rss.RDB.HGet(ctx, roomSubscriberKey, subscriberStatusField).Int()
 	if err != nil {
@@ -105,14 +87,14 @@ func (rss *RoomSubscriberService) GetRoomSubscriberStatus(ctx context.Context, r
 	return SubscriberStatus(status), nil
 }
 
-func (rss *RoomSubscriberService) SetRoomSubscriberGameStatus(ctx context.Context, rs *RoomSubscriber, status SubscriberGameStatus) error {
-	roomSubscriberKey := getRoomSubscriberKey(rs.RoomId, rs.UserId)
+func (rss *RoomSubscriberService) SetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID, status SubscriberGameStatus) error {
+	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
 	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberGameStatusField: status.String()}).Err()
 }
 
-func (rss *RoomSubscriberService) GetRoomSubscriberGameStatus(ctx context.Context, rs *RoomSubscriber) (SubscriberGameStatus, error) {
-	roomSubscriberKey := getRoomSubscriberKey(rs.RoomId, rs.UserId)
+func (rss *RoomSubscriberService) GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (SubscriberGameStatus, error) {
+	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
 	status, err := rss.RDB.HGet(ctx, roomSubscriberKey, subscriberGameStatusField).Int()
 	if err != nil {
@@ -122,55 +104,46 @@ func (rss *RoomSubscriberService) GetRoomSubscriberGameStatus(ctx context.Contex
 	return SubscriberGameStatus(status), nil
 }
 
-func (rss *RoomSubscriberService) Subscribe(ctx context.Context, rs *RoomSubscriber, startTimestamp time.Time) {
-	roomStreamKey := getRoomStreamKey(rs.RoomId)
-	id := "$"
-	if (startTimestamp != time.Time{}) {
-		id = strconv.Itoa(int(startTimestamp.Unix()))
-	}
+func (rss *RoomSubscriberService) GetMessages(ctx context.Context, roomId uuid.UUID, startTimestamp time.Time) <-chan []byte {
+	out := make(chan []byte)
 
-	for {
-		r, err := rss.RDB.XRead(ctx, &redis.XReadArgs{
-			Streams: []string{roomStreamKey, id},
-			Count:   1,
-			Block:   0,
-		}).Result()
-		if err != nil {
-			log.Println("error reading stream: ", err)
-			continue
+	go func() {
+		roomStreamKey := getRoomStreamKey(roomId)
+		id := "$"
+		if (startTimestamp != time.Time{}) {
+			id = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
 		}
 
-		id = r[0].Messages[0].ID
-		values := r[0].Messages[0].Values
+		for {
+			r, err := rss.RDB.XRead(ctx, &redis.XReadArgs{
+				Streams: []string{roomStreamKey, id},
+				Count:   1,
+				Block:   0,
+			}).Result()
+			if err != nil {
+				log.Println("error reading stream: ", err)
+				continue
+			}
 
-		wsjson.Write(ctx, rs.Conn, values["data"])
-	}
+			id = r[0].Messages[0].ID
+			values := r[0].Messages[0].Values
+
+			out <- []byte(values["data"].(string))
+		}
+	}()
+
+	return out
 }
 
-func (rss *RoomSubscriberService) Publish(ctx context.Context, rs *RoomSubscriber, msg WSMessage) error {
-	roomStreamKey := getRoomStreamKey(rs.RoomId)
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
+// func (rss *RoomSubscriberService) Publish(ctx context.Context, rs *RoomSubscriber, msg WSMessage) error {
+// 	roomStreamKey := getRoomStreamKey(rs.RoomId)
+// 	data, err := json.Marshal(msg)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return rss.RDB.XAdd(ctx, &redis.XAddArgs{
-		Stream: roomStreamKey,
-		Values: map[string]interface{}{"data": data},
-	}).Err()
-}
-
-func (rss *RoomSubscriberService) Close(ctx context.Context, rs *RoomSubscriber) error {
-	roomSubscriberConnectionsKey := getRoomSubscriberConnectionsKey(rs.RoomId, rs.UserId)
-	err := rss.RDB.SRem(ctx, roomSubscriberConnectionsKey, rs.ConnectionId).Err()
-	if err != nil {
-		return err
-	}
-
-	err = rss.SetRoomSubscriberStatus(ctx, rs, InactiveSubscriberStatus)
-	if err != nil {
-		return err
-	}
-
-	return rs.Conn.Close(websocket.StatusPolicyViolation, "connection too slow to keep up with messages")
-}
+// 	return rss.RDB.XAdd(ctx, &redis.XAddArgs{
+// 		Stream: roomStreamKey,
+// 		Values: map[string]interface{}{"data": data},
+// 	}).Err()
+// }
