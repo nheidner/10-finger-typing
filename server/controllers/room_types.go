@@ -7,4 +7,5 @@ type Rooms struct {
 	TokenService            *models.TokenService
 	UserService             *models.UserService
 	EmailTransactionService *models.EmailTransactionService
+	RoomSubscriberService   *models.RoomSubscriberService
 }

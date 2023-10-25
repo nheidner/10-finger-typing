@@ -56,6 +56,9 @@ func main() {
 	emailTransactionService := models.EmailTransactionService{
 		ApiKey: os.Getenv("POSTMARK_API_KEY"),
 	}
+	roomSubscriberService := models.RoomSubscriberService{
+		RDB: models.RedisClient,
+	}
 
 	// Setup our controllers
 	userController := controllers.Users{
@@ -74,6 +77,7 @@ func main() {
 		TokenService:            &tokenService,
 		UserService:             &userService,
 		EmailTransactionService: &emailTransactionService,
+		RoomSubscriberService:   &roomSubscriberService,
 	}
 	gameController := controllers.Games{
 		GameService: &gameService,
@@ -112,7 +116,7 @@ func main() {
 	api.POST("/texts", userController.AuthRequired, textController.CreateText)
 
 	// ROOMS
-	api.GET("/rooms/:roomid/ws", userController.AuthRequired, roomController.ConnectToRoom)
+	api.POST("/rooms/:roomid/ws", userController.AuthRequired, roomController.IsRoomMember, roomController.ConnectToRoom)
 	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
 	api.POST("/rooms/:roomid/games", userController.AuthRequired, roomController.IsRoomAdmin, gameController.CreateGame)
 	// api.GET("/rooms/:roomid/games/:gameid", userController.AuthRequired, gameController.FindGame)

@@ -12,43 +12,21 @@ import (
 	"gorm.io/gorm"
 )
 
-type SubscriberStatus int
-
-const (
-	UnactiveSubscriberStatus SubscriberStatus = iota
-	ActiveSubscriberStatus
-	HasStartedSubscriberStatus
-	HasFinishedSubscriberStatus
-)
-
 type GameStatus int
 
-func (s *SubscriberStatus) String() string {
-	return []string{"undefined", "active", "hasStarted", "hasFinished"}[*s]
-}
-
-func (s *SubscriberStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
-}
-
 const (
-	UnstartedGameStatus GameStatus = iota
+	NilGameStatus GameStatus = iota
+	UnstartedGameStatus
 	StartedGameStatus
 	FinishedGameStatus
 )
 
 func (s *GameStatus) String() string {
-	return []string{"unstarted", "started", "finished"}[*s]
+	return []string{"undefined", "unstarted", "started", "finished"}[*s]
 }
 
 func (s *GameStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
-}
-
-type WSMessage struct {
-	Type    string                 `json:"type"`    // cursor, start, finish, user_added, countdown
-	User    *User                  `json:"user"`    // user that sent the message except for user_added
-	Payload map[string]interface{} `json:"payload"` // cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
 }
 
 type Subscriber struct {
