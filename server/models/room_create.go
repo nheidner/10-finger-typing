@@ -43,20 +43,20 @@ func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput, adminId uuid.U
 		return returnAndRollBackIfNeeded(tx, err)
 	}
 
-	if err := rs.createInRedis(context.Background(), &room); err != nil {
+	if err := rs.createRoomInRedis(context.Background(), &room); err != nil {
 		return returnAndRollBackIfNeeded(tx, err)
 	}
 
 	return &room, nil
 }
 
-func (rs *RoomService) createInRedis(ctx context.Context, room *Room) error {
+func (rs *RoomService) createRoomInRedis(ctx context.Context, room *Room) error {
 	// add room
 	roomKey := getRoomKey(room.ID)
 	roomValue := map[string]any{
-		"adminId":   room.AdminId.String(),
-		"createdAt": room.CreatedAt.UnixMilli(),
-		"updatedAt": room.UpdatedAt.UnixMilli(),
+		roomAdminIdField:   room.AdminId.String(),
+		roomCreatedAtField: room.CreatedAt.UnixMilli(),
+		roomUpdatedAtField: room.UpdatedAt.UnixMilli(),
 	}
 	if err := rs.RDB.HSet(ctx, roomKey, roomValue).Err(); err != nil {
 		return err

@@ -56,7 +56,7 @@ func (rs *RoomService) findRoomFromCache(ctx context.Context, roomId uuid.UUID, 
 }
 
 func (rs *RoomService) storeRoomToCache(ctx context.Context, room *Room) error {
-	return rs.createInRedis(ctx, room)
+	return rs.createRoomInRedis(ctx, room)
 }
 
 func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*Room, error) {
@@ -103,15 +103,15 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 		roomSubscribers = append(roomSubscribers, subscriber)
 	}
 
-	createdAt, err := utils.StringToTime(roomData["createdAt"])
+	createdAt, err := utils.StringToTime(roomData[roomCreatedAtField])
 	if err != nil {
 		return nil, err
 	}
-	updatedAt, err := utils.StringToTime(roomData["updatedAt"])
+	updatedAt, err := utils.StringToTime(roomData[roomUpdatedAtField])
 	if err != nil {
 		return nil, err
 	}
-	adminId, err := uuid.Parse(roomData["adminId"])
+	adminId, err := uuid.Parse(roomData[roomAdminIdField])
 	if err != nil {
 		return nil, err
 	}

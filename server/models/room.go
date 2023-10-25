@@ -30,9 +30,8 @@ func (rs *RoomService) RoomHasActiveGame(ctx context.Context, roomId uuid.UUID) 
 
 func (rs *RoomService) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
 	roomKey := getRoomKey(roomId)
-	adminIdField := "adminId"
 
-	r, err := rs.RDB.HGet(ctx, roomKey, adminIdField).Result()
+	r, err := rs.RDB.HGet(ctx, roomKey, roomAdminIdField).Result()
 	if err != nil {
 		return false, err
 	}

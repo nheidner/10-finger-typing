@@ -12,6 +12,9 @@ const (
 	gameStatusField           = "status"
 	subscriberStatusField     = "status"
 	subscriberGameStatusField = "game_status"
+	roomAdminIdField          = "adminId"
+	roomCreatedAtField        = "createdAt"
+	roomUpdatedAtField        = "updatedAt"
 )
 
 // rooms:[roomId] hash {id, ... }

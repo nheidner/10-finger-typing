@@ -38,16 +38,16 @@ func getRoomSubscriberKey(roomId, userId uuid.UUID) string {
 	return getRoomKey(roomId) + ":subscribers:" + userId.String()
 }
 
-func getRoomSubscriberConnectionsKey(roomId, userid uuid.UUID) string {
-	return getRoomSubscriberKey(roomId, userid) + ":conns"
-}
-
 func getRoomStreamKey(roomId uuid.UUID) string {
 	return getRoomKey(roomId) + ":stream"
 }
 
 func getCurrentGameKey(roomId uuid.UUID) string {
 	return getRoomKey(roomId) + ":current_game"
+}
+
+func getRoomSubscriberConnectionsKey(roomId, userid uuid.UUID) string {
+	return getRoomSubscriberKey(roomId, userid) + ":conns"
 }
 
 func getCurrentGameUserIdsKey(roomId uuid.UUID) string {

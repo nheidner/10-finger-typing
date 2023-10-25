@@ -61,58 +61,6 @@ func (g *Games) CreateGame(c *gin.Context) {
 	}})
 }
 
-// func (g *Games) FindGame(c *gin.Context) {
-// 	roomId, gameId, user, err := processFindGameHTTPParams(c)
-// 	if err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
-
-// 	game, err := g.GameService.Find(gameId, roomId, user.ID)
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{"data": game})
-// }
-
-// func processFindGameHTTPParams(c *gin.Context) (roomId uuid.UUID, gameId uuid.UUID, user *models.User, err error) {
-// 	userContext, _ := c.Get("user")
-// 	user, _ = userContext.(*models.User)
-
-// 	roomIdUrlParam := c.Param("roomid")
-// 	roomId, err = uuid.Parse(roomIdUrlParam)
-// 	if err != nil {
-// 		return uuid.Nil, uuid.Nil, nil, err
-// 	}
-
-// 	gameIdUrlParam := c.Param("gameid")
-// 	gameId, err = uuid.Parse(gameIdUrlParam)
-// 	if err != nil {
-// 		return uuid.Nil, uuid.Nil, nil, err
-// 	}
-
-// 	return roomId, gameId, user, nil
-// }
-
-// func processFindGameHTTPParams(c *gin.Context) (roomId uuid.UUID, gameId uuid.UUID, user *models.User, err error) {
-// 	userContext, _ := c.Get("user")
-// 	user, _ = userContext.(*models.User)
-
-// 	roomIdUrlParam := c.Param("roomid")
-// 	roomId, err = uuid.Parse(roomIdUrlParam)
-// 	if err != nil {
-// 		return uuid.Nil, uuid.Nil, nil, err
-// 	}
-
-// 	gameIdUrlParam := c.Param("gameid")
-// 	gameId, err = uuid.Parse(gameIdUrlParam)
-// 	if err != nil {
-// 		return uuid.Nil, uuid.Nil, nil, err
-// 	}
-
-// 	return roomId, gameId, user, nil
 // }
 
 func processCreateGameHTTPParams(c *gin.Context) (user *models.User, textId, roomId uuid.UUID, err error) {
