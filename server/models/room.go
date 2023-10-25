@@ -3,30 +3,11 @@ package models
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
-
-// rooms:[roomId] hash {id, ... }
-// rooms:[roomId]:subscribers set of userIds
-// rooms:[roomId]:active_game hash {}
-// rooms:[roomId]:active_game:users set of userIds
-// conns:[userId] set of connection ids
-
-type Room struct {
-	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	CreatedAt   time.Time       `json:"createdAt"`
-	UpdatedAt   time.Time       `json:"updatedAt"`
-	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	Subscribers []User          `json:"subscribers" gorm:"many2many:user_rooms"`
-	AdminId     uuid.UUID       `json:"adminId" gorm:"not null"`
-	Admin       User            `json:"-" gorm:"foreignKey:AdminId"`
-	Tokens      []Token         `json:"-"`
-	Games       []Game          `json:"-"`
-}
 
 type RoomService struct {
 	DB  *gorm.DB
@@ -35,9 +16,8 @@ type RoomService struct {
 
 func (rs *RoomService) RoomHasActiveGame(ctx context.Context, roomId uuid.UUID) (bool, error) {
 	currentGameKey := getCurrentGameKey(roomId)
-	statusField := "status"
 
-	gameStatusInt, err := rs.RDB.HGet(ctx, currentGameKey, statusField).Int()
+	gameStatusInt, err := rs.RDB.HGet(ctx, currentGameKey, gameStatusField).Int()
 	switch {
 	case err == redis.Nil:
 		return false, nil

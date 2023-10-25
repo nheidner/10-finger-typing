@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"strconv"
 	"time"
@@ -11,51 +10,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	subscriberStatusField     = "status"
-	subscriberGameStatusField = "game_status"
-)
-
-type SubscriberStatus int
-
-const (
-	NilSubscriberStatus SubscriberStatus = iota
-	InactiveSubscriberStatus
-	ActiveSubscriberStatus
-)
-
-func (s *SubscriberStatus) String() string {
-	return []string{"undefined", "inactive", "active"}[*s]
-}
-
-func (s *SubscriberStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
-}
-
-type SubscriberGameStatus int
-
-const (
-	NilSubscriberGameStatus SubscriberGameStatus = iota
-	UnstartedSubscriberGameStatus
-	StartedSubscriberGameStatus
-	FinishedSubscriberGameStatus
-)
-
-func (s *SubscriberGameStatus) String() string {
-	return []string{"undefined", "unstarted", "started", "finished"}[*s]
-}
-
-func (s *SubscriberGameStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
-}
-
 type RoomSubscriberService struct {
 	RDB *redis.Client
-}
-
-type WSMessage struct {
-	Type    string                 `json:"type"`    // user_joined (userId), new_game (textId, gameId), results (...), cursor (position), countdown_start, user_left (userId), initial_state(initial state)
-	Payload map[string]interface{} `json:"payload"` // cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
 }
 
 func (rss *RoomSubscriberService) SetRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) error {

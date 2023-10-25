@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -105,11 +103,11 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 		roomSubscribers = append(roomSubscribers, subscriber)
 	}
 
-	createdAt, err := stringToTime(roomData["createdAt"])
+	createdAt, err := utils.StringToTime(roomData["createdAt"])
 	if err != nil {
 		return nil, err
 	}
-	updatedAt, err := stringToTime(roomData["updatedAt"])
+	updatedAt, err := utils.StringToTime(roomData["updatedAt"])
 	if err != nil {
 		return nil, err
 	}
@@ -125,13 +123,4 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 		UpdatedAt:   updatedAt,
 		Subscribers: roomSubscribers,
 	}, nil
-}
-
-func stringToTime(data string) (time.Time, error) {
-	intVal, err := strconv.ParseInt(data, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return time.Unix(intVal/1000, (intVal%1000)*1e6), nil
 }

@@ -65,9 +65,9 @@ func (gs *GameService) SetNewCurrentGame(ctx context.Context, newGameId, textId,
 	statusStr := strconv.Itoa(int(UnstartedGameStatus))
 	gameIdStr := newGameId.String()
 	currentGameValue := map[string]string{
-		"id":      gameIdStr,
-		"text_id": textId.String(),
-		"status":  statusStr,
+		"id":            gameIdStr,
+		"text_id":       textId.String(),
+		gameStatusField: statusStr,
 	}
 	if err := gs.RDB.HSet(ctx, currentGameKey, currentGameValue).Err(); err != nil {
 		return err
