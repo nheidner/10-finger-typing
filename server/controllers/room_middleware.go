@@ -70,7 +70,7 @@ func (r *Rooms) IsRoomMember(c *gin.Context) {
 	}
 
 	if !isRoomMember {
-		log.Println("authenticated user is not a room member", err)
+		log.Println("authenticated user is not a room member")
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Bad request"})
 		return
 	}

@@ -54,9 +54,29 @@ func (rs *RoomSubscriber) close(ctx context.Context) error {
 	return rs.Conn.Close(websocket.StatusPolicyViolation, "connection too slow to keep up with messages")
 }
 
-func (rs *RoomSubscriber) subscribe(ctx context.Context, startTimestamp time.Time) {
-	for message := range rs.Rss.GetMessages(ctx, rs.RoomId, startTimestamp) {
-		rs.Conn.Write(ctx, websocket.MessageText, message)
+func (rs *RoomSubscriber) subscribe(ctx context.Context, startTimestamp time.Time) error {
+	messagesCh, errCh := rs.Rss.GetMessages(ctx, rs.RoomId, startTimestamp)
+
+	for {
+		select {
+		case message, ok := <-messagesCh:
+			fmt.Println("ok :>>", ok)
+			if !ok {
+				return nil
+			}
+
+			rs.Conn.Write(ctx, websocket.MessageText, message)
+		case err, ok := <-errCh:
+			if !ok {
+				return nil
+			}
+
+			return err
+		}
+
+		if messagesCh == nil && errCh == nil {
+			return nil
+		}
 	}
 }
 
@@ -97,7 +117,10 @@ func (r *Rooms) ConnectToRoom(c *gin.Context) {
 
 	wsjson.Write(c.Request.Context(), roomSubscriber.Conn, room)
 
-	roomSubscriber.subscribe(c.Request.Context(), timeStamp)
+	err = roomSubscriber.subscribe(c.Request.Context(), timeStamp)
+	if err != nil {
+		log.Println("Error subscribing to room stream:", err)
+	}
 }
 
 func (r *Rooms) processHTTPParams(c *gin.Context) (roomId uuid.UUID, user *models.User, err error) {

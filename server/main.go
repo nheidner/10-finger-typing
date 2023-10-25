@@ -118,7 +118,10 @@ func main() {
 	// ROOMS
 	api.GET("/rooms/:roomid/ws", userController.AuthRequired, roomController.IsRoomMember, roomController.ConnectToRoom)
 	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
+	api.POST("/rooms/:roomid/leave", userController.AuthRequired, roomController.IsRoomMember, roomController.LeaveRoom)
 	api.POST("/rooms/:roomid/games", userController.AuthRequired, roomController.IsRoomAdmin, gameController.CreateGame)
+	api.POST("/rooms/:roomid/games/:gameid/start", userController.AuthRequired, roomController.IsRoomMember)
+	api.POST("/rooms/:roomid/games/:gameid/finish", userController.AuthRequired, roomController.IsRoomMember)
 	// api.GET("/rooms/:roomid/games/:gameid", userController.AuthRequired, gameController.FindGame)
 
 	router.Run()

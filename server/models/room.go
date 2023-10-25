@@ -39,6 +39,15 @@ func (rs *RoomService) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UU
 	return r == adminId.String(), nil
 }
 
+func (rs *RoomService) TerminateRoomStream(ctx context.Context, roomId uuid.UUID) error {
+	roomStreamKey := getRoomStreamKey(roomId)
+
+	return rs.RDB.XAdd(ctx, &redis.XAddArgs{
+		Stream: roomStreamKey,
+		Values: map[string]string{"action": "terminate"},
+	}).Err()
+}
+
 func (rs *RoomService) RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error) {
 	if len(userIds) == 0 {
 		return false, fmt.Errorf("at least one user id must be specified")
