@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -90,7 +91,7 @@ func (rss *RoomSubscriberService) InitRoomSubscriber(ctx context.Context, rs *Ro
 func (rss *RoomSubscriberService) SetRoomSubscriberStatus(ctx context.Context, rs *RoomSubscriber, status SubscriberStatus) error {
 	roomSubscriberKey := getRoomSubscriberKey(rs.RoomId, rs.UserId)
 
-	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberStatusField: status}).Err()
+	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberStatusField: status.String()}).Err()
 }
 
 func (rss *RoomSubscriberService) GetRoomSubscriberStatus(ctx context.Context, rs *RoomSubscriber) (SubscriberStatus, error) {
@@ -107,7 +108,7 @@ func (rss *RoomSubscriberService) GetRoomSubscriberStatus(ctx context.Context, r
 func (rss *RoomSubscriberService) SetRoomSubscriberGameStatus(ctx context.Context, rs *RoomSubscriber, status SubscriberGameStatus) error {
 	roomSubscriberKey := getRoomSubscriberKey(rs.RoomId, rs.UserId)
 
-	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberGameStatusField: status}).Err()
+	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberGameStatusField: status.String()}).Err()
 }
 
 func (rss *RoomSubscriberService) GetRoomSubscriberGameStatus(ctx context.Context, rs *RoomSubscriber) (SubscriberGameStatus, error) {
@@ -125,7 +126,7 @@ func (rss *RoomSubscriberService) Subscribe(ctx context.Context, rs *RoomSubscri
 	roomStreamKey := getRoomStreamKey(rs.RoomId)
 	id := "$"
 	if (startTimestamp != time.Time{}) {
-		id = startTimestamp.String()
+		id = strconv.Itoa(int(startTimestamp.Unix()))
 	}
 
 	for {

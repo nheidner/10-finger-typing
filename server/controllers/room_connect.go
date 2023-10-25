@@ -45,7 +45,6 @@ func (r *Rooms) ConnectToRoom(c *gin.Context) {
 	err = r.RoomSubscriberService.InitRoomSubscriber(c.Request.Context(), roomSubscriber)
 	if err != nil {
 		log.Println("Failed to initialise room subscriber:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to initialise room subscriber"})
 		return
 	}
 

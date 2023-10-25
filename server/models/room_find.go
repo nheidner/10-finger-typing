@@ -113,9 +113,14 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 	if err != nil {
 		return nil, err
 	}
+	adminId, err := uuid.Parse(roomData["adminId"])
+	if err != nil {
+		return nil, err
+	}
 
 	return &Room{
 		ID:          roomId,
+		AdminId:     adminId,
 		CreatedAt:   createdAt,
 		UpdatedAt:   updatedAt,
 		Subscribers: roomSubscribers,
