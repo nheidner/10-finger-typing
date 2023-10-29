@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -12,20 +13,6 @@ import (
 type RoomService struct {
 	DB  *gorm.DB
 	RDB *redis.Client
-}
-
-func (rs *RoomService) RoomHasActiveGame(ctx context.Context, roomId uuid.UUID) (bool, error) {
-	currentGameKey := getCurrentGameKey(roomId)
-
-	gameStatusInt, err := rs.RDB.HGet(ctx, currentGameKey, gameStatusField).Int()
-	switch {
-	case err == redis.Nil:
-		return false, nil
-	case err != nil:
-		return false, err
-	}
-
-	return GameStatus(gameStatusInt) == StartedGameStatus, nil
 }
 
 func (rs *RoomService) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
@@ -86,4 +73,17 @@ func (rs *RoomService) RoomExists(ctx context.Context, roomId uuid.UUID) (bool, 
 	}
 
 	return r > 0, nil
+}
+
+func (rs *RoomService) Publish(ctx context.Context, roomId uuid.UUID, msg WSMessage) error {
+	roomStreamKey := getRoomStreamKey(roomId)
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	return rs.RDB.XAdd(ctx, &redis.XAddArgs{
+		Stream: roomStreamKey,
+		Values: map[string]interface{}{"data": data},
+	}).Err()
 }

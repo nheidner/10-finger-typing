@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"strconv"
 	"time"
 
@@ -93,6 +92,7 @@ func (rss *RoomSubscriberService) GetMessages(ctx context.Context, roomId uuid.U
 				case "terminate":
 					return
 				default:
+					continue
 				}
 			}
 
@@ -103,17 +103,52 @@ func (rss *RoomSubscriberService) GetMessages(ctx context.Context, roomId uuid.U
 	return out, errCh
 }
 
-func (rss *RoomSubscriberService) Publish(ctx context.Context, roomId uuid.UUID, msg WSMessage) error {
-	roomStreamKey := getRoomStreamKey(roomId)
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
+func (rss *RoomSubscriberService) GetActions(ctx context.Context, roomId uuid.UUID, startTimestamp time.Time) (<-chan map[string]any, <-chan error) {
+	out := make(chan map[string]any)
+	errCh := make(chan error)
 
-	return rss.RDB.XAdd(ctx, &redis.XAddArgs{
-		Stream: roomStreamKey,
-		Values: map[string]interface{}{"data": data},
-	}).Err()
+	go func() {
+		defer close(out)
+		defer close(errCh)
+
+		roomStreamKey := getRoomStreamKey(roomId)
+		id := "$"
+		if (startTimestamp != time.Time{}) {
+			id = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				r, err := rss.RDB.XRead(ctx, &redis.XReadArgs{
+					Streams: []string{roomStreamKey, id},
+					Count:   1,
+					Block:   0,
+				}).Result()
+				if err != nil {
+					errCh <- err
+					return
+				}
+
+				id = r[0].Messages[0].ID
+				values := r[0].Messages[0].Values
+
+				if action, ok := values["action"]; ok {
+					switch action {
+					case "terminate":
+						return
+					default:
+						out <- values
+					}
+				}
+			}
+		}
+
+	}()
+
+	return out, errCh
 }
 
 func (rss *RoomSubscriberService) RemoveRoomSubscriber(ctx context.Context, roomId, userId uuid.UUID) error {

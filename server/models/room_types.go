@@ -8,15 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	gameStatusField           = "status"
-	subscriberStatusField     = "status"
-	subscriberGameStatusField = "game_status"
-	roomAdminIdField          = "adminId"
-	roomCreatedAtField        = "createdAt"
-	roomUpdatedAtField        = "updatedAt"
-)
-
 // rooms:[roomId] hash {id, ... }
 // rooms:[roomId]:subscribers set of userIds
 // rooms:[roomId]:active_game hash {}
