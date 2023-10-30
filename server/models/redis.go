@@ -13,14 +13,14 @@ const (
 )
 
 const (
-	gameStatusField           = "status"
 	subscriberStatusField     = "status"
 	subscriberGameStatusField = "game_status"
 	roomAdminIdField          = "admin_id"
 	roomCreatedAtField        = "created_at"
 	roomUpdatedAtField        = "updated_at"
-	currentGameGameId         = "game_id"
-	currentGameTextId         = "text_id"
+	currentGameStatusField    = "status"
+	currentGameIdField        = "game_id"
+	currentGameTextIdField    = "text_id"
 )
 
 type StreamAction int
@@ -67,10 +67,6 @@ func getRoomStreamKey(roomId uuid.UUID) string {
 // rooms:[room_id]:current_game hash: id, text_id, status
 func getCurrentGameKey(roomId uuid.UUID) string {
 	return getRoomKey(roomId) + ":current_game"
-}
-
-func getCurrentGameScoreKey(roomId uuid.UUID) string {
-	return getRoomKey(roomId) + ":score"
 }
 
 // rooms:[room_id]:subscribers:[user_id]:conns set: connection ids

@@ -3,8 +3,10 @@ package controllers
 import (
 	"10-typing/models"
 	"context"
+	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +24,7 @@ type Games struct {
 	RoomService           *models.RoomService
 	TextService           *models.TextService
 	RoomSubscriberService *models.RoomSubscriberService
+	ScoreService          *models.ScoreService
 }
 
 func (g *Games) CreateGame(c *gin.Context) {
@@ -124,8 +127,8 @@ func (g *Games) StartGame(c *gin.Context) {
 		return
 	}
 
-	// if gameUsers.length == 2, then start countdown
 	if numberGameUsers == 2 {
+		// start countdown
 		err := g.GameService.SetCurrentGameStatus(c.Request.Context(), roomId, models.CountdownGameStatus)
 		if err != nil {
 			log.Println("error setting current game status: ", err)
@@ -137,40 +140,152 @@ func (g *Games) StartGame(c *gin.Context) {
 			"duration": countdownDurationSeconds,
 		}}
 
-		err = g.RoomService.Publish(c.Request.Context(), roomId, countdownMessage)
+		err = g.RoomService.PublishMessage(c.Request.Context(), roomId, countdownMessage)
 		if err != nil {
 			log.Println("error publishing to stream:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
 			return
 		}
 
-		// create extra function
 		go func() {
-			time.Sleep(time.Second*countdownDurationSeconds + gameDurationSeconds*time.Second - 1*time.Second)
-
-			numberGameUsers, err := g.GameService.GetCurrentGameUsersNumber(c.Request.Context(), roomId)
-			if err != nil {
-				log.Println("error getting current game users:", err)
+			time.Sleep(countdownDurationSeconds*time.Second + gameDurationSeconds*time.Second)
+			if err = g.handleGameResults(context.Background(), roomId); err != nil {
+				log.Panicln(err)
 			}
-			ctx, cancel := context.WithCancel(c.Request.Context())
-			allResultsReceivedCh := g.getAllResultsReceived(ctx, numberGameUsers, roomId)
-
-			gameFinishedCh := time.NewTimer(waitForResultsDurationSeconds * time.Second)
-
-			select {
-			case <-gameFinishedCh.C:
-				cancel()
-			case <-allResultsReceivedCh:
-				gameFinishedCh.Stop()
-				cancel()
-			}
-
-			// publish game results
-			// store game/score in DB
 		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": "game started"})
+}
+
+func (g *Games) FinishGame(c *gin.Context) {
+	user, roomId, scoreInput, err := processFinishGameHTTPParams(c)
+	if err != nil {
+		log.Println("error processing http params: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
+		return
+	}
+
+	// check if game status is not already finished
+	currentGameStatus, err := g.GameService.GetCurrentGameStatus(c.Request.Context(), roomId)
+	switch {
+	case err != nil:
+		log.Println("error setting current game status: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
+		return
+	case currentGameStatus != models.StartedGameStatus:
+		log.Println("game has not the correct status: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
+		return
+	}
+
+	// get game id
+	gameId, err := g.GameService.GetCurrentGameId(c.Request.Context(), roomId)
+	if err != nil {
+		log.Println("error when getting current game id from redis: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
+		return
+	}
+
+	scoreInput.GameId = gameId
+	scoreInput.UserId = user.ID
+
+	_, err = g.ScoreService.Create(*scoreInput)
+	if err != nil {
+		log.Println("error when creating a new score: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
+		return
+	}
+
+	// post action on stream
+	err = g.RoomService.PublishAction(c.Request.Context(), roomId, models.GameUserScoreAction)
+	if err != nil {
+		log.Println("error when publishing the game user score action: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": "score added"})
+}
+
+func processStartGameHTTPParams(c *gin.Context) (user *models.User, roomId uuid.UUID, err error) {
+	user, err = getUserFromContext(c)
+	if err != nil {
+		return nil, uuid.Nil, err
+	}
+
+	roomId, err = getRoomIdFromPath(c)
+	if err != nil {
+		return nil, uuid.Nil, err
+	}
+
+	return user, roomId, err
+}
+
+func processFinishGameHTTPParams(c *gin.Context) (*models.User, uuid.UUID, *models.CreateScoreInput, error) {
+	var input models.CreateScoreInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		return nil, uuid.Nil, nil, err
+	}
+
+	user, err := getUserFromContext(c)
+	if err != nil {
+		return nil, uuid.Nil, nil, err
+	}
+
+	roomId, err := getRoomIdFromPath(c)
+	if err != nil {
+		return nil, uuid.Nil, nil, err
+	}
+
+	return user, roomId, &input, err
+}
+
+// create extra function
+func (g *Games) handleGameResults(ctx context.Context, roomId uuid.UUID) error {
+	numberGameUsers, err := g.GameService.GetCurrentGameUsersNumber(ctx, roomId)
+	if err != nil {
+		return errors.New("error getting current game users:" + err.Error())
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	allResultsReceivedCh := g.getAllResultsReceived(ctx, numberGameUsers, roomId)
+
+	timer := time.NewTimer(waitForResultsDurationSeconds * time.Second)
+
+	select {
+	case <-timer.C:
+		cancel()
+	case <-allResultsReceivedCh:
+		timer.Stop()
+		cancel()
+	}
+
+	// set game status to Finished
+	err = g.GameService.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
+	if err != nil {
+		return errors.New("error setting game status to finished:" + err.Error())
+	}
+
+	gameId, err := g.GameService.GetCurrentGameId(ctx, roomId)
+	if err != nil {
+		return errors.New("error when getting current game id from redis: " + err.Error())
+	}
+
+	scores, err := g.ScoreService.FindScores(&models.FindScoresQuery{
+		SortOptions: []models.SortOption{{Column: "words_per_minute", Order: "desc"}},
+		GameId:      gameId,
+	})
+	if err != nil {
+		return errors.New("error findind scores:" + err.Error())
+	}
+	scoreMessage := models.WSMessage{
+		Type: "results",
+		Payload: map[string]interface{}{
+			"scores": scores,
+		},
+	}
+
+	return g.RoomService.PublishMessage(ctx, roomId, scoreMessage)
 }
 
 func (g *Games) getAllResultsReceived(ctx context.Context, playersNumber int, roomId uuid.UUID) <-chan struct{} {
@@ -187,7 +302,7 @@ func (g *Games) getAllResultsReceived(ctx context.Context, playersNumber int, ro
 					return
 				}
 				roomAction := roomActionMessage["action"]
-				if roomAction == "result" {
+				if roomAction == strconv.Itoa(int(models.GameUserScoreAction)) {
 					resultsCount++
 					continue
 				}
@@ -209,18 +324,4 @@ func (g *Games) getAllResultsReceived(ctx context.Context, playersNumber int, ro
 	}()
 
 	return allReceived
-}
-
-func processStartGameHTTPParams(c *gin.Context) (user *models.User, roomId uuid.UUID, err error) {
-	user, err = getUserFromContext(c)
-	if err != nil {
-		return nil, uuid.Nil, err
-	}
-
-	roomId, err = getRoomIdFromPath(c)
-	if err != nil {
-		return nil, uuid.Nil, err
-	}
-
-	return user, roomId, err
 }

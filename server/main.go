@@ -122,8 +122,7 @@ func main() {
 	api.POST("/rooms/:roomid/leave", userController.AuthRequired, roomController.IsRoomMember, roomController.LeaveRoom)
 	api.POST("/rooms/:roomid/games", userController.AuthRequired, roomController.IsRoomAdmin, gameController.CreateGame)
 	api.POST("/rooms/:roomid/start_game", userController.AuthRequired, roomController.IsRoomMember, gameController.StartGame)
-	api.POST("/rooms/:roomid/games/:gameid/score", userController.AuthRequired, roomController.IsRoomMember)
-	// api.GET("/rooms/:roomid/games/:gameid", userController.AuthRequired, gameController.FindGame)
+	api.POST("/rooms/:roomid/game/score", userController.AuthRequired, roomController.IsRoomMember, gameController.IsCurrentGameUser, gameController.FinishGame)
 
 	router.Run()
 }

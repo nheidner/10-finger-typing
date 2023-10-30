@@ -27,20 +27,22 @@ type Score struct {
 	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
 	UserId         uuid.UUID       `json:"userId" gorm:"not null"`
 	TextId         uuid.UUID       `json:"textId" gorm:"not null"`
-	GameId         *uuid.UUID      `json:"gameId"`
+	GameId         uuid.UUID       `json:"gameId"`
 }
 
 type CreateScoreInput struct {
-	WordsTyped  int        `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=250"`
+	WordsTyped  int        `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=1000"`
 	TimeElapsed float64    `json:"timeElapsed" binding:"required" faker:"oneof: 60.0, 120.0, 180.0"`
 	Errors      ErrorsJSON `json:"errors" binding:"required,typingerrors"`
 	TextId      uuid.UUID  `json:"textId" binding:"required"`
-	UserId      uuid.UUID
+	UserId      uuid.UUID  `json:"-"`
+	GameId      uuid.UUID  `json:"-"`
 }
 
 type FindScoresQuery struct {
 	SortOptions []SortOption
 	UserId      uuid.UUID
+	GameId      uuid.UUID
 	Username    string `form:"username"`
 }
 
@@ -65,12 +67,15 @@ func (j *ErrorsJSON) Scan(value interface{}) error {
 	return nil
 }
 
-func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
+func (ss *ScoreService) FindScores(query *FindScoresQuery) ([]Score, error) {
 	var scores []Score
 
 	findScoresDbQuery := ss.DB
 	if query.UserId != uuid.Nil {
 		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", query.UserId)
+	}
+	if query.GameId != uuid.Nil {
+		findScoresDbQuery = findScoresDbQuery.Where("game_id = ?", query.GameId)
 	}
 	if query.Username != "" {
 		findScoresDbQuery = findScoresDbQuery.Joins("INNER JOIN users ON scores.user_id = users.id").Where("users.username = ?", query.Username)
@@ -86,11 +91,10 @@ func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
 	findScoresDbQuery.Find(&scores)
 
 	if findScoresDbQuery.Error != nil {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
+		return nil, findScoresDbQuery.Error
 	}
 
-	return &scores, nil
+	return scores, nil
 }
 
 func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
@@ -104,6 +108,7 @@ func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
 		TimeElapsed:  input.TimeElapsed,
 		Errors:       input.Errors,
 		UserId:       input.UserId,
+		GameId:       input.GameId,
 		NumberErrors: numberErrors,
 		TextId:       input.TextId,
 	}

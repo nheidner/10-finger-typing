@@ -44,8 +44,8 @@ type Game struct {
 	TextId      uuid.UUID       `json:"textId" gorm:"not null"`
 	RoomId      uuid.UUID       `json:"roomId" gorm:"not null"`
 	Scores      []Score         `json:"-"`
-	Status      GameStatus      `json:"status" gorm:"-"`
 	Subscribers []Subscriber    `json:"subscribers" gorm:"-"`
+	Status      GameStatus      `json:"status" gorm:"-"`
 }
 
 type GameService struct {
@@ -66,9 +66,9 @@ func (gs *GameService) SetNewCurrentGame(ctx context.Context, newGameId, textId,
 	statusStr := strconv.Itoa(int(UnstartedGameStatus))
 	gameIdStr := newGameId.String()
 	currentGameValue := map[string]string{
-		currentGameGameId: gameIdStr,
-		currentGameTextId: textId.String(),
-		gameStatusField:   statusStr,
+		currentGameIdField:     gameIdStr,
+		currentGameTextIdField: textId.String(),
+		currentGameStatusField: statusStr,
 	}
 	if err := gs.RDB.HSet(ctx, currentGameKey, currentGameValue).Err(); err != nil {
 		return err
@@ -89,7 +89,7 @@ func (gs *GameService) SetNewCurrentGame(ctx context.Context, newGameId, textId,
 func (gs *GameService) IsCurrentGame(ctx context.Context, roomId, gameId uuid.UUID) (bool, error) {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	r, err := gs.RDB.HGet(ctx, currentGameKey, currentGameGameId).Result()
+	r, err := gs.RDB.HGet(ctx, currentGameKey, currentGameIdField).Result()
 	if err != nil {
 		return false, err
 	}
@@ -124,6 +124,12 @@ func (gs *GameService) GetCurrentGameUsers(ctx context.Context, roomId uuid.UUID
 	return gameUsers, nil
 }
 
+func (gs *GameService) IsCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) (bool, error) {
+	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
+
+	return gs.RDB.SIsMember(ctx, currentGameUserIdsKey, userId.String()).Result()
+}
+
 func (gs *GameService) GetCurrentGameUsersNumber(ctx context.Context, roomId uuid.UUID) (int, error) {
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
@@ -138,7 +144,7 @@ func (gs *GameService) GetCurrentGameUsersNumber(ctx context.Context, roomId uui
 func (gs *GameService) GetCurrentGameStatus(ctx context.Context, roomId uuid.UUID) (GameStatus, error) {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	gameStatusInt, err := gs.RDB.HGet(ctx, currentGameKey, gameStatusField).Int()
+	gameStatusInt, err := gs.RDB.HGet(ctx, currentGameKey, currentGameStatusField).Int()
 	switch {
 	case err == redis.Nil:
 		return NilGameStatus, nil
@@ -149,8 +155,24 @@ func (gs *GameService) GetCurrentGameStatus(ctx context.Context, roomId uuid.UUI
 	return GameStatus(gameStatusInt), nil
 }
 
+func (gs *GameService) GetCurrentGameId(ctx context.Context, roomId uuid.UUID) (uuid.UUID, error) {
+	currentGameKey := getCurrentGameKey(roomId)
+
+	gameIdStr, err := gs.RDB.HGet(ctx, currentGameKey, currentGameIdField).Result()
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	gameId, err := uuid.Parse(gameIdStr)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return gameId, nil
+}
+
 func (gs *GameService) SetCurrentGameStatus(ctx context.Context, roomId uuid.UUID, gameStatus GameStatus) error {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	return gs.RDB.HSet(ctx, currentGameKey, gameStatusField, gameStatus).Err()
+	return gs.RDB.HSet(ctx, currentGameKey, currentGameStatusField, gameStatus).Err()
 }

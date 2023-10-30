@@ -65,9 +65,9 @@ func (s Scores) FindScoresByUser(c *gin.Context) {
 
 	query.SortOptions = sortOptions
 
-	scores, err := s.ScoreService.FindScores(query)
+	scores, err := s.ScoreService.FindScores(&query)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -90,9 +90,9 @@ func (s Scores) FindScores(c *gin.Context) {
 
 	query.SortOptions = sortOptions
 
-	scores, err := s.ScoreService.FindScores(query)
+	scores, err := s.ScoreService.FindScores(&query)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
