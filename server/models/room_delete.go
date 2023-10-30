@@ -35,7 +35,7 @@ func (rs *RoomService) deleteRoomFromRedis(ctx context.Context, roomId uuid.UUID
 	roomKey := getRoomKey(roomId)
 
 	// first need to send terminate action message so that all websocket that remained connected, disconnect
-	if err := rs.TerminateRoomStream(ctx, roomId); err != nil {
+	if err := rs.PublishAction(ctx, roomId, TerminateAction); err != nil {
 		return err
 	}
 

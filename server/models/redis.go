@@ -23,6 +23,13 @@ const (
 	currentGameTextId         = "text_id"
 )
 
+type StreamAction int
+
+const (
+	TerminateAction StreamAction = iota
+	GameUserScoreAction
+)
+
 var RedisClient *redis.Client
 
 func init() {
@@ -60,6 +67,10 @@ func getRoomStreamKey(roomId uuid.UUID) string {
 // rooms:[room_id]:current_game hash: id, text_id, status
 func getCurrentGameKey(roomId uuid.UUID) string {
 	return getRoomKey(roomId) + ":current_game"
+}
+
+func getCurrentGameScoreKey(roomId uuid.UUID) string {
+	return getRoomKey(roomId) + ":score"
 }
 
 // rooms:[room_id]:subscribers:[user_id]:conns set: connection ids

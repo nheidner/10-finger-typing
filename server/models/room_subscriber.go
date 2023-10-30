@@ -137,7 +137,7 @@ func (rss *RoomSubscriberService) GetActions(ctx context.Context, roomId uuid.UU
 
 				if action, ok := values["action"]; ok {
 					switch action {
-					case "terminate":
+					case strconv.Itoa(int(TerminateAction)):
 						return
 					default:
 						out <- values

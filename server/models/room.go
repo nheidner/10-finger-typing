@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -24,15 +25,6 @@ func (rs *RoomService) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UU
 	}
 
 	return r == adminId.String(), nil
-}
-
-func (rs *RoomService) TerminateRoomStream(ctx context.Context, roomId uuid.UUID) error {
-	roomStreamKey := getRoomStreamKey(roomId)
-
-	return rs.RDB.XAdd(ctx, &redis.XAddArgs{
-		Stream: roomStreamKey,
-		Values: map[string]string{"action": "terminate"},
-	}).Err()
 }
 
 func (rs *RoomService) RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error) {
@@ -75,7 +67,7 @@ func (rs *RoomService) RoomExists(ctx context.Context, roomId uuid.UUID) (bool, 
 	return r > 0, nil
 }
 
-func (rs *RoomService) Publish(ctx context.Context, roomId uuid.UUID, msg WSMessage) error {
+func (rs *RoomService) PublishMessage(ctx context.Context, roomId uuid.UUID, msg WSMessage) error {
 	roomStreamKey := getRoomStreamKey(roomId)
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -85,5 +77,14 @@ func (rs *RoomService) Publish(ctx context.Context, roomId uuid.UUID, msg WSMess
 	return rs.RDB.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]interface{}{"data": data},
+	}).Err()
+}
+
+func (rs *RoomService) PublishAction(ctx context.Context, roomId uuid.UUID, action StreamAction) error {
+	roomStreamKey := getRoomStreamKey(roomId)
+
+	return rs.RDB.XAdd(ctx, &redis.XAddArgs{
+		Stream: roomStreamKey,
+		Values: map[string]string{"action": strconv.Itoa(int(action))},
 	}).Err()
 }
