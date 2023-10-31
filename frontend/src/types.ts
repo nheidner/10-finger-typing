@@ -18,11 +18,12 @@ export interface Score {
   userId: number;
 }
 
-export type TypingLanguage = (typeof typingLanguages)[number];
+export type LanguageCode = (typeof languageCodes)[number];
+export type LanguageName = (typeof languageNames)[number];
 
 export interface Text {
   id: number;
-  language: TypingLanguage;
+  language: LanguageCode;
   text: string;
   punctuation: boolean;
   specialCharacters: number;

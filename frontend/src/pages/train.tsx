@@ -1,7 +1,7 @@
 import { DehydratedState, QueryClient, dehydrate } from "@tanstack/react-query";
 import { NextPage } from "next";
 import { useState } from "react";
-import { TypingLanguage } from "@/types";
+import { LanguageName } from "@/types";
 import { Content } from "@/modules/train/components/Content";
 import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
 import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
@@ -26,8 +26,10 @@ const TrainPage: NextPage<{
   );
   const [numerals, setNumerals] = useState(Object.keys(numeralOptions)[0]);
   const [usePunctuation, setUsePunctuation] = useState(false);
-  const [language, setLanguage] = useState(Object.keys(languageOptions)[0]);
-  const lang = languageOptions[language] as TypingLanguage;
+  const [languageName, setLanguageName] = useState(
+    Object.keys(languageOptions)[0] as LanguageName
+  );
+  const lang = languageOptions[languageName];
 
   const { text: textData, isLoading: textIsLoading } = useEnsureTextData({
     specialCharacters,
@@ -47,12 +49,12 @@ const TrainPage: NextPage<{
     <>
       <section className="flex gap-10 justify-center items-center">
         <TextConfigOptions
-          setLanguage={setLanguage}
+          setLanguage={setLanguageName}
           setNumerals={setNumerals}
           setSpecialCharacters={setSpecialCharacters}
           setUsePunctuation={setUsePunctuation}
           specialCharacters={specialCharacters}
-          language={language}
+          language={languageName}
           numerals={numerals}
           usePunctuation={usePunctuation}
         />

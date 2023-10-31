@@ -1,1 +1,2 @@
-const typingLanguages = ["en", "de", "fr"] as const;
+const languageCodes = ["en", "de", "fr"] as const;
+const languageNames = ["English", "German", "French"] as const;

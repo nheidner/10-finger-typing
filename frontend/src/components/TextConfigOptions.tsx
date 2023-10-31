@@ -1,5 +1,5 @@
 import { ChangeEvent, FC } from "react";
-import { TypingLanguage } from "@/types";
+import { LanguageName } from "@/types";
 import { Toggle } from "@/components/Toggle";
 import { Switch } from "@/components/Switch";
 import {
@@ -15,8 +15,8 @@ export const TextConfigOptions: FC<{
   setNumerals: (option: string) => void;
   usePunctuation: boolean;
   setUsePunctuation: (option: boolean) => void;
-  language: string;
-  setLanguage: (option: string) => void;
+  language: LanguageName;
+  setLanguage: (option: LanguageName) => void;
 }> = ({
   specialCharacters,
   setSpecialCharacters,
@@ -37,7 +37,7 @@ export const TextConfigOptions: FC<{
     setUsePunctuation(!usePunctuation);
   };
   const handleLanguageChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setLanguage(e.target.value as TypingLanguage);
+    setLanguage(e.target.value as LanguageName);
   };
 
   return (

@@ -5,7 +5,7 @@ import {
   getAuthenticatedUser,
   getNewTextByUserid,
 } from "@/utils/queries";
-import { Text, TypingLanguage } from "@/types";
+import { Text, LanguageCode } from "@/types";
 import { useRouter } from "next/router";
 import {
   numeralOptions,
@@ -25,7 +25,7 @@ export const useEnsureTextData = ({
   specialCharacters: string;
   numerals: string;
   usePunctuation: boolean;
-  language: TypingLanguage;
+  language: LanguageCode;
 }): { text?: Text; isLoading: boolean } => {
   const specialCharactersGte = specialCharactersOptions[
     specialCharacters
