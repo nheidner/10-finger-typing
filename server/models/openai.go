@@ -13,11 +13,11 @@ type OpenAiService struct {
 }
 
 type ChatCompletionRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
+	Model    string        `json:"model"`
+	Messages []ChatMessage `json:"messages"`
 }
 
-type Message struct {
+type ChatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
@@ -27,7 +27,7 @@ type ChatCompletionResponse struct {
 }
 
 type Choice struct {
-	Message Message `json:"message"`
+	Message ChatMessage `json:"message"`
 }
 
 const chatCompletionUrl = "https://api.openai.com/v1/chat/completions"
@@ -77,7 +77,7 @@ func (oais *OpenAiService) GenerateTypingText(input CreateTextInput) (string, er
 func (oais *OpenAiService) createRequestBody(input CreateTextInput, systemPrompt string) ChatCompletionRequest {
 	return ChatCompletionRequest{
 		Model: "gpt-3.5-turbo",
-		Messages: []Message{
+		Messages: []ChatMessage{
 			{Content: systemPrompt, Role: "system"}, {Content: input.String(), Role: "user"},
 		},
 	}
