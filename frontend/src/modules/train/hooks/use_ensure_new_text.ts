@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createNewText,
@@ -7,26 +7,36 @@ import {
 } from "@/utils/queries";
 import { Text, TypingLanguage } from "@/types";
 import { useRouter } from "next/router";
+import {
+  languageOptions,
+  numeralOptions,
+  specialCharactersOptions,
+} from "@/modules/train/constants";
 
 const getRandomNumberBetween = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
 export const useEnsureTextData = ({
-  specialCharactersGte,
-  specialCharactersLte,
-  numbersGte,
-  numbersLte,
+  specialCharacters,
+  numerals,
   usePunctuation,
   language,
 }: {
-  specialCharactersGte: number;
-  specialCharactersLte: number;
-  numbersGte: number;
-  numbersLte: number;
+  specialCharacters: string;
+  numerals: string;
   usePunctuation: boolean;
   language: TypingLanguage;
 }): { text?: Text; isLoading: boolean } => {
+  const specialCharactersGte = specialCharactersOptions[
+    specialCharacters
+  ][0] as number;
+  const specialCharactersLte = specialCharactersOptions[
+    specialCharacters
+  ][1] as number;
+  const numbersGte = numeralOptions[numerals][0] as number;
+  const numbersLte = numeralOptions[numerals][1] as number;
+
   const router = useRouter();
   const queryClient = useQueryClient();
 
