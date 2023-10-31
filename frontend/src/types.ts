@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string;
   username: string;
   firstName: string;
   email: string;
@@ -8,21 +8,21 @@ export interface User {
 }
 
 export interface Score {
-  id: number;
+  id: string;
   wordsPerMinute: number;
   wordsTyped: number;
   timeElapsed: number;
   accuracy: number;
   numberErrors: number;
   errors: { [error: string]: number };
-  userId: number;
+  userId: string;
 }
 
 export type LanguageCode = (typeof languageCodes)[number];
 export type LanguageName = (typeof languageNames)[number];
 
 export interface Text {
-  id: number;
+  id: string;
   language: LanguageCode;
   text: string;
   punctuation: boolean;
@@ -31,5 +31,5 @@ export interface Text {
 }
 
 export interface Room {
-  id: number;
+  id: string;
 }

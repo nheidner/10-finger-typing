@@ -1,17 +1,50 @@
-import { Room, Score, Text, TypingLanguage, User } from "@/types";
+import { Room, Score, Text, LanguageCode, User } from "@/types";
 import { fetchApi } from "./fetch";
 
-export type NewRoomParams = {
-  userIds: number[];
+export type NewRoomBodyParams = {
+  userIds: string[];
   emails: string[];
-  textIds: number[];
 };
 
-export const createRoom = async ({ query }: { query: NewRoomParams }) => {
+export const createRoom = async ({ body }: { body: NewRoomBodyParams }) => {
   return fetchApi<Room>("/rooms", {
     method: "POST",
-    body: JSON.stringify(query),
+    body: JSON.stringify(body),
   });
+};
+
+export type NewGameBodyParams = { textId: string };
+
+export const createGame = async ({
+  roomId,
+  body,
+}: {
+  roomId: string;
+  body: NewGameBodyParams;
+}) => {
+  return fetchApi<{ id: string }>(`/rooms/${roomId}/games`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+};
+
+export const createRoomAndText = async ({
+  newGameBody,
+  newRoomBody,
+}: {
+  newRoomBody: NewRoomBodyParams;
+  newGameBody: NewGameBodyParams;
+}) => {
+  const room = await createRoom({ body: newRoomBody });
+  const { id: gameId } = await createGame({
+    roomId: room.id,
+    body: newGameBody,
+  });
+
+  return {
+    room,
+    gameId,
+  };
 };
 
 export const getAuthenticatedUser = async () => fetchApi<User>("/user");
@@ -25,7 +58,7 @@ type TextQueryParams = {
   numbersGte?: number;
   numbersLte?: number;
   punctuation?: boolean;
-  language: TypingLanguage;
+  language: LanguageCode;
 };
 
 export const getNewTextByUserid = async (
@@ -65,7 +98,7 @@ type TextParams = {
   specialCharacters: number;
   numbers: number;
   punctuation: boolean;
-  language: TypingLanguage;
+  language: LanguageCode;
 };
 
 export const createNewText = async ({

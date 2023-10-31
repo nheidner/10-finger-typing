@@ -3,8 +3,8 @@ import { Dialog, Transition } from "@headlessui/react";
 import { User } from "@/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  NewRoomParams,
-  createRoom,
+  NewRoomBodyParams,
+  createRoomAndText,
   getAuthenticatedUser,
 } from "@/utils/queries";
 import { useRouter } from "next/router";
@@ -27,12 +27,9 @@ const SubmitButton: FC<{ isDisabled: boolean; children: string }> = ({
   );
 };
 
-const sanitizeNewRoomUsers = (
-  users: Partial<User>[],
-  textId: string
-): NewRoomParams => {
+const sanitizeNewRoomUsers = (users: Partial<User>[]): NewRoomBodyParams => {
   const emails: string[] = [];
-  const userIds: number[] = [];
+  const userIds: string[] = [];
 
   for (const user of users) {
     if (user.id) {
@@ -48,7 +45,6 @@ const sanitizeNewRoomUsers = (
   return {
     emails,
     userIds,
-    textIds: [parseInt(textId)],
   };
 };
 
@@ -87,30 +83,32 @@ export const InvitePanel: FC<{
     [newRoomUsers, authenticatedUserData]
   );
 
-  const { mutate: createNewRoomMutate, isLoading: createRoomIsLoading } =
+  const { mutate: createNewRoomAndGameMutate, isLoading: createRoomIsLoading } =
     useMutation({
-      mutationKey: ["create room"],
-      mutationFn: createRoom,
+      mutationKey: ["create room and game"],
+      mutationFn: createRoomAndText,
       onSuccess: (data) => {
         router.push({
-          pathname: router.pathname,
-          query: { ...router.query, roomId: data.id },
+          pathname: `rooms/${data.room.id}`,
         });
         removeNewRoomUsers();
         closeModal();
       },
     });
 
-  const handleCreateNewRoom = (e: FormEvent) => {
+  const handleCreateNewRoomAndGame = (e: FormEvent) => {
     e.preventDefault();
-    const params = sanitizeNewRoomUsers(newRoomUsers, textId);
+    const params = sanitizeNewRoomUsers(newRoomUsers);
 
-    createNewRoomMutate({ query: params });
+    createNewRoomAndGameMutate({
+      newRoomBody: params,
+      newGameBody: { textId },
+    });
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && newRoomUsers.length) {
-      handleCreateNewRoom(e);
+      handleCreateNewRoomAndGame(e);
     }
   };
 
@@ -134,7 +132,7 @@ export const InvitePanel: FC<{
         className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-[31.25rem] sm:p-6"
         style={{ height: panelHeight }}
       >
-        <form className="flex flex-col" onSubmit={handleCreateNewRoom}>
+        <form className="flex flex-col" onSubmit={handleCreateNewRoomAndGame}>
           <UserList
             newRoomUsers={newRoomUsers}
             removeNewRoomUser={removeNewRoomUser}
