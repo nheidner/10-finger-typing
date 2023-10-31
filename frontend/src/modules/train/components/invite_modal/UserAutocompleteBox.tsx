@@ -1,6 +1,6 @@
 import { ChangeEvent, FC, KeyboardEvent, useState } from "react";
 import { Combobox } from "@headlessui/react";
-import { useDebouncedUserSearchByUsernamePartial } from "../hooks/use_debounced_user_search_by_username_partial.ts";
+import { useDebouncedUserSearchByUsernamePartial } from "../../hooks/use_debounced_user_search_by_username_partial.ts";
 import isEmail from "validator/lib/isEmail";
 import { User } from "@/types";
 import { AutocompleteOption } from "./AutocompleteOption";

@@ -1,21 +1,19 @@
 import { DehydratedState, QueryClient, dehydrate } from "@tanstack/react-query";
 import { NextPage } from "next";
-import { ChangeEvent, useState } from "react";
+import { useState } from "react";
 import { TypingLanguage } from "@/types";
-import { Toggle } from "@/modules/train/components/Toggle";
-import { Switch } from "@/modules/train/components/Switch";
 import { Content } from "@/modules/train/components/Content";
 import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
 import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
 import { UserData } from "@/modules/train/types";
-import { InviteModal } from "@/modules/train/components/InviteModal";
+import { InviteModal } from "@/modules/train/components/invite_modal";
 import {
   languageOptions,
   numeralOptions,
   specialCharactersOptions,
 } from "@/modules/train/constants";
 import { useRouter } from "next/router";
-import { TextConfigOptions } from "@/modules/train/components/TextConfigOptions";
+import { TextConfigOptions } from "@/components/TextConfigOptions";
 
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;

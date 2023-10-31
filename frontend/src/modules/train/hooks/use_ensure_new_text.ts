@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createNewText,
@@ -8,7 +8,6 @@ import {
 import { Text, TypingLanguage } from "@/types";
 import { useRouter } from "next/router";
 import {
-  languageOptions,
   numeralOptions,
   specialCharactersOptions,
 } from "@/modules/train/constants";

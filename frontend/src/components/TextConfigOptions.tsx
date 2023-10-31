@@ -1,7 +1,7 @@
 import { ChangeEvent, FC } from "react";
 import { TypingLanguage } from "@/types";
-import { Toggle } from "@/modules/train/components/Toggle";
-import { Switch } from "@/modules/train/components/Switch";
+import { Toggle } from "@/components/Toggle";
+import { Switch } from "@/components/Switch";
 import {
   languageOptions,
   numeralOptions,
