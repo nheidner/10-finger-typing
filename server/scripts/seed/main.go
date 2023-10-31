@@ -3,12 +3,14 @@ package main
 import (
 	"10-typing/models"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 	"strings"
 
 	"github.com/go-faker/faker/v4"
+	"github.com/google/uuid"
 )
 
 var (
@@ -38,7 +40,7 @@ func main() {
 
 	fakeTexts, err := seedFakeTexts(20)
 	if err != nil {
-		fmt.Println("error seeding fake users:", err)
+		fmt.Println("error seeding fake texts:", err)
 		os.Exit(1)
 	}
 
@@ -46,7 +48,7 @@ func main() {
 
 	_, err = seedFakeScores(allUsers, fakeTexts, 100)
 	if err != nil {
-		fmt.Println("error seeding fake users:", err)
+		fmt.Println("error seeding fake scores:", err)
 		os.Exit(1)
 	}
 }
@@ -147,7 +149,7 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 	for i := 0; i < n; i++ {
 		scoreInputData, err := generateFakeData[models.CreateScoreInput]()
 		if err != nil {
-			return nil, err
+			return nil, errors.New("error generating fake data: " + err.Error())
 		}
 
 		randomUsersIndex := rand.Intn(len(users))
@@ -158,10 +160,11 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 
 		scoreInputData.UserId = randomUser.ID
 		scoreInputData.TextId = randomText.ID
+		scoreInputData.GameId = uuid.Nil
 
 		randomCharsAmount := rand.Intn(8)
 
-		errors := make(models.ErrorsJSON, randomCharsAmount)
+		typingErrors := make(models.ErrorsJSON, randomCharsAmount)
 		chars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 		for i := 0; i < randomCharsAmount; i++ {
@@ -169,14 +172,14 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 			chars = strings.Replace(chars, randomChar, "", 1)
 			randomErrorsAmount := rand.Intn(5) + 1
 
-			errors[randomChar] = randomErrorsAmount
+			typingErrors[randomChar] = randomErrorsAmount
 		}
 
-		scoreInputData.Errors = errors
+		scoreInputData.Errors = typingErrors
 
 		score, err := scoreService.Create(*scoreInputData)
 		if err != nil {
-			return nil, err
+			return nil, errors.New("error creating new score: " + err.Error())
 		}
 
 		scores = append(scores, score)

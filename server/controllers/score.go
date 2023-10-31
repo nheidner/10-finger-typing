@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	custom_errors "10-typing/errors"
 	"10-typing/models"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +33,8 @@ func (s Scores) CreateScore(c *gin.Context) {
 
 	score, err := s.ScoreService.Create(input)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		log.Println("error when creating a new score: ", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

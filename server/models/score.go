@@ -1,10 +1,8 @@
 package models
 
 import (
-	custom_errors "10-typing/errors"
 	"database/sql/driver"
 	"encoding/json"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -113,13 +111,17 @@ func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
 		TextId:       input.TextId,
 	}
 
-	createResult := ss.DB.Omit("WordsPerMinute", "Accuracy").
-		Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}, {Name: "words_per_minute"}, {Name: "words_typed"}, {Name: "time_elapsed"}, {Name: "accuracy"}, {Name: "number_errors"}, {Name: "errors"}}}).
+	omitFields := []string{"WordsPerMinute", "Accuracy"}
+
+	if score.GameId == uuid.Nil {
+		omitFields = append(omitFields, "GameId")
+	}
+
+	createResult := ss.DB.Omit(omitFields...).Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}, {Name: "words_per_minute"}, {Name: "words_typed"}, {Name: "time_elapsed"}, {Name: "accuracy"}, {Name: "number_errors"}, {Name: "errors"}}}).
 		Create(&score)
 
 	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
+		return nil, createResult.Error
 	}
 
 	return &score, nil
