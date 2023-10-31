@@ -8,7 +8,7 @@ type LetterType = "correct" | "incorrect" | "notTyped";
 export const Content: FC<{
   text: Text | null;
   isLoading: boolean;
-  onType: (cursor: number) => void;
+  onType?: (cursor: number) => void;
   userData: { [userId: number]: UserData };
 }> = ({ text, isLoading, onType, userData }) => {
   const [editedText, setEditedText] = useState<
@@ -76,7 +76,9 @@ export const Content: FC<{
       });
     }
 
-    onType(cursorIndex + 1);
+    if (onType) {
+      onType(cursorIndex + 1);
+    }
     setInput((input) => input + newChar);
     setCursorIndex((cursorIndex) => cursorIndex + 1);
   };

@@ -19,7 +19,7 @@ const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
 }> = () => {
   const [newRoomModalIsOpen, setNewRoomModalOpen] = useState(false);
-  const [userData, setUserData] = useState<{ [userId: number]: UserData }>({});
+  const userData = {};
 
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
@@ -37,13 +37,6 @@ const TrainPage: NextPage<{
     usePunctuation,
     language: lang,
   });
-
-  const router = useRouter();
-  const { roomId } = router.query as {
-    roomId?: string;
-  };
-
-  const webSocketRef = useConnectToRoom(setUserData, roomId, textData?.id);
 
   return (
     <>
@@ -71,15 +64,7 @@ const TrainPage: NextPage<{
         isLoading={textIsLoading}
         text={textData || null}
         userData={userData}
-        onType={(cursor: number) => {
-          const message = {
-            type: "cursor",
-            payload: {
-              cursor,
-            },
-          };
-          webSocketRef.current?.send(JSON.stringify(message));
-        }}
+        onType={() => {}}
       />
     </>
   );

@@ -1,7 +1,8 @@
-import { Text, User } from "@/types";
+import { User } from "@/types";
 import { getWsUrl } from "@/utils/get_api_url";
-import { SetStateAction, useEffect, useRef } from "react";
-import { UserData } from "../types";
+import { DehydratedState, QueryClient, dehydrate } from "@tanstack/react-query";
+import { NextPage, NextPageContext } from "next";
+import { useEffect, useRef } from "react";
 
 type Message = {
   user: User;
@@ -9,14 +10,10 @@ type Message = {
   payload: { cursor: number } | null;
 };
 
-export const useConnectToRoom = (
-  setUserData: (
-    value: SetStateAction<{
-      [userId: number]: UserData;
-    }>
-  ) => void,
-  roomId?: string
-) => {
+const RoomPage: NextPage<{
+  dehydratedState: DehydratedState;
+  roomId: string;
+}> = ({ roomId }) => {
   const webSocketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -41,24 +38,6 @@ export const useConnectToRoom = (
       console.log("message :>> ", message);
 
       switch (message.type) {
-        case "user_added":
-          setUserData((userData) => {
-            return {
-              ...userData,
-              [message.user.id]: { user: message.user, cursor: 0 },
-            };
-          });
-          break;
-        case "cursor":
-          setUserData((userData) => {
-            return {
-              ...userData,
-              [message.user.id]: {
-                ...userData[message.user.id],
-                cursor: message.payload?.cursor || 0,
-              },
-            };
-          });
         default:
           break;
       }
@@ -75,7 +54,20 @@ export const useConnectToRoom = (
         webSocketRef.current?.close(1000, "user left the room");
       }
     };
-  }, [roomId, setUserData]);
+  }, [roomId]);
 
-  return webSocketRef;
+  return <div>{roomId}</div>;
 };
+
+RoomPage.getInitialProps = async (ctx: NextPageContext) => {
+  const roomId = ctx.query.roomId as string;
+
+  const queryClient = new QueryClient();
+
+  return {
+    dehydratedState: dehydrate(queryClient),
+    roomId,
+  };
+};
+
+export default RoomPage;
