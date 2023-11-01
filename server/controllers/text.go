@@ -1,10 +1,9 @@
 package controllers
 
 import (
-	custom_errors "10-typing/errors"
 	"10-typing/models"
 	"context"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,8 +32,8 @@ func (t Texts) FindText(c *gin.Context) {
 
 	text, err := t.TextService.FindNewOneByUserId(userId, query)
 	if err != nil {
-		fmt.Println("err :>>", err.(custom_errors.HTTPError).Details)
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		log.Println("err :>>", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

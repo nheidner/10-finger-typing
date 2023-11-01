@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	custom_errors "10-typing/errors"
 	"10-typing/models"
 	"log"
 	"net/http"
@@ -24,7 +23,7 @@ func (u Users) FindUsers(c *gin.Context) {
 
 	users, err := u.UserService.FindUsers(query)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -45,7 +44,7 @@ func (u Users) FindUser(c *gin.Context) {
 
 	user, err := u.UserService.FindOneById(userId)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -61,7 +60,7 @@ func (u Users) CreateUser(c *gin.Context) {
 
 	user, err := u.UserService.Create(input)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -76,12 +75,12 @@ func (u Users) Login(c *gin.Context) {
 
 	user, err := u.UserService.Authenticate(input.Email, input.Password)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	session, err := u.SessionService.Create(user.ID)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -98,7 +97,7 @@ func (u Users) Logout(c *gin.Context) {
 
 	err = u.SessionService.Delete(token)
 	if err != nil {
-		c.JSON(err.(custom_errors.HTTPError).Status, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

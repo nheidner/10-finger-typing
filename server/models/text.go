@@ -1,10 +1,9 @@
 package models
 
 import (
-	custom_errors "10-typing/errors"
 	"context"
+	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -83,8 +82,7 @@ func (ts TextService) FindNewOneByUserId(userId uuid.UUID, query FindTextQuery) 
 	result.First(&text)
 
 	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
-		internalServerError := custom_errors.HTTPError{Message: "error querying text", Status: http.StatusInternalServerError, Details: result.Error.Error()}
-		return nil, internalServerError
+		return nil, errors.New("error querying text:" + result.Error.Error())
 	}
 
 	if result.Error == gorm.ErrRecordNotFound {

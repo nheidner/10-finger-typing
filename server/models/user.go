@@ -1,9 +1,7 @@
 package models
 
 import (
-	custom_errors "10-typing/errors"
-	"fmt"
-	"net/http"
+	"errors"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -64,8 +62,7 @@ func (us UserService) FindUsers(query FindUsersQuery) ([]User, error) {
 	findUsersDbQuery.Find(&users)
 
 	if findUsersDbQuery.Error != nil {
-		badRequestError := custom_errors.HTTPError{Message: "error querying users", Status: http.StatusBadRequest, Details: findUsersDbQuery.Error.Error()}
-		return nil, badRequestError
+		return nil, findUsersDbQuery.Error
 	}
 	return users, nil
 }
@@ -86,8 +83,7 @@ func (us UserService) FindOneById(id uuid.UUID) (*User, error) {
 	}
 	result := us.DB.Find(&user)
 	if result.Error != nil {
-		badRequestError := custom_errors.HTTPError{Message: "error querying user", Status: http.StatusBadRequest, Details: result.Error.Error()}
-		return nil, badRequestError
+		return nil, result.Error
 	}
 	return &user, nil
 }
@@ -96,8 +92,7 @@ func (us UserService) Create(input CreateUserInput) (*User, error) {
 	pwBytes := []byte(input.Password + userPwPepper)
 	hashedBytes, err := bcrypt.GenerateFromPassword(pwBytes, bcrypt.DefaultCost)
 	if err != nil {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
+		return nil, err
 	}
 
 	user := User{
@@ -110,8 +105,7 @@ func (us UserService) Create(input CreateUserInput) (*User, error) {
 	}
 
 	if result := us.DB.Create(&user); result.Error != nil {
-		badRequestError := custom_errors.HTTPError{Message: "error creating user", Status: http.StatusBadRequest, Details: result.Error.Error()}
-		return nil, badRequestError
+		return nil, result.Error
 	}
 
 	return &user, nil
@@ -121,24 +115,20 @@ func (us UserService) Authenticate(email, password string) (*User, error) {
 	var user User
 	result := us.DB.Where("email = ?", email).Find(&user)
 	if result.Error != nil {
-		badRequestError := custom_errors.HTTPError{Message: "error querying user", Status: http.StatusInternalServerError, Details: result.Error.Error()}
-		return nil, badRequestError
+		return nil, result.Error
 	}
 	user.Sessions = []Session{}
 	if user.Email == "" {
-		badRequestError := custom_errors.HTTPError{Message: "user not found", Status: http.StatusBadRequest}
-		return nil, badRequestError
+		return nil, errors.New("user not found")
 	}
 
 	if !user.IsVerified {
-		badRequestError := custom_errors.HTTPError{Message: "user not verified", Status: http.StatusBadRequest, Details: fmt.Sprintf("user %s not verified", user.Email)}
-		return nil, badRequestError
+		return nil, errors.New("user not verified")
 	}
 
 	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password+userPwPepper))
 	if err != nil {
-		badRequestError := custom_errors.HTTPError{Message: "invalid password", Status: http.StatusBadRequest, Details: err.Error()}
-		return nil, badRequestError
+		return nil, errors.New("invalid password: " + err.Error())
 	}
 
 	return &user, nil

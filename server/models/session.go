@@ -3,13 +3,12 @@ package models
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"net/http"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	custom_errors "10-typing/errors"
 	"10-typing/rand"
 )
 
@@ -41,8 +40,7 @@ func (ss *SessionService) Create(userId uuid.UUID) (*Session, error) {
 	}
 	token, err := rand.String(bytesPerToken)
 	if err != nil {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
+		return nil, err
 	}
 	session := Session{
 		UserId:    userId,
@@ -50,9 +48,11 @@ func (ss *SessionService) Create(userId uuid.UUID) (*Session, error) {
 		TokenHash: ss.hash(token),
 	}
 	createResult := ss.DB.Create(&session)
-	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
+	if createResult.Error != nil {
+		return nil, createResult.Error
+	}
+	if createResult.RowsAffected == 0 {
+		return nil, errors.New("new sessions found")
 	}
 
 	return &session, nil
@@ -61,9 +61,12 @@ func (ss *SessionService) Create(userId uuid.UUID) (*Session, error) {
 func (ss *SessionService) Delete(token string) error {
 	tokenHash := ss.hash(token)
 	deleteResult := ss.DB.Delete(&Session{}, "token_hash = ?", tokenHash)
-	if (deleteResult.Error != nil) || (deleteResult.RowsAffected == 0) {
-		notFoundError := custom_errors.HTTPError{Message: "Not Found", Status: http.StatusNotFound}
-		return notFoundError
+	if deleteResult.Error != nil {
+		return deleteResult.Error
+	}
+
+	if deleteResult.RowsAffected == 0 {
+		return errors.New("not found")
 	}
 
 	return nil
@@ -77,9 +80,11 @@ func (ss *SessionService) User(token string) (*User, error) {
 	queryUserResult := ss.DB.Joins("INNER JOIN sessions on users.id = sessions.user_id").
 		Where("sessions.token_hash = ? AND sessions.created_at > ?", tokenHash, time.Now().Add(-SessionDuration*time.Second)).
 		Find(&user)
-	if (queryUserResult.Error != nil) || (queryUserResult.RowsAffected == 0) {
-		notFoundError := custom_errors.HTTPError{Message: "Not Found", Status: http.StatusNotFound}
-		return nil, notFoundError
+	if queryUserResult.Error != nil {
+		return nil, queryUserResult.Error
+	}
+	if queryUserResult.RowsAffected == 0 {
+		return nil, errors.New("not found")
 	}
 
 	return &user, nil
