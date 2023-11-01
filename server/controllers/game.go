@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +24,7 @@ type Games struct {
 	TextService           *models.TextService
 	RoomSubscriberService *models.RoomSubscriberService
 	ScoreService          *models.ScoreService
+	RoomStreamService     *models.RoomStreamService
 }
 
 func (g *Games) CreateGame(c *gin.Context) {
@@ -136,11 +136,14 @@ func (g *Games) StartGame(c *gin.Context) {
 			return
 		}
 
-		countdownMessage := models.WSMessage{Type: "countdown_start", Payload: map[string]any{
-			"duration": countdownDurationSeconds,
-		}}
+		countdownPushMessage := models.PushMessage{
+			Type: models.CountdownStart,
+			Payload: map[string]any{
+				"duration": countdownDurationSeconds,
+			},
+		}
 
-		err = g.RoomService.PublishMessage(c.Request.Context(), roomId, countdownMessage)
+		err = g.RoomStreamService.PublishPushMessage(c.Request.Context(), roomId, countdownPushMessage)
 		if err != nil {
 			log.Println("error publishing to stream:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
@@ -198,7 +201,7 @@ func (g *Games) FinishGame(c *gin.Context) {
 	}
 
 	// post action on stream
-	err = g.RoomService.PublishAction(c.Request.Context(), roomId, models.GameUserScoreAction)
+	err = g.RoomStreamService.PublishAction(c.Request.Context(), roomId, models.GameUserScoreAction)
 	if err != nil {
 		log.Println("error when publishing the game user score action: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
@@ -278,14 +281,12 @@ func (g *Games) handleGameResults(ctx context.Context, roomId uuid.UUID) error {
 	if err != nil {
 		return errors.New("error findind scores:" + err.Error())
 	}
-	scoreMessage := models.WSMessage{
-		Type: "results",
-		Payload: map[string]interface{}{
-			"scores": scores,
-		},
+	scorePushMessage := models.PushMessage{
+		Type:    models.GameScores,
+		Payload: scores,
 	}
 
-	return g.RoomService.PublishMessage(ctx, roomId, scoreMessage)
+	return g.RoomStreamService.PublishPushMessage(ctx, roomId, scorePushMessage)
 }
 
 func (g *Games) getAllResultsReceived(ctx context.Context, playersNumber int, roomId uuid.UUID) <-chan struct{} {
@@ -293,16 +294,16 @@ func (g *Games) getAllResultsReceived(ctx context.Context, playersNumber int, ro
 
 	go func() {
 		defer close(allReceived)
-		roomActionMessageCh, errCh := g.RoomSubscriberService.GetActions(ctx, roomId, time.Time{})
+		actionCh, errCh := g.RoomStreamService.GetAction(ctx, roomId, time.Time{})
 
 		for resultsCount := 0; resultsCount < playersNumber; {
 			select {
-			case roomActionMessage, ok := <-roomActionMessageCh:
+			case action, ok := <-actionCh:
 				if !ok {
 					return
 				}
-				roomAction := roomActionMessage["action"]
-				if roomAction == strconv.Itoa(int(models.GameUserScoreAction)) {
+
+				if action == models.GameUserScoreAction {
 					resultsCount++
 					continue
 				}

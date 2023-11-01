@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"10-typing/models"
 	"log"
 	"net/http"
 
@@ -22,6 +23,13 @@ func (r *Rooms) LeaveRoom(c *gin.Context) {
 	}
 
 	if isAdmin {
+		// first need to send terminate action message so that all websocket that remained connected, disconnect
+		if err := r.RoomStreamService.PublishAction(c.Request.Context(), roomId, models.TerminateAction); err != nil {
+			log.Println("terminate action failed:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "terminate action failed"})
+			return
+		}
+
 		if err := r.RoomService.DeleteRoom(c.Request.Context(), roomId); err != nil {
 			log.Println("failed to remove room subscriber:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove room subscriber"})

@@ -12,6 +12,33 @@ import (
 	"gorm.io/gorm"
 )
 
+type Game struct {
+	ID        uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	CreatedAt time.Time       `json:"createdAt"`
+	UpdatedAt time.Time       `json:"updatedAt"`
+	DeletedAt *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
+	TextId    uuid.UUID       `json:"textId" gorm:"not null"`
+	RoomId    uuid.UUID       `json:"roomId" gorm:"not null"`
+	Scores    []Score         `json:"-"`
+	Status    GameStatus      `json:"status" gorm:"-"`
+}
+
+const (
+	currentGameStatusField = "status"
+	currentGameIdField     = "game_id"
+	currentGameTextIdField = "text_id"
+)
+
+// rooms:[room_id]:current_game hash: id, text_id, status
+func getCurrentGameKey(roomId uuid.UUID) string {
+	return getRoomKey(roomId) + ":current_game"
+}
+
+// rooms:[room_id]:current_game:user_ids set: game user ids
+func getCurrentGameUserIdsKey(roomId uuid.UUID) string {
+	return getCurrentGameKey(roomId) + ":user_ids"
+}
+
 type GameStatus int
 
 const (
@@ -28,24 +55,6 @@ func (s *GameStatus) String() string {
 
 func (s *GameStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
-}
-
-type Subscriber struct {
-	UserId         uuid.UUID        `json:"userId"`
-	StartTimeStamp *time.Time       `json:"startTime"`
-	Status         SubscriberStatus `json:"status"`
-}
-
-type Game struct {
-	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	CreatedAt   time.Time       `json:"createdAt"`
-	UpdatedAt   time.Time       `json:"updatedAt"`
-	DeletedAt   *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	TextId      uuid.UUID       `json:"textId" gorm:"not null"`
-	RoomId      uuid.UUID       `json:"roomId" gorm:"not null"`
-	Scores      []Score         `json:"-"`
-	Subscribers []Subscriber    `json:"subscribers" gorm:"-"`
-	Status      GameStatus      `json:"status" gorm:"-"`
 }
 
 type GameService struct {
@@ -175,4 +184,49 @@ func (gs *GameService) SetCurrentGameStatus(ctx context.Context, roomId uuid.UUI
 	currentGameKey := getCurrentGameKey(roomId)
 
 	return gs.RDB.HSet(ctx, currentGameKey, currentGameStatusField, gameStatus).Err()
+}
+
+func (gs *GameService) GetCurrentGame(ctx context.Context, roomId uuid.UUID) (*Game, error) {
+	currentGameKey := getCurrentGameKey(roomId)
+
+	r, err := gs.RDB.HGetAll(ctx, currentGameKey).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	status := NilGameStatus
+	statusStr, ok := r[currentGameStatusField]
+	if ok {
+		statusInt, err := strconv.Atoi(statusStr)
+		if err != nil {
+			return nil, err
+		}
+
+		status = GameStatus(statusInt)
+	}
+
+	textId := uuid.UUID{}
+	textIdStr, ok := r[currentGameTextIdField]
+	if ok {
+		textId, err = uuid.Parse(textIdStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	gameId := uuid.UUID{}
+	gameIdStr, ok := r[currentGameIdField]
+	if ok {
+		gameId, err = uuid.Parse(gameIdStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Game{
+		ID:     gameId,
+		TextId: textId,
+		RoomId: roomId,
+		Status: status,
+	}, nil
 }

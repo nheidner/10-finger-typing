@@ -8,4 +8,6 @@ type Rooms struct {
 	UserService             *models.UserService
 	EmailTransactionService *models.EmailTransactionService
 	RoomSubscriberService   *models.RoomSubscriberService
+	GameService             *models.GameService
+	RoomStreamService       *models.RoomStreamService
 }

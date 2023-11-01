@@ -2,18 +2,42 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
+type Room struct {
+	ID          uuid.UUID        `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	CreatedAt   time.Time        `json:"createdAt"`
+	UpdatedAt   time.Time        `json:"updatedAt"`
+	DeletedAt   *gorm.DeletedAt  `json:"deletedAt" gorm:"index"`
+	Users       []User           `json:"-" gorm:"many2many:user_rooms"` // saved in DB
+	Subscribers []RoomSubscriber `json:"roomSubscribers" gorm:"-"`      // saved in Redis
+	AdminId     uuid.UUID        `json:"adminId" gorm:"not null"`
+	Admin       User             `json:"-" gorm:"foreignKey:AdminId"`
+	Tokens      []Token          `json:"-"`
+	Games       []Game           `json:"-"`
+	CurrentGame *Game            `json:"currentGame" gorm:"-"`
+}
+
+const (
+	roomAdminIdField   = "admin_id"
+	roomCreatedAtField = "created_at"
+	roomUpdatedAtField = "updated_at"
+)
+
 type RoomService struct {
 	DB  *gorm.DB
 	RDB *redis.Client
+}
+
+// rooms:[room_id] hash: roomAdminId, createdAt, updatedAt
+func getRoomKey(roomId uuid.UUID) string {
+	return "rooms:" + roomId.String()
 }
 
 func (rs *RoomService) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
@@ -67,24 +91,13 @@ func (rs *RoomService) RoomExists(ctx context.Context, roomId uuid.UUID) (bool, 
 	return r > 0, nil
 }
 
-func (rs *RoomService) PublishMessage(ctx context.Context, roomId uuid.UUID, msg WSMessage) error {
-	roomStreamKey := getRoomStreamKey(roomId)
-	data, err := json.Marshal(msg)
+func (rss *RoomSubscriberService) RemoveRoomSubscriber(ctx context.Context, roomId, userId uuid.UUID) error {
+	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
+	err := rss.RDB.Del(ctx, roomSubscriberKey).Err()
 	if err != nil {
 		return err
 	}
 
-	return rs.RDB.XAdd(ctx, &redis.XAddArgs{
-		Stream: roomStreamKey,
-		Values: map[string]interface{}{"data": data},
-	}).Err()
-}
-
-func (rs *RoomService) PublishAction(ctx context.Context, roomId uuid.UUID, action StreamAction) error {
-	roomStreamKey := getRoomStreamKey(roomId)
-
-	return rs.RDB.XAdd(ctx, &redis.XAddArgs{
-		Stream: roomStreamKey,
-		Values: map[string]string{"action": strconv.Itoa(int(action))},
-	}).Err()
+	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
+	return rss.RDB.SRem(ctx, roomSubscriberIdsKey, userId.String()).Err()
 }

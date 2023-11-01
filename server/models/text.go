@@ -47,6 +47,11 @@ type TextService struct {
 	RDB *redis.Client
 }
 
+// text_ids set: text ids
+func getTextIdsKey() string {
+	return "text_ids"
+}
+
 func (ti *CreateTextInput) String() string {
 	return fmt.Sprintf("language: %s, punctuation: %t, number of special characters: %d, number of numbers: %d, length: 100 words", ti.Language, ti.Punctuation, ti.SpecialCharacters, ti.Numbers)
 }

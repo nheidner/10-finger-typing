@@ -15,38 +15,40 @@ import (
 )
 
 type RoomSubscriber struct {
-	ConnectionId uuid.UUID
-	RoomId       uuid.UUID
-	UserId       uuid.UUID
-	Conn         *websocket.Conn
-	Rss          *models.RoomSubscriberService
+	ConnectionId          uuid.UUID
+	RoomId                uuid.UUID
+	UserId                uuid.UUID
+	Conn                  *websocket.Conn
+	RoomSubscriberService *models.RoomSubscriberService
+	RoomStreamService     *models.RoomStreamService
 }
 
-func newRoomSubscriber(conn *websocket.Conn, roomId, userId uuid.UUID, rss *models.RoomSubscriberService) *RoomSubscriber {
+func newRoomSubscriber(conn *websocket.Conn, roomId, userId uuid.UUID, rss *models.RoomSubscriberService, rs *models.RoomStreamService) *RoomSubscriber {
 	roomSubscriberConnectionId := uuid.New()
 
 	return &RoomSubscriber{
-		ConnectionId: roomSubscriberConnectionId,
-		RoomId:       roomId,
-		UserId:       userId,
-		Conn:         conn,
-		Rss:          rss,
+		ConnectionId:          roomSubscriberConnectionId,
+		RoomId:                roomId,
+		UserId:                userId,
+		Conn:                  conn,
+		RoomSubscriberService: rss,
+		RoomStreamService:     rs,
 	}
 }
 
 func (rs *RoomSubscriber) initRoomSubscriber(ctx context.Context) error {
-	err := rs.Rss.SetRoomSubscriberConnection(ctx, rs.RoomId, rs.UserId, rs.ConnectionId)
+	err := rs.RoomSubscriberService.SetRoomSubscriberConnection(ctx, rs.RoomId, rs.UserId, rs.ConnectionId)
 	if err != nil {
 		return err
 	}
 
-	return rs.Rss.SetRoomSubscriberStatus(ctx, rs.RoomId, rs.UserId, models.ActiveSubscriberStatus)
+	return rs.RoomSubscriberService.SetRoomSubscriberStatus(ctx, rs.RoomId, rs.UserId, models.ActiveSubscriberStatus)
 }
 
 func (rs *RoomSubscriber) close(ctx context.Context) error {
-	rs.Rss.RemoveRoomSubscriberConnection(ctx, rs.RoomId, rs.UserId, rs.ConnectionId)
+	rs.RoomSubscriberService.RemoveRoomSubscriberConnection(ctx, rs.RoomId, rs.UserId, rs.ConnectionId)
 
-	err := rs.Rss.SetRoomSubscriberStatus(ctx, rs.RoomId, rs.UserId, models.InactiveSubscriberStatus)
+	err := rs.RoomSubscriberService.SetRoomSubscriberStatus(ctx, rs.RoomId, rs.UserId, models.InactiveSubscriberStatus)
 	if err != nil {
 		return err
 	}
@@ -55,12 +57,11 @@ func (rs *RoomSubscriber) close(ctx context.Context) error {
 }
 
 func (rs *RoomSubscriber) subscribe(ctx context.Context, startTimestamp time.Time) error {
-	messagesCh, errCh := rs.Rss.GetMessages(ctx, rs.RoomId, startTimestamp)
+	messagesCh, errCh := rs.RoomStreamService.GetPushMessages(ctx, rs.RoomId, startTimestamp)
 
 	for {
 		select {
 		case message, ok := <-messagesCh:
-			fmt.Println("ok :>>", ok)
 			if !ok {
 				return nil
 			}
@@ -72,10 +73,6 @@ func (rs *RoomSubscriber) subscribe(ctx context.Context, startTimestamp time.Tim
 			}
 
 			return err
-		}
-
-		if messagesCh == nil && errCh == nil {
-			return nil
 		}
 	}
 }
@@ -106,7 +103,7 @@ func (r *Rooms) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	roomSubscriber := newRoomSubscriber(conn, roomId, user.ID, r.RoomSubscriberService)
+	roomSubscriber := newRoomSubscriber(conn, roomId, user.ID, r.RoomSubscriberService, r.RoomStreamService)
 	defer roomSubscriber.close(c.Request.Context())
 
 	err = roomSubscriber.initRoomSubscriber(c.Request.Context())
@@ -115,7 +112,26 @@ func (r *Rooms) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	wsjson.Write(c.Request.Context(), roomSubscriber.Conn, room)
+	roomSubscribers, err := r.RoomSubscriberService.GetRoomSubscribers(c.Request.Context(), roomId)
+	if err != nil {
+		log.Println("Failed to get room subscribers:", err)
+		return
+	}
+
+	currentGame, err := r.GameService.GetCurrentGame(c.Request.Context(), roomId)
+	if err != nil {
+		log.Println("Failed to get current room:", err)
+		return
+	}
+
+	room.Subscribers = roomSubscribers
+	room.CurrentGame = currentGame
+
+	err = wsjson.Write(c.Request.Context(), roomSubscriber.Conn, room)
+	if err != nil {
+		log.Println("Failed to initialise room subscriber:", err)
+		return
+	}
 
 	err = roomSubscriber.subscribe(c.Request.Context(), timeStamp)
 	if err != nil {

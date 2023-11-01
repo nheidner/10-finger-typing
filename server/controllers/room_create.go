@@ -60,7 +60,7 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 	}
 
 	// send invites to registered users
-	for _, roomSubscriber := range room.Subscribers {
+	for _, roomSubscriber := range room.Users {
 		if roomSubscriber.ID == authenticatedUser.ID {
 			continue
 		}
@@ -74,7 +74,7 @@ func (r *Rooms) CreateRoom(c *gin.Context) {
 
 	tx.Commit()
 
-	models.StripSensitiveUserInformation(room.Subscribers, authenticatedUser)
+	models.StripSensitiveUserInformation(room.Users, authenticatedUser)
 
 	c.JSON(http.StatusOK, gin.H{"data": room})
 }

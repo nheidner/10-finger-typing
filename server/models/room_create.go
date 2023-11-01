@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"log"
+	"strconv"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -39,7 +40,7 @@ func (rs *RoomService) Create(tx *gorm.DB, input CreateRoomInput, adminId uuid.U
 		db.Commit()
 	}
 
-	if err := db.Preload("Subscribers").Find(&room).Error; err != nil {
+	if err := db.Preload("Users").Find(&room).Error; err != nil {
 		return returnAndRollBackIfNeeded(tx, err)
 	}
 
@@ -64,8 +65,8 @@ func (rs *RoomService) createRoomInRedis(ctx context.Context, room *Room) error 
 
 	// add room subscriber ids
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(room.ID)
-	roomSubscriberIdsValue := make([]string, 0, len(room.Subscribers))
-	for _, subscriber := range room.Subscribers {
+	roomSubscriberIdsValue := make([]string, 0, len(room.Users))
+	for _, subscriber := range room.Users {
 		roomSubscriberIdsValue = append(roomSubscriberIdsValue, subscriber.ID.String())
 	}
 
@@ -74,10 +75,12 @@ func (rs *RoomService) createRoomInRedis(ctx context.Context, room *Room) error 
 	}
 
 	// add room subscribers
-	for _, subscriber := range room.Subscribers {
+	for _, subscriber := range room.Users {
 		roomSubscriberKey := getRoomSubscriberKey(room.ID, subscriber.ID)
 		roomSubscriberValue := map[string]any{
-			"username": subscriber.Username,
+			roomSubscriberUsernameField:   subscriber.Username,
+			roomSubscriberStatusField:     strconv.Itoa(int(NilSubscriberStatus)),
+			roomSubscriberGameStatusField: strconv.Itoa(int(NilSubscriberGameStatus)),
 		}
 
 		if err := rs.RDB.HSet(ctx, roomSubscriberKey, roomSubscriberValue).Err(); err != nil {

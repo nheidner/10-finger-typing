@@ -2,12 +2,73 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
+
+type RoomSubscriber struct {
+	UserId     uuid.UUID            `json:"userId"`
+	Status     SubscriberStatus     `json:"status"`
+	Username   string               `json:"username"`
+	GameStatus SubscriberGameStatus `json:"gameStatus"`
+}
+
+const (
+	roomSubscriberStatusField     = "status"
+	roomSubscriberGameStatusField = "game_status"
+	roomSubscriberUsernameField   = "username"
+)
+
+// rooms:[room_id]:subscribers_ids set: user ids
+func getRoomSubscriberIdsKey(roomId uuid.UUID) string {
+	return getRoomKey(roomId) + ":subscribers_ids"
+}
+
+// rooms:[room_id]:subscribers:[user_id] hash: status, username, game_status
+func getRoomSubscriberKey(roomId, userId uuid.UUID) string {
+	return getRoomKey(roomId) + ":subscribers:" + userId.String()
+}
+
+// rooms:[room_id]:subscribers:[user_id]:conns set: connection ids
+func getRoomSubscriberConnectionsKey(roomId, userid uuid.UUID) string {
+	return getRoomSubscriberKey(roomId, userid) + ":conns"
+}
+
+type SubscriberStatus int
+
+const (
+	NilSubscriberStatus SubscriberStatus = iota
+	InactiveSubscriberStatus
+	ActiveSubscriberStatus
+)
+
+func (s *SubscriberStatus) String() string {
+	return []string{"undefined", "inactive", "active"}[*s]
+}
+
+func (s *SubscriberStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+type SubscriberGameStatus int
+
+const (
+	NilSubscriberGameStatus SubscriberGameStatus = iota
+	UnstartedSubscriberGameStatus
+	StartedSubscriberGameStatus
+	FinishedSubscriberGameStatus
+)
+
+func (s *SubscriberGameStatus) String() string {
+	return []string{"undefined", "unstarted", "started", "finished"}[*s]
+}
+
+func (s *SubscriberGameStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
 
 type RoomSubscriberService struct {
 	RDB *redis.Client
@@ -28,13 +89,13 @@ func (rss *RoomSubscriberService) RemoveRoomSubscriberConnection(ctx context.Con
 func (rss *RoomSubscriberService) SetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID, status SubscriberStatus) error {
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
-	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberStatusField: status.String()}).Err()
+	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberStatusField: strconv.Itoa(int(status))}).Err()
 }
 
 func (rss *RoomSubscriberService) GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (SubscriberStatus, error) {
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
-	status, err := rss.RDB.HGet(ctx, roomSubscriberKey, subscriberStatusField).Int()
+	status, err := rss.RDB.HGet(ctx, roomSubscriberKey, roomSubscriberStatusField).Int()
 	if err != nil {
 		return NilSubscriberStatus, err
 	}
@@ -45,13 +106,13 @@ func (rss *RoomSubscriberService) GetRoomSubscriberStatus(ctx context.Context, r
 func (rss *RoomSubscriberService) SetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID, status SubscriberGameStatus) error {
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
-	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{subscriberGameStatusField: status.String()}).Err()
+	return rss.RDB.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberGameStatusField: strconv.Itoa(int(status))}).Err()
 }
 
 func (rss *RoomSubscriberService) GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (SubscriberGameStatus, error) {
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
-	status, err := rss.RDB.HGet(ctx, roomSubscriberKey, subscriberGameStatusField).Int()
+	status, err := rss.RDB.HGet(ctx, roomSubscriberKey, roomSubscriberGameStatusField).Int()
 	if err != nil {
 		return NilSubscriberGameStatus, err
 	}
@@ -59,105 +120,58 @@ func (rss *RoomSubscriberService) GetRoomSubscriberGameStatus(ctx context.Contex
 	return SubscriberGameStatus(status), nil
 }
 
-func (rss *RoomSubscriberService) GetMessages(ctx context.Context, roomId uuid.UUID, startTimestamp time.Time) (<-chan []byte, <-chan error) {
-	out := make(chan []byte)
-	errCh := make(chan error)
+func (rss *RoomSubscriberService) GetRoomSubscribers(ctx context.Context, roomId uuid.UUID) ([]RoomSubscriber, error) {
+	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
 
-	go func() {
-		defer close(out)
-		defer close(errCh)
-
-		roomStreamKey := getRoomStreamKey(roomId)
-		id := "$"
-		if (startTimestamp != time.Time{}) {
-			id = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
-		}
-
-		for {
-			r, err := rss.RDB.XRead(ctx, &redis.XReadArgs{
-				Streams: []string{roomStreamKey, id},
-				Count:   1,
-				Block:   0,
-			}).Result()
-			if err != nil {
-				errCh <- err
-				break
-			}
-
-			id = r[0].Messages[0].ID
-			values := r[0].Messages[0].Values
-
-			if action, ok := values["action"]; ok {
-				switch action {
-				case "terminate":
-					return
-				default:
-					continue
-				}
-			}
-
-			out <- []byte(values["data"].(string))
-		}
-	}()
-
-	return out, errCh
-}
-
-func (rss *RoomSubscriberService) GetActions(ctx context.Context, roomId uuid.UUID, startTimestamp time.Time) (<-chan map[string]any, <-chan error) {
-	out := make(chan map[string]any)
-	errCh := make(chan error)
-
-	go func() {
-		defer close(out)
-		defer close(errCh)
-
-		roomStreamKey := getRoomStreamKey(roomId)
-		id := "$"
-		if (startTimestamp != time.Time{}) {
-			id = strconv.FormatInt(startTimestamp.UnixMilli(), 10)
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				r, err := rss.RDB.XRead(ctx, &redis.XReadArgs{
-					Streams: []string{roomStreamKey, id},
-					Count:   1,
-					Block:   0,
-				}).Result()
-				if err != nil {
-					errCh <- err
-					return
-				}
-
-				id = r[0].Messages[0].ID
-				values := r[0].Messages[0].Values
-
-				if action, ok := values["action"]; ok {
-					switch action {
-					case strconv.Itoa(int(TerminateAction)):
-						return
-					default:
-						out <- values
-					}
-				}
-			}
-		}
-
-	}()
-
-	return out, errCh
-}
-
-func (rss *RoomSubscriberService) RemoveRoomSubscriber(ctx context.Context, roomId, userId uuid.UUID) error {
-	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
-	err := rss.RDB.Del(ctx, roomSubscriberKey).Err()
+	r, err := rss.RDB.SMembers(ctx, roomSubscriberIdsKey).Result()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
-	return rss.RDB.SRem(ctx, roomSubscriberIdsKey, userId.String()).Err()
+	roomSubscribers := make([]RoomSubscriber, 0, len(r))
+	for _, roomSubscriberIdStr := range r {
+		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
+		if err != nil {
+			return nil, err
+		}
+
+		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
+
+		r, err := rss.RDB.HGetAll(ctx, roomSubscriberKey).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		status := NilSubscriberStatus
+		statusStr, ok := r[roomSubscriberStatusField]
+		if ok {
+			statusInt, err := strconv.Atoi(statusStr)
+			if err != nil {
+				return nil, err
+			}
+			status = SubscriberStatus(statusInt)
+		}
+
+		subscriberGameStatus := NilSubscriberGameStatus
+		subscriberGameStatusStr, ok := r[roomSubscriberGameStatusField]
+		if ok {
+			subscriberGameStatusInt, err := strconv.Atoi(subscriberGameStatusStr)
+			if err != nil {
+				return nil, err
+			}
+
+			subscriberGameStatus = SubscriberGameStatus(subscriberGameStatusInt)
+		}
+
+		username := r[roomSubscriberUsernameField]
+
+		roomSubscribers = append(roomSubscribers, RoomSubscriber{
+			UserId:     roomSubscriberId,
+			Status:     status,
+			GameStatus: subscriberGameStatus,
+			Username:   username,
+		})
+	}
+
+	return roomSubscribers, nil
 }

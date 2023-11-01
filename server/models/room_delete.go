@@ -34,11 +34,6 @@ func (rs *RoomService) softDeleteRoomFromDB(roomId uuid.UUID) error {
 func (rs *RoomService) deleteRoomFromRedis(ctx context.Context, roomId uuid.UUID) error {
 	roomKey := getRoomKey(roomId)
 
-	// first need to send terminate action message so that all websocket that remained connected, disconnect
-	if err := rs.PublishAction(ctx, roomId, TerminateAction); err != nil {
-		return err
-	}
-
 	pattern := roomKey + "*"
 	iter := rs.RDB.Scan(ctx, 0, pattern, 0).Iterator()
 

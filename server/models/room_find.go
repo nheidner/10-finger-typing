@@ -44,7 +44,7 @@ func (rs *RoomService) findRoomFromDB(roomId uuid.UUID, userId uuid.UUID) (*Room
 		return nil, fmt.Errorf("no room found")
 	}
 
-	if err := rs.DB.Model(room).Association("Subscribers").Find(&(room.Subscribers)); err != nil {
+	if err := rs.DB.Model(room).Association("Users").Find(&(room.Users)); err != nil {
 		return nil, err
 	}
 
@@ -81,7 +81,7 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 		return nil, fmt.Errorf("user is not subscribed to room")
 	}
 
-	roomSubscribers := make([]User, 0, len(roomSubscriberIds))
+	roomSubscribers := make([]RoomSubscriber, 0, len(roomSubscriberIds))
 	for _, roomSubscriberIdStr := range roomSubscriberIds {
 		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
 		if err != nil {
@@ -95,9 +95,11 @@ func (rs *RoomService) findInRedis(ctx context.Context, roomId uuid.UUID, userId
 			return nil, err
 		}
 
-		subscriber := User{
-			ID:       roomSubscriberId,
-			Username: roomSubscriber["username"],
+		username := roomSubscriber[roomSubscriberUsernameField]
+
+		subscriber := RoomSubscriber{
+			UserId:   roomSubscriberId,
+			Username: username,
 		}
 
 		roomSubscribers = append(roomSubscribers, subscriber)

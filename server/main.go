@@ -59,6 +59,9 @@ func main() {
 	roomSubscriberService := models.RoomSubscriberService{
 		RDB: models.RedisClient,
 	}
+	roomStreamService := models.RoomStreamService{
+		RDB: models.RedisClient,
+	}
 
 	// Setup our controllers
 	userController := controllers.Users{
@@ -78,12 +81,15 @@ func main() {
 		UserService:             &userService,
 		EmailTransactionService: &emailTransactionService,
 		RoomSubscriberService:   &roomSubscriberService,
+		GameService:             &gameService,
+		RoomStreamService:       &roomStreamService,
 	}
 	gameController := controllers.Games{
 		GameService:           &gameService,
 		RoomService:           &roomService,
 		TextService:           &textService,
 		RoomSubscriberService: &roomSubscriberService,
+		RoomStreamService:     &roomStreamService,
 	}
 
 	api := router.Group("/api")
