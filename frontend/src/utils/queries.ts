@@ -62,7 +62,7 @@ type TextQueryParams = {
 };
 
 export const getNewTextByUserid = async (
-  userId: number,
+  userId: string,
   {
     cookie,
     query,

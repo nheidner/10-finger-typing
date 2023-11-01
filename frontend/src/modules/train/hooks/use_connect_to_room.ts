@@ -12,7 +12,7 @@ type Message = {
 export const useConnectToRoom = (
   setUserData: (
     value: SetStateAction<{
-      [userId: number]: UserData;
+      [userId: string]: UserData;
     }>
   ) => void,
   roomId?: string
