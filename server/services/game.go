@@ -113,7 +113,7 @@ func (gs *GameService) UserFinishesGame(
 	}
 
 	// post action on stream
-	err = gs.roomStreamRedisRepo.PublishAction(ctx, roomId, repositories.GameUserScoreAction)
+	err = gs.roomStreamRedisRepo.PublishAction(ctx, roomId, models.GameUserScoreAction)
 	if err != nil {
 		log.Println("error when publishing the game user score action: ", err)
 		return err
@@ -158,7 +158,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		}
 
 		countdownPushMessage := repositories.PushMessage{
-			Type: repositories.CountdownStart,
+			Type: models.CountdownStart,
 			Payload: map[string]any{
 				"duration": countdownDurationSeconds,
 			},
@@ -221,7 +221,7 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 		return errors.New("error findind scores:" + err.Error())
 	}
 	scorePushMessage := repositories.PushMessage{
-		Type:    repositories.GameScores,
+		Type:    models.GameScores,
 		Payload: scores,
 	}
 
@@ -242,7 +242,7 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 					return
 				}
 
-				if action == repositories.GameUserScoreAction {
+				if action == models.GameUserScoreAction {
 					resultsCount++
 					continue
 				}

@@ -127,8 +127,8 @@ func (rr *RoomRedisRepository) CreateRoomInRedis(ctx context.Context, room model
 		roomSubscriberKey := getRoomSubscriberKey(room.ID, subscriber.ID)
 		roomSubscriberValue := map[string]any{
 			roomSubscriberUsernameField:   subscriber.Username,
-			roomSubscriberStatusField:     strconv.Itoa(int(NilSubscriberStatus)),
-			roomSubscriberGameStatusField: strconv.Itoa(int(NilSubscriberGameStatus)),
+			roomSubscriberStatusField:     strconv.Itoa(int(models.NilSubscriberStatus)),
+			roomSubscriberGameStatusField: strconv.Itoa(int(models.NilSubscriberGameStatus)),
 		}
 
 		if err := rr.redisClient.HSet(ctx, roomSubscriberKey, roomSubscriberValue).Err(); err != nil {

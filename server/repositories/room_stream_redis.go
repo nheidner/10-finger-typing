@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"10-typing/models"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,47 +19,13 @@ const (
 	streamEntryActionField  = "action"
 )
 
-type StreamEntryType int
-
-const (
-	ActionStreamEntryType StreamEntryType = iota
-	PushMessageStreamEntryType
-)
-
-type StreamActionType int
-
-const (
-	TerminateAction StreamActionType = iota
-	GameUserScoreAction
-)
-
-type PushMessageType int
-
-const (
-	UserJoined PushMessageType = iota
-	NewGame
-	Cursor
-	CountdownStart
-	UserLeft
-	InitialState
-	GameScores
-)
-
-func (p *PushMessageType) String() string {
-	return []string{"user_joined", "new_game", "cursor", "countdown_start", "user_left", "initial_state", "game_result"}[*p]
-}
-
-func (p *PushMessageType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.String())
-}
-
 // rooms:[room_id]:stream stream: action: "terminate/..", data: message stringified json
 func getRoomStreamKey(roomId uuid.UUID) string {
 	return getRoomKey(roomId) + ":stream"
 }
 
 type PushMessage struct {
-	Type PushMessageType `json:"type"`
+	Type models.PushMessageType `json:"type"`
 	// cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
 	Payload any `json:"payload"`
 }
@@ -81,19 +48,19 @@ func (rsr *RoomStreamRedisRepository) PublishPushMessage(ctx context.Context, ro
 	return rsr.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]interface{}{
-			streamEntryTypeField:    strconv.Itoa(int(PushMessageStreamEntryType)),
+			streamEntryTypeField:    strconv.Itoa(int(models.PushMessageStreamEntryType)),
 			streamEntryMessageField: pushMessageData,
 		},
 	}).Err()
 }
 
-func (rsr *RoomStreamRedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action StreamActionType) error {
+func (rsr *RoomStreamRedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error {
 	roomStreamKey := getRoomStreamKey(roomId)
 
 	return rsr.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]string{
-			streamEntryTypeField:   strconv.Itoa(int(PushMessageStreamEntryType)),
+			streamEntryTypeField:   strconv.Itoa(int(models.PushMessageStreamEntryType)),
 			streamEntryActionField: strconv.Itoa(int(action)),
 		},
 	}).Err()
@@ -134,12 +101,12 @@ func (rsr *RoomStreamRedisRepository) GetPushMessages(ctx context.Context, roomI
 			}
 
 			switch streamEntryType {
-			case strconv.Itoa(int(ActionStreamEntryType)):
-				if values[streamEntryActionField] == strconv.Itoa(int(TerminateAction)) {
+			case strconv.Itoa(int(models.ActionStreamEntryType)):
+				if values[streamEntryActionField] == strconv.Itoa(int(models.TerminateAction)) {
 					log.Println("stream consumer is terminated")
 					return
 				}
-			case strconv.Itoa(int(PushMessageStreamEntryType)):
+			case strconv.Itoa(int(models.PushMessageStreamEntryType)):
 				messsage, ok := values[streamEntryMessageField]
 				if !ok {
 					errCh <- errors.New("no " + streamEntryMessageField + " field in stream entry")
@@ -163,8 +130,8 @@ func (rsr *RoomStreamRedisRepository) GetPushMessages(ctx context.Context, roomI
 	return out, errCh
 }
 
-func (rsr *RoomStreamRedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan StreamActionType, <-chan error) {
-	out := make(chan StreamActionType)
+func (rsr *RoomStreamRedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan models.StreamActionType, <-chan error) {
+	out := make(chan models.StreamActionType)
 	errCh := make(chan error)
 
 	go func() {
@@ -203,14 +170,14 @@ func (rsr *RoomStreamRedisRepository) GetAction(ctx context.Context, roomId uuid
 				}
 
 				switch streamEntryType {
-				case strconv.Itoa(int(ActionStreamEntryType)):
+				case strconv.Itoa(int(models.ActionStreamEntryType)):
 					action, ok := values[streamEntryActionField]
 					if !ok {
 						errCh <- errors.New("no " + streamEntryActionField + " field in stream entry")
 						return
 					}
 
-					if action == strconv.Itoa(int(TerminateAction)) {
+					if action == strconv.Itoa(int(models.TerminateAction)) {
 						log.Println("stream consumer is terminated")
 						return
 					}
@@ -227,8 +194,8 @@ func (rsr *RoomStreamRedisRepository) GetAction(ctx context.Context, roomId uuid
 						return
 					}
 
-					out <- StreamActionType(actionInt)
-				case strconv.Itoa(int(PushMessageStreamEntryType)):
+					out <- models.StreamActionType(actionInt)
+				case strconv.Itoa(int(models.PushMessageStreamEntryType)):
 				default:
 					errCh <- errors.New(streamEntryTypeField + " has not a correct value in stream entry")
 					return

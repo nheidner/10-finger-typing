@@ -103,7 +103,7 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 
 	if isAdmin {
 		// first need to send terminate action message so that all websocket that remained connected, disconnect
-		if err := rs.roomStreamRedisRepo.PublishAction(ctx, roomId, repositories.TerminateAction); err != nil {
+		if err := rs.roomStreamRedisRepo.PublishAction(ctx, roomId, models.TerminateAction); err != nil {
 			log.Println("terminate action failed:", err)
 			return err
 		}
