@@ -29,6 +29,7 @@ func main() {
 
 	// Setup repos
 	gameRedisRepo := repositories.NewGameRedisRepository(models.RedisClient)
+	roomRedisRepo := repositories.NewRoomRedisRepository(models.RedisClient)
 
 	// Setup our model services
 	userService := models.UserService{
@@ -128,14 +129,14 @@ func main() {
 	api.POST("/texts", userController.AuthRequired, textController.CreateText)
 
 	// ROOMS
-	api.GET("/rooms/:roomid/ws", userController.AuthRequired, roomController.IsRoomMember, roomController.ConnectToRoom)
+	api.GET("/rooms/:roomid/ws", userController.AuthRequired, middleware.IsRoomMember(roomRedisRepo), roomController.ConnectToRoom)
 	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
-	api.POST("/rooms/:roomid/leave", userController.AuthRequired, roomController.IsRoomMember, roomController.LeaveRoom)
-	api.POST("/rooms/:roomid/games", userController.AuthRequired, roomController.IsRoomAdmin, gameController.CreateGame)
-	api.POST("/rooms/:roomid/start_game", userController.AuthRequired, roomController.IsRoomMember, gameController.StartGame)
+	api.POST("/rooms/:roomid/leave", userController.AuthRequired, middleware.IsRoomMember(roomRedisRepo), roomController.LeaveRoom)
+	api.POST("/rooms/:roomid/games", userController.AuthRequired, middleware.IsRoomAdmin(roomRedisRepo), gameController.CreateGame)
+	api.POST("/rooms/:roomid/start_game", userController.AuthRequired, middleware.IsRoomMember(roomRedisRepo), gameController.StartGame)
 	api.POST("/rooms/:roomid/game/score",
 		userController.AuthRequired,
-		roomController.IsRoomMember,
+		middleware.IsRoomMember(roomRedisRepo),
 		middleware.IsCurrentGameUser(gameRedisRepo),
 		gameController.FinishGame)
 

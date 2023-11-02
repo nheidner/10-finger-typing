@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func IsCurrentGameUser(gameRepo *repositories.GameRedisRepository) func(c *gin.Context) {
+func IsCurrentGameUser(gameRedisRepo *repositories.GameRedisRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
@@ -26,7 +26,7 @@ func IsCurrentGameUser(gameRepo *repositories.GameRedisRepository) func(c *gin.C
 			return
 		}
 
-		isCurrentGameUser, err := gameRepo.IsCurrentGameUser(c.Request.Context(), roomId, user.ID)
+		isCurrentGameUser, err := gameRedisRepo.IsCurrentGameUser(c.Request.Context(), roomId, user.ID)
 		switch {
 		case err != nil:
 			log.Println(err)
@@ -44,7 +44,7 @@ func IsCurrentGameUser(gameRepo *repositories.GameRedisRepository) func(c *gin.C
 }
 
 // checks if gameid parameter identifies the current game that the roomid parameter identifies
-func IsCurrentGame(gameRepo *repositories.GameRedisRepository) func(c *gin.Context) {
+func IsCurrentGame(gameRedisRepo *repositories.GameRedisRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
@@ -60,7 +60,7 @@ func IsCurrentGame(gameRepo *repositories.GameRedisRepository) func(c *gin.Conte
 			return
 		}
 
-		isCurrentGame, err := gameRepo.IsCurrentGame(c.Request.Context(), roomId, gameId)
+		isCurrentGame, err := gameRedisRepo.IsCurrentGame(c.Request.Context(), roomId, gameId)
 		switch {
 		case err != nil:
 			log.Println(err)
