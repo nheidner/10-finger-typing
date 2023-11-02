@@ -56,7 +56,7 @@ export const useEnsureTextData = ({
       language,
     ],
     () =>
-      getNewTextByUserid(authenticatedUserData?.id as number, {
+      getNewTextByUserid(authenticatedUserData?.id as string, {
         query: {
           specialCharactersGte,
           specialCharactersLte,

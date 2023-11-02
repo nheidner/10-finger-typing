@@ -53,6 +53,20 @@ func (rr *RoomDbRepository) Create(newRoom *models.Room) error {
 	return rr.db.Create(newRoom).Error
 }
 
+func (rr *RoomDbRepository) SoftDeleteRoomFromDB(roomId uuid.UUID) error {
+	if err := rr.db.Delete(&models.Room{}, roomId).Error; err != nil {
+		return err
+	}
+	if err := rr.db.Delete(&models.Game{}, "room_id = ?", roomId).Error; err != nil {
+		return err
+	}
+	if err := rr.db.Delete(&models.Token{}, "room_id = ?", roomId).Error; err != nil {
+		return err
+	}
+
+	return rr.db.Table("user_rooms").Where("room_id = ?", roomId).Delete(nil).Error
+}
+
 func (rr *RoomDbRepository) DeleteAll() error {
 	return rr.db.Exec("TRUNCATE rooms RESTART IDENTITY CASCADE").Error
 }

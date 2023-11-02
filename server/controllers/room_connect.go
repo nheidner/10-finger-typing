@@ -118,7 +118,7 @@ func (r *Rooms) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	currentGame, err := r.GameService.GetCurrentGame(c.Request.Context(), roomId)
+	currentGame, err := r.GameService.GetCurrentGameFromRedis(c.Request.Context(), roomId)
 	if err != nil {
 		log.Println("Failed to get current room:", err)
 		return

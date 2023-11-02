@@ -63,15 +63,15 @@ type PushMessage struct {
 	Payload any `json:"payload"`
 }
 
-type RoomStreamRepository struct {
+type RoomStreamRedisRepository struct {
 	redisClient *redis.Client
 }
 
-func NewRoomStreamRepository(redisClient *redis.Client) *RoomStreamRepository {
-	return &RoomStreamRepository{redisClient}
+func NewRoomStreamRedisRepository(redisClient *redis.Client) *RoomStreamRedisRepository {
+	return &RoomStreamRedisRepository{redisClient}
 }
 
-func (rsr *RoomStreamRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage PushMessage) error {
+func (rsr *RoomStreamRedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage PushMessage) error {
 	roomStreamKey := getRoomStreamKey(roomId)
 	pushMessageData, err := json.Marshal(pushMessage)
 	if err != nil {
@@ -87,7 +87,7 @@ func (rsr *RoomStreamRepository) PublishPushMessage(ctx context.Context, roomId 
 	}).Err()
 }
 
-func (rsr *RoomStreamRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action StreamActionType) error {
+func (rsr *RoomStreamRedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action StreamActionType) error {
 	roomStreamKey := getRoomStreamKey(roomId)
 
 	return rsr.redisClient.XAdd(ctx, &redis.XAddArgs{
@@ -99,7 +99,7 @@ func (rsr *RoomStreamRepository) PublishAction(ctx context.Context, roomId uuid.
 	}).Err()
 }
 
-func (rsr *RoomStreamRepository) GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan []byte, <-chan error) {
+func (rsr *RoomStreamRedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan []byte, <-chan error) {
 	out := make(chan []byte)
 	errCh := make(chan error)
 
@@ -163,7 +163,7 @@ func (rsr *RoomStreamRepository) GetPushMessages(ctx context.Context, roomId uui
 	return out, errCh
 }
 
-func (rsr *RoomStreamRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan StreamActionType, <-chan error) {
+func (rsr *RoomStreamRedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan StreamActionType, <-chan error) {
 	out := make(chan StreamActionType)
 	errCh := make(chan error)
 

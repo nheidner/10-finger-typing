@@ -18,19 +18,19 @@ const (
 )
 
 type GameService struct {
-	gameRedisRepo  *repositories.GameRedisRepository
-	roomStreamRepo *repositories.RoomStreamRepository
-	scoreDbRepo    *repositories.ScoreDbRepository
-	textRedisRepo  *repositories.TextRedisRepository
+	gameRedisRepo       *repositories.GameRedisRepository
+	roomStreamRedisRepo *repositories.RoomStreamRedisRepository
+	scoreDbRepo         *repositories.ScoreDbRepository
+	textRedisRepo       *repositories.TextRedisRepository
 }
 
 func NewGameService(
 	gameRedisRepo *repositories.GameRedisRepository,
-	roomStreamRepo *repositories.RoomStreamRepository,
+	roomStreamRedisRepo *repositories.RoomStreamRedisRepository,
 	scoreDbRepo *repositories.ScoreDbRepository,
 	textRedisRepo *repositories.TextRedisRepository,
 ) *GameService {
-	return &GameService{gameRedisRepo, roomStreamRepo, scoreDbRepo, textRedisRepo}
+	return &GameService{gameRedisRepo, roomStreamRedisRepo, scoreDbRepo, textRedisRepo}
 }
 
 func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
@@ -113,7 +113,7 @@ func (gs *GameService) UserFinishesGame(
 	}
 
 	// post action on stream
-	err = gs.roomStreamRepo.PublishAction(ctx, roomId, repositories.GameUserScoreAction)
+	err = gs.roomStreamRedisRepo.PublishAction(ctx, roomId, repositories.GameUserScoreAction)
 	if err != nil {
 		log.Println("error when publishing the game user score action: ", err)
 		return err
@@ -164,7 +164,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 			},
 		}
 
-		err = gs.roomStreamRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
+		err = gs.roomStreamRedisRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
 		if err != nil {
 			return err
 		}
@@ -225,7 +225,7 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 		Payload: scores,
 	}
 
-	return gs.roomStreamRepo.PublishPushMessage(ctx, roomId, scorePushMessage)
+	return gs.roomStreamRedisRepo.PublishPushMessage(ctx, roomId, scorePushMessage)
 }
 
 func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber int, roomId uuid.UUID) <-chan struct{} {
@@ -233,7 +233,7 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 
 	go func() {
 		defer close(allReceived)
-		actionCh, errCh := gs.roomStreamRepo.GetAction(ctx, roomId, time.Time{})
+		actionCh, errCh := gs.roomStreamRedisRepo.GetAction(ctx, roomId, time.Time{})
 
 		for resultsCount := 0; resultsCount < playersNumber; {
 			select {
