@@ -3,11 +3,11 @@ package controllers
 import (
 	"10-typing/models"
 	"10-typing/services"
+	"10-typing/utils"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type GameController struct {
@@ -21,13 +21,13 @@ func NewGameController(gameService *services.GameService) *GameController {
 func (gc *GameController) CreateGame(c *gin.Context) {
 	var input models.CreateGameInput
 
-	user, err := getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	roomId, err := getRoomIdFromPath(c)
+	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -50,14 +50,14 @@ func (gc *GameController) CreateGame(c *gin.Context) {
 }
 
 func (gc *GameController) StartGame(c *gin.Context) {
-	user, err := getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		log.Println("error processing user from context: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
 		return
 	}
 
-	roomId, err := getRoomIdFromPath(c)
+	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
 		log.Println("error processing roomid url path segment : ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
@@ -79,15 +79,6 @@ func (gc *GameController) StartGame(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": "game started"})
 }
 
-type CreateScoreInput struct {
-	WordsTyped  int               `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=1000"`
-	TimeElapsed float64           `json:"timeElapsed" binding:"required" faker:"oneof: 60.0, 120.0, 180.0"`
-	Errors      models.ErrorsJSON `json:"errors" binding:"required,typingerrors"`
-	TextId      uuid.UUID         `json:"textId" binding:"required"`
-	UserId      uuid.UUID         `json:"-"`
-	GameId      uuid.UUID         `json:"-"`
-}
-
 func (gc *GameController) FinishGame(c *gin.Context) {
 	var input CreateScoreInput
 
@@ -97,14 +88,14 @@ func (gc *GameController) FinishGame(c *gin.Context) {
 		return
 	}
 
-	user, err := getUserFromContext(c)
+	user, err := utils.GetUserFromContext(c)
 	if err != nil {
 		log.Println("error processing http params: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
 		return
 	}
 
-	roomId, err := getRoomIdFromPath(c)
+	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
 		log.Println("error processing http params: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})

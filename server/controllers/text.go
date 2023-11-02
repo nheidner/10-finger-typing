@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"10-typing/services"
+	"10-typing/utils"
 	"log"
 	"net/http"
 
@@ -24,7 +25,7 @@ func NewTextController(textService *services.TextService) *TextController {
 }
 
 func (tc *TextController) FindText(c *gin.Context) {
-	userId, err := getUserIdFromPath(c)
+	userId, err := utils.GetUserIdFromPath(c)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

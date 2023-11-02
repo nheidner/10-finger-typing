@@ -2,7 +2,9 @@ package main
 
 import (
 	"10-typing/controllers"
+	"10-typing/middleware"
 	"10-typing/models"
+	"10-typing/repositories"
 	"os"
 	"time"
 
@@ -24,6 +26,9 @@ func main() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("typingerrors", models.TypingErrors)
 	}
+
+	// Setup repos
+	gameRedisRepo := repositories.NewGameRedisRepository(models.RedisClient)
 
 	// Setup our model services
 	userService := models.UserService{
@@ -128,7 +133,11 @@ func main() {
 	api.POST("/rooms/:roomid/leave", userController.AuthRequired, roomController.IsRoomMember, roomController.LeaveRoom)
 	api.POST("/rooms/:roomid/games", userController.AuthRequired, roomController.IsRoomAdmin, gameController.CreateGame)
 	api.POST("/rooms/:roomid/start_game", userController.AuthRequired, roomController.IsRoomMember, gameController.StartGame)
-	api.POST("/rooms/:roomid/game/score", userController.AuthRequired, roomController.IsRoomMember, gameController.IsCurrentGameUser, gameController.FinishGame)
+	api.POST("/rooms/:roomid/game/score",
+		userController.AuthRequired,
+		roomController.IsRoomMember,
+		middleware.IsCurrentGameUser(gameRedisRepo),
+		gameController.FinishGame)
 
 	router.Run()
 }

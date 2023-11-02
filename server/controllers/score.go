@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"10-typing/models"
+	"10-typing/services"
+	"10-typing/utils"
 	"log"
 	"net/http"
 
@@ -9,29 +11,36 @@ import (
 	"github.com/google/uuid"
 )
 
-type Scores struct {
-	ScoreService *models.ScoreService
+type ScoreController struct {
+	scoreService *services.ScoreService
 }
 
-type ErrorTyping string
+type CreateScoreInput struct {
+	WordsTyped  int               `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=1000"`
+	TimeElapsed float64           `json:"timeElapsed" binding:"required" faker:"oneof: 60.0, 120.0, 180.0"`
+	Errors      models.ErrorsJSON `json:"errors" binding:"required,typingerrors"`
+	TextId      uuid.UUID         `json:"textId" binding:"required"`
+}
 
-func (s Scores) CreateScore(c *gin.Context) {
-	var input models.CreateScoreInput
+type FindScoresSortOption struct {
+	Column string `validate:"required,oneof=accuracy errors created_at"`
+	Order  string `validate:"required,oneof=desc asc"`
+}
+
+func (sc *ScoreController) CreateScore(c *gin.Context) {
+	var input CreateScoreInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userIdUrlParam := c.Param("userid")
-	userId, err := uuid.Parse(userIdUrlParam)
+	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	input.UserId = userId
-
-	score, err := s.ScoreService.Create(input)
+	score, err := sc.scoreService.Create(uuid.Nil, userId, input.TextId, input.WordsTyped, input.TimeElapsed, input.Errors)
 	if err != nil {
 		log.Println("error when creating a new score: ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -41,32 +50,33 @@ func (s Scores) CreateScore(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": score})
 }
 
-func (s Scores) FindScoresByUser(c *gin.Context) {
-	userIdUrlParam := c.Param("userid")
-	userId, err := uuid.Parse(userIdUrlParam)
+type FindScoresQuery struct {
+	UserId   uuid.UUID
+	GameId   uuid.UUID
+	Username string `form:"username"`
+}
+
+func (sc *ScoreController) FindScoresByUser(c *gin.Context) {
+	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	query := models.FindScoresQuery{
-		UserId: userId,
-	}
+	var query FindScoresQuery
 
 	if err := c.ShouldBindQuery(&query); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	sortOptions, err := models.BindSortByQuery(c, models.FindScoresSortOption{})
+	sortOptions, err := models.BindSortByQuery(c, FindScoresSortOption{})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	query.SortOptions = sortOptions
-
-	scores, err := s.ScoreService.FindScores(&query)
+	scores, err := sc.scoreService.FindScores(userId, uuid.Nil, query.Username, sortOptions)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -75,23 +85,21 @@ func (s Scores) FindScoresByUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": scores})
 }
 
-func (s Scores) FindScores(c *gin.Context) {
-	var query models.FindScoresQuery
+func (sc *ScoreController) FindScores(c *gin.Context) {
+	var query FindScoresQuery
 
 	if err := c.ShouldBindQuery(&query); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	sortOptions, err := models.BindSortByQuery(c, models.FindScoresSortOption{})
+	sortOptions, err := models.BindSortByQuery(c, FindScoresSortOption{})
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	query.SortOptions = sortOptions
-
-	scores, err := s.ScoreService.FindScores(&query)
+	scores, err := sc.scoreService.FindScores(query.UserId, query.GameId, query.Username, sortOptions)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

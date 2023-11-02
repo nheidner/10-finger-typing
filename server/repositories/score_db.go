@@ -28,7 +28,8 @@ func (sr *ScoreDbRepository) FindScores(userId, gameId uuid.UUID, username strin
 		findScoresDbQuery = findScoresDbQuery.Where("game_id = ?", gameId)
 	}
 	if username != "" {
-		findScoresDbQuery = findScoresDbQuery.Joins("INNER JOIN users ON scores.user_id = users.id").Where("users.username = ?", username)
+		findScoresDbQuery = findScoresDbQuery.Joins("INNER JOIN users ON scores.user_id = users.id").
+			Where("users.username = ?", username)
 	}
 
 	for _, sortOption := range sortOptions {

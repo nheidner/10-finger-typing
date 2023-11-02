@@ -1,6 +1,7 @@
 package main
 
 import (
+	"10-typing/controllers"
 	"10-typing/models"
 	"context"
 	"errors"
@@ -127,7 +128,7 @@ func seedFakeTexts(n int) ([]*models.Text, error) {
 
 	for i := 0; i < n; i++ {
 		gptText := "The quick brown fox jumps over the lazy dog's back. The five boxing wizards jump quickly. Special characters: @#$%^&* (8). Numbers: 12345678. 1234567890. 1234567890. The quick brown fox jumps over the lazy dog's back. The five boxing wizards jump quickly. Special characters: @#$%^&* (8). Numbers: 12345678. 1234567890. 1234567890."
-		textInputData, err := generateFakeData[models.CreateTextInput]()
+		textInputData, err := generateFakeData[controllers.CreateTextInput]()
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +148,7 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 	scores := make([]*models.Score, 0, n)
 
 	for i := 0; i < n; i++ {
-		scoreInputData, err := generateFakeData[models.CreateScoreInput]()
+		scoreInputData, err := generateFakeData[controllers.CreateScoreInput]()
 		if err != nil {
 			return nil, errors.New("error generating fake data: " + err.Error())
 		}
@@ -188,7 +189,7 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 	return scores, nil
 }
 
-func generateFakeData[T models.CreateUserInput | models.CreateTextInput | models.CreateScoreInput]() (*T, error) {
+func generateFakeData[T models.CreateUserInput | controllers.CreateTextInput | controllers.CreateScoreInput]() (*T, error) {
 	inputDataPtr := new(T)
 	err := faker.FakeData(inputDataPtr)
 

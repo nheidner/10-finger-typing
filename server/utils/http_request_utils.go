@@ -1,4 +1,4 @@
-package controllers
+package utils
 
 import (
 	"10-typing/models"
@@ -18,19 +18,19 @@ func getUuidFromPath(c *gin.Context, segment string) (uuid.UUID, error) {
 	return uuidValue, nil
 }
 
-func getRoomIdFromPath(c *gin.Context) (roomId uuid.UUID, err error) {
+func GetRoomIdFromPath(c *gin.Context) (roomId uuid.UUID, err error) {
 	return getUuidFromPath(c, "roomid")
 }
 
-func getGameIdFromPath(c *gin.Context) (gameId uuid.UUID, err error) {
+func GetGameIdFromPath(c *gin.Context) (gameId uuid.UUID, err error) {
 	return getUuidFromPath(c, "gameid")
 }
 
-func getUserIdFromPath(c *gin.Context) (userId uuid.UUID, err error) {
+func GetUserIdFromPath(c *gin.Context) (userId uuid.UUID, err error) {
 	return getUuidFromPath(c, "userid")
 }
 
-func getUserFromContext(c *gin.Context) (user *models.User, err error) {
+func GetUserFromContext(c *gin.Context) (user *models.User, err error) {
 	userContext, userExists := c.Get("user")
 	if !userExists {
 		return nil, errors.New("no user in context")
