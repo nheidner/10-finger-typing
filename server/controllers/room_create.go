@@ -6,10 +6,16 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
+type CreateRoomInput struct {
+	UserIds []uuid.UUID `json:"userIds"`
+	Emails  []string    `json:"emails" binding:"dive,email"`
+}
+
 func (r *Rooms) CreateRoom(c *gin.Context) {
-	var input models.CreateRoomInput
+	var input CreateRoomInput
 
 	authenticatedUser, err := processCreateRoomHTTPParams(c, &input)
 	if err != nil {

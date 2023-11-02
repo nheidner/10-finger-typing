@@ -53,7 +53,7 @@ func (rc *RoomController) LeaveRoom(c *gin.Context) {
 		return
 	}
 
-	if err = rc.roomService.LeaveRoom(roomId, user.Id); err != nil {
+	if err = rc.roomService.LeaveRoom(roomId, user.ID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
 		return
 	}
