@@ -7,10 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
-
-type ErrorsJSON map[string]int
 
 type Score struct {
 	ID             uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
@@ -53,80 +50,49 @@ type ScoreService struct {
 	DB *gorm.DB
 }
 
+type ErrorsJSON map[string]int
+
 func (j ErrorsJSON) Value() (driver.Value, error) {
 	valueString, err := json.Marshal(j)
 	return string(valueString), err
 }
 
 func (j *ErrorsJSON) Scan(value interface{}) error {
-	if err := json.Unmarshal(value.([]byte), &j); err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal(value.([]byte), &j)
 }
 
-func (ss *ScoreService) FindScores(query *FindScoresQuery) ([]Score, error) {
-	var scores []Score
+// func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
+// 	numberErrors := 0
+// 	for _, value := range input.Errors {
+// 		numberErrors += value
+// 	}
 
-	findScoresDbQuery := ss.DB
-	if query.UserId != uuid.Nil {
-		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", query.UserId)
-	}
-	if query.GameId != uuid.Nil {
-		findScoresDbQuery = findScoresDbQuery.Where("game_id = ?", query.GameId)
-	}
-	if query.Username != "" {
-		findScoresDbQuery = findScoresDbQuery.Joins("INNER JOIN users ON scores.user_id = users.id").Where("users.username = ?", query.Username)
-	}
+// 	score := Score{
+// 		WordsTyped:   input.WordsTyped,
+// 		TimeElapsed:  input.TimeElapsed,
+// 		Errors:       input.Errors,
+// 		UserId:       input.UserId,
+// 		GameId:       input.GameId,
+// 		NumberErrors: numberErrors,
+// 		TextId:       input.TextId,
+// 	}
 
-	for _, sortOption := range query.SortOptions {
-		findScoresDbQuery = findScoresDbQuery.Order(clause.OrderByColumn{Column: clause.Column{Name: sortOption.Column}, Desc: sortOption.Order == "desc"})
-	}
-	if len(query.SortOptions) == 0 {
-		findScoresDbQuery = findScoresDbQuery.Order("created_at desc")
-	}
+// 	omitFields := []string{"WordsPerMinute", "Accuracy"}
 
-	findScoresDbQuery.Find(&scores)
+// 	if score.GameId == uuid.Nil {
+// 		omitFields = append(omitFields, "GameId")
+// 	}
 
-	if findScoresDbQuery.Error != nil {
-		return nil, findScoresDbQuery.Error
-	}
+// 	createResult := ss.DB.Omit(omitFields...).Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}, {Name: "words_per_minute"}, {Name: "words_typed"}, {Name: "time_elapsed"}, {Name: "accuracy"}, {Name: "number_errors"}, {Name: "errors"}}}).
+// 		Create(&score)
 
-	return scores, nil
-}
+// 	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
+// 		return nil, createResult.Error
+// 	}
 
-func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
-	numberErrors := 0
-	for _, value := range input.Errors {
-		numberErrors += value
-	}
+// 	return &score, nil
+// }
 
-	score := Score{
-		WordsTyped:   input.WordsTyped,
-		TimeElapsed:  input.TimeElapsed,
-		Errors:       input.Errors,
-		UserId:       input.UserId,
-		GameId:       input.GameId,
-		NumberErrors: numberErrors,
-		TextId:       input.TextId,
-	}
-
-	omitFields := []string{"WordsPerMinute", "Accuracy"}
-
-	if score.GameId == uuid.Nil {
-		omitFields = append(omitFields, "GameId")
-	}
-
-	createResult := ss.DB.Omit(omitFields...).Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}, {Name: "words_per_minute"}, {Name: "words_typed"}, {Name: "time_elapsed"}, {Name: "accuracy"}, {Name: "number_errors"}, {Name: "errors"}}}).
-		Create(&score)
-
-	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
-		return nil, createResult.Error
-	}
-
-	return &score, nil
-}
-
-func (ss *ScoreService) DeleteAll() error {
-	return ss.DB.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error
-}
+// func (ss *ScoreService) DeleteAll() error {
+// 	return ss.DB.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error
+// }

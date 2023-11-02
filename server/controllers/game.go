@@ -2,20 +2,13 @@ package controllers
 
 import (
 	"10-typing/models"
+	"10-typing/services"
 	"context"
-	"errors"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-)
-
-const (
-	gameDurationSeconds           = 30
-	waitForResultsDurationSeconds = 5
-	countdownDurationSeconds      = 3
 )
 
 type Games struct {
@@ -25,6 +18,14 @@ type Games struct {
 	RoomSubscriberService *models.RoomSubscriberService
 	ScoreService          *models.ScoreService
 	RoomStreamService     *models.RoomStreamService
+}
+
+type GameController struct {
+	gameService *services.GameService
+}
+
+func NewGameController(gameService *services.GameService) *GameController {
+	return &GameController{gameService}
 }
 
 func (g *Games) CreateGame(c *gin.Context) {
@@ -62,8 +63,8 @@ func (g *Games) CreateGame(c *gin.Context) {
 		return
 	}
 
-	if err := g.GameService.SetNewCurrentGame(ctx, game.ID, textId, roomId, user.ID); err != nil {
-		log.Println("SetNewCurrentGame", err)
+	if err := g.GameService.SetNewCurrentGameInRedis(ctx, game.ID, textId, roomId, user.ID); err != nil {
+		log.Println("SetNewCurrentGameInRedis", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -93,69 +94,31 @@ func processCreateGameHTTPParams(c *gin.Context) (user *models.User, textId, roo
 	return user, input.TextId, roomId, nil
 }
 
-func (g *Games) StartGame(c *gin.Context) {
-	user, roomId, err := processStartGameHTTPParams(c)
+func (gc *GameController) StartGame(c *gin.Context) {
+	user, err := getUserFromContext(c)
 	if err != nil {
-		log.Println("error processing http params: ", err)
+		log.Println("error processing user from context: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
 		return
 	}
 
-	currentGameStatus, err := g.GameService.GetCurrentGameStatus(c.Request.Context(), roomId)
+	roomId, err := getRoomIdFromPath(c)
 	if err != nil {
-		log.Println("RoomHasActiveGame error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if currentGameStatus > models.CountdownGameStatus {
-		log.Println("game is not in unstarted state", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		log.Println("error processing roomid url path segment : ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
 		return
 	}
 
-	err = g.GameService.AddGameUser(c.Request.Context(), roomId, user.ID)
-	if err != nil {
-		log.Println("error adding new game user: ", err)
+	if err = gc.gameService.AddUserToGame(roomId, user.ID); err != nil {
+		log.Println(err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
+		return
+	}
+
+	if err = gc.gameService.InitiateGameIfReady(roomId); err != nil {
+		log.Println(err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
 		return
-	}
-
-	numberGameUsers, err := g.GameService.GetCurrentGameUsersNumber(c.Request.Context(), roomId)
-	if err != nil {
-		log.Println("error adding new game user: ", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
-		return
-	}
-
-	if numberGameUsers == 2 {
-		// start countdown
-		err := g.GameService.SetCurrentGameStatus(c.Request.Context(), roomId, models.CountdownGameStatus)
-		if err != nil {
-			log.Println("error setting current game status: ", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
-			return
-		}
-
-		countdownPushMessage := models.PushMessage{
-			Type: models.CountdownStart,
-			Payload: map[string]any{
-				"duration": countdownDurationSeconds,
-			},
-		}
-
-		err = g.RoomStreamService.PublishPushMessage(c.Request.Context(), roomId, countdownPushMessage)
-		if err != nil {
-			log.Println("error publishing to stream:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
-			return
-		}
-
-		go func() {
-			time.Sleep(countdownDurationSeconds*time.Second + gameDurationSeconds*time.Second)
-			if err = g.handleGameResults(context.Background(), roomId); err != nil {
-				log.Panicln(err)
-			}
-		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": "game started"})
@@ -211,20 +174,6 @@ func (g *Games) FinishGame(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": "score added"})
 }
 
-func processStartGameHTTPParams(c *gin.Context) (user *models.User, roomId uuid.UUID, err error) {
-	user, err = getUserFromContext(c)
-	if err != nil {
-		return nil, uuid.Nil, err
-	}
-
-	roomId, err = getRoomIdFromPath(c)
-	if err != nil {
-		return nil, uuid.Nil, err
-	}
-
-	return user, roomId, err
-}
-
 func processFinishGameHTTPParams(c *gin.Context) (*models.User, uuid.UUID, *models.CreateScoreInput, error) {
 	var input models.CreateScoreInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -242,87 +191,4 @@ func processFinishGameHTTPParams(c *gin.Context) (*models.User, uuid.UUID, *mode
 	}
 
 	return user, roomId, &input, err
-}
-
-// create extra function
-func (g *Games) handleGameResults(ctx context.Context, roomId uuid.UUID) error {
-	numberGameUsers, err := g.GameService.GetCurrentGameUsersNumber(ctx, roomId)
-	if err != nil {
-		return errors.New("error getting current game users:" + err.Error())
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	allResultsReceivedCh := g.getAllResultsReceived(ctx, numberGameUsers, roomId)
-
-	timer := time.NewTimer(waitForResultsDurationSeconds * time.Second)
-
-	select {
-	case <-timer.C:
-		cancel()
-	case <-allResultsReceivedCh:
-		timer.Stop()
-		cancel()
-	}
-
-	// set game status to Finished
-	err = g.GameService.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
-	if err != nil {
-		return errors.New("error setting game status to finished:" + err.Error())
-	}
-
-	gameId, err := g.GameService.GetCurrentGameId(ctx, roomId)
-	if err != nil {
-		return errors.New("error when getting current game id from redis: " + err.Error())
-	}
-
-	scores, err := g.ScoreService.FindScores(&models.FindScoresQuery{
-		SortOptions: []models.SortOption{{Column: "words_per_minute", Order: "desc"}},
-		GameId:      gameId,
-	})
-	if err != nil {
-		return errors.New("error findind scores:" + err.Error())
-	}
-	scorePushMessage := models.PushMessage{
-		Type:    models.GameScores,
-		Payload: scores,
-	}
-
-	return g.RoomStreamService.PublishPushMessage(ctx, roomId, scorePushMessage)
-}
-
-func (g *Games) getAllResultsReceived(ctx context.Context, playersNumber int, roomId uuid.UUID) <-chan struct{} {
-	allReceived := make(chan struct{})
-
-	go func() {
-		defer close(allReceived)
-		actionCh, errCh := g.RoomStreamService.GetAction(ctx, roomId, time.Time{})
-
-		for resultsCount := 0; resultsCount < playersNumber; {
-			select {
-			case action, ok := <-actionCh:
-				if !ok {
-					return
-				}
-
-				if action == models.GameUserScoreAction {
-					resultsCount++
-					continue
-				}
-
-			case err, ok := <-errCh:
-				if !ok {
-					return
-				}
-
-				log.Println(err)
-				return
-			case <-ctx.Done():
-				return
-			}
-
-		}
-
-		allReceived <- struct{}{}
-	}()
-
-	return allReceived
 }
