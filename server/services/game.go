@@ -21,14 +21,105 @@ type GameService struct {
 	gameRedisRepo  *repositories.GameRedisRepository
 	roomStreamRepo *repositories.RoomStreamRepository
 	scoreDbRepo    *repositories.ScoreDbRepository
+	textRedisRepo  *repositories.TextRedisRepository
 }
 
 func NewGameService(
 	gameRedisRepo *repositories.GameRedisRepository,
 	roomStreamRepo *repositories.RoomStreamRepository,
 	scoreDbRepo *repositories.ScoreDbRepository,
+	textRedisRepo *repositories.TextRedisRepository,
 ) *GameService {
-	return &GameService{gameRedisRepo, roomStreamRepo, scoreDbRepo}
+	return &GameService{gameRedisRepo, roomStreamRepo, scoreDbRepo, textRedisRepo}
+}
+
+func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
+	var ctx = context.Background()
+
+	// validate
+	textExists, err := gs.textRedisRepo.TextExists(ctx, textId)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if !textExists {
+		return uuid.Nil, errors.New("text does not exist")
+	}
+
+	currentGameStatus, err := gs.gameRedisRepo.GetCurrentGameStatus(ctx, roomId)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	roomHasActiveGame := currentGameStatus == models.StartedGameStatus
+	if roomHasActiveGame {
+		return uuid.Nil, errors.New("room has active game at the moment")
+	}
+
+	var gameId = uuid.New()
+
+	if err := gs.gameRedisRepo.SetNewCurrentGameInRedis(ctx, gameId, textId, roomId, userId); err != nil {
+		return uuid.Nil, err
+	}
+
+	return gameId, nil
+}
+
+func (gs *GameService) UserFinishesGame(
+	roomId,
+	userId,
+	textId uuid.UUID,
+	wordsTyped int,
+	timeElapsed float64,
+	errorsJSON models.ErrorsJSON,
+) error {
+	var ctx = context.Background()
+
+	// check if game status is not already finished
+	currentGameStatus, err := gs.gameRedisRepo.GetCurrentGameStatus(ctx, roomId)
+	switch {
+	case err != nil:
+		log.Println("error setting current game status: ", err)
+		return err
+	case currentGameStatus != models.StartedGameStatus:
+		log.Println("game has not the correct status: ", err)
+		return errors.New("game has not the correct status")
+	}
+
+	// get game id
+	gameId, err := gs.gameRedisRepo.GetCurrentGameId(ctx, roomId)
+	if err != nil {
+		log.Println("error when getting current game id from redis: ", err)
+		return err
+	}
+
+	numberErrors := 0
+	for _, value := range errorsJSON {
+		numberErrors += value
+	}
+
+	var newScore = models.Score{
+		WordsTyped:   wordsTyped,
+		TimeElapsed:  timeElapsed,
+		Errors:       errorsJSON,
+		UserId:       userId,
+		GameId:       gameId,
+		NumberErrors: numberErrors,
+		TextId:       textId,
+	}
+
+	_, err = gs.scoreDbRepo.Create(newScore)
+	if err != nil {
+		log.Println("error when creating a new score: ", err)
+		return err
+	}
+
+	// post action on stream
+	err = gs.roomStreamRepo.PublishAction(ctx, roomId, repositories.GameUserScoreAction)
+	if err != nil {
+		log.Println("error when publishing the game user score action: ", err)
+		return err
+	}
+
+	return nil
 }
 
 func (gs *GameService) AddUserToGame(roomId, userId uuid.UUID) error {
