@@ -2,11 +2,16 @@ package main
 
 import (
 	"10-typing/models"
+	"10-typing/repositories"
+	"10-typing/services"
 	"os"
 )
 
 func main() {
 	models.ConnectDatabase()
+
+	textDbRepo := repositories.NewTextDbRepository(models.DB)
+	textRedisRepo := repositories.NewTextRedisRepository(models.RedisClient)
 
 	userService := models.UserService{
 		DB: models.DB,
@@ -17,10 +22,8 @@ func main() {
 	scoreService := models.ScoreService{
 		DB: models.DB,
 	}
-	textService := models.TextService{
-		DB:  models.DB,
-		RDB: models.RedisClient,
-	}
+	textService := services.NewTextService(textDbRepo, textRedisRepo, nil)
+
 	roomService := models.RoomService{
 		DB:  models.DB,
 		RDB: models.RedisClient,

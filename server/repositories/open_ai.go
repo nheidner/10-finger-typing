@@ -1,4 +1,4 @@
-package models
+package repositories
 
 import (
 	"bytes"
@@ -8,8 +8,12 @@ import (
 	"net/http"
 )
 
-type OpenAiService struct {
+type OpenAiRepository struct {
 	ApiKey string
+}
+
+func NewOpenAiRepository(apiKey string) *OpenAiRepository {
+	return &OpenAiRepository{apiKey}
 }
 
 type ChatCompletionRequest struct {
@@ -32,16 +36,14 @@ type Choice struct {
 
 const chatCompletionUrl = "https://api.openai.com/v1/chat/completions"
 
-var client = &http.Client{}
-
 // GenerateTypingText sends a request to the OpenAI API and returns the generated text
-func (oais *OpenAiService) GenerateTypingText(input CreateTextInput) (string, error) {
+func (oar *OpenAiRepository) GenerateTypingText(language string, punctuation bool, specialCharacters, numbers int) (string, error) {
 	systemPrompt := "You return a text that will be used for practicing 10 finger typing. " +
 		"You will receive several input variables. The length of the text, if the text should include punctuation or" +
 		" not (if it includes punctuation then include punctuation and capital letters at the beginning of a new sentence, " +
 		"if not then all the letters should be lowercase), number of special characters and number of numbers that should be " +
 		"used in the text. Only return the text itself, not any explanation. The text doesn't have to make sense."
-	requestBody := oais.createRequestBody(input, systemPrompt)
+	requestBody := oar.createRequestBody(language, systemPrompt, punctuation, specialCharacters, numbers)
 
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
@@ -49,10 +51,12 @@ func (oais *OpenAiService) GenerateTypingText(input CreateTextInput) (string, er
 		return "", marshallingError
 	}
 
-	req, err := oais.createRequest(jsonBody)
+	req, err := oar.createRequest(jsonBody)
 	if err != nil {
 		return "", fmt.Errorf("error creating request to OpenAI: %w", err)
 	}
+
+	var client = &http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -74,22 +78,23 @@ func (oais *OpenAiService) GenerateTypingText(input CreateTextInput) (string, er
 	return response.Choices[0].Message.Content, nil
 }
 
-func (oais *OpenAiService) createRequestBody(input CreateTextInput, systemPrompt string) ChatCompletionRequest {
+func (oar *OpenAiRepository) createRequestBody(language, systemPrompt string, punctuation bool, specialCharacters, numbers int) ChatCompletionRequest {
+	content := fmt.Sprintf("language: %s, punctuation: %t, number of special characters: %d, number of numbers: %d, length: 100 words", language, punctuation, specialCharacters, numbers)
 	return ChatCompletionRequest{
 		Model: "gpt-3.5-turbo",
 		Messages: []ChatMessage{
-			{Content: systemPrompt, Role: "system"}, {Content: input.String(), Role: "user"},
+			{Content: systemPrompt, Role: "system"}, {Content: content, Role: "user"},
 		},
 	}
 }
 
-func (oais *OpenAiService) createRequest(jsonBody []byte) (*http.Request, error) {
+func (oar *OpenAiRepository) createRequest(jsonBody []byte) (*http.Request, error) {
 	req, err := http.NewRequest("POST", chatCompletionUrl, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+oais.ApiKey)
+	req.Header.Set("Authorization", "Bearer "+oar.ApiKey)
 
 	return req, nil
 }
