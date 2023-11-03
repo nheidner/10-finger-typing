@@ -1,4 +1,4 @@
-package middleware
+package middlewares
 
 import (
 	"10-typing/repositories"

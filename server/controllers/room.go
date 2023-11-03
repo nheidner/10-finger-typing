@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"10-typing/models"
 	"10-typing/services"
 	"10-typing/utils"
 	"log"
@@ -10,16 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
-
-type Rooms struct {
-	RoomService             *models.RoomService
-	TokenService            *models.TokenService
-	UserService             *models.UserService
-	EmailTransactionService *models.EmailTransactionService
-	RoomSubscriberService   *models.RoomSubscriberService
-	GameService             *models.GameService
-	RoomStreamService       *models.RoomStreamService
-}
 
 type RoomController struct {
 	roomService *services.RoomService
@@ -83,7 +72,7 @@ func (rc *RoomController) CreateRoom(c *gin.Context) {
 
 	room, err := rc.roomService.CreateRoom(input.UserIds, input.Emails, *user)
 
-	utils.StripSensitiveUserInformation(room.Users, user)
+	stripSensitiveUserInformation(room.Users, user)
 
 	c.JSON(http.StatusOK, gin.H{"data": room})
 }

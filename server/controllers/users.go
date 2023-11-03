@@ -29,7 +29,7 @@ func (u Users) FindUsers(c *gin.Context) {
 
 	userContext, _ := c.Get("user")
 	authenticatedUser, _ := userContext.(*models.User)
-	models.StripSensitiveUserInformation(users, authenticatedUser)
+	stripSensitiveUserInformation(users, authenticatedUser)
 
 	c.JSON(http.StatusOK, gin.H{"data": users})
 }
