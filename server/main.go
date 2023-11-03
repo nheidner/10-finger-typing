@@ -138,7 +138,8 @@ func main() {
 		userController.AuthRequired,
 		middleware.IsRoomMember(roomRedisRepo),
 		middleware.IsCurrentGameUser(gameRedisRepo),
-		gameController.FinishGame)
+		gameController.FinishGame,
+	)
 
 	router.Run()
 }

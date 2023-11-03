@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Rooms struct {
@@ -59,4 +60,30 @@ func (rc *RoomController) LeaveRoom(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": "OK"})
+}
+
+type CreateRoomInput struct {
+	UserIds []uuid.UUID `json:"userIds"`
+	Emails  []string    `json:"emails" binding:"dive,email"`
+}
+
+func (rc *RoomController) CreateRoom(c *gin.Context) {
+	var input CreateRoomInput
+
+	user, err := utils.GetUserFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	room, err := rc.roomService.CreateRoom(input.UserIds, input.Emails, *user)
+
+	utils.StripSensitiveUserInformation(room.Users, user)
+
+	c.JSON(http.StatusOK, gin.H{"data": room})
 }

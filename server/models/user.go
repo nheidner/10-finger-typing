@@ -67,15 +67,15 @@ func (us UserService) FindUsers(query FindUsersQuery) ([]User, error) {
 	return users, nil
 }
 
-func (us *UserService) FindByEmail(email string) (*User, error) {
-	var user User
+// func (us *UserService) FindByEmail(email string) (*User, error) {
+// 	var user User
 
-	if err := us.DB.Where("email = ?", email).Find(&user).Error; err != nil || user.Email == "" {
-		return nil, err
-	}
+// 	if err := us.DB.Where("email = ?", email).Find(&user).Error; err != nil || user.Email == "" {
+// 		return nil, err
+// 	}
 
-	return &user, nil
-}
+// 	return &user, nil
+// }
 
 func (us UserService) FindOneById(id uuid.UUID) (*User, error) {
 	user := User{
@@ -140,18 +140,4 @@ func (us *UserService) Verify(userId uuid.UUID) error {
 
 func (us *UserService) DeleteAll() error {
 	return us.DB.Exec("TRUNCATE users RESTART IDENTITY CASCADE").Error
-}
-
-// strips sensitive user information from users ex
-func StripSensitiveUserInformation(users []User, exception *User) {
-	for i := range users {
-		if exception != nil && users[i].ID == exception.ID {
-			continue
-		}
-
-		users[i].FirstName = ""
-		users[i].Email = ""
-		users[i].LastName = ""
-		users[i].IsVerified = false
-	}
 }
