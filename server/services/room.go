@@ -6,8 +6,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
 
 type RoomService struct {
@@ -19,6 +22,7 @@ type RoomService struct {
 	userDbRepo              *repositories.UserDbRepository
 	tokenDbRepo             *repositories.TokenDbRepository
 	emailTransactionRepo    *repositories.EmailTransactionRepository
+	gameRedisRpo            *repositories.GameRedisRepository
 }
 
 func NewRoomService(
@@ -30,11 +34,24 @@ func NewRoomService(
 	userDbRepo *repositories.UserDbRepository,
 	tokenDbRepo *repositories.TokenDbRepository,
 	emailTransactionRepo *repositories.EmailTransactionRepository,
+	gameRedisRpo *repositories.GameRedisRepository,
 ) *RoomService {
-	return &RoomService{roomDbRepo, roomRedisRepo, userRoomDbRepo, roomStreamRedisRepo, roomSubscriberRedisRepo, userDbRepo, tokenDbRepo, emailTransactionRepo}
+	return &RoomService{
+		roomDbRepo,
+		roomRedisRepo,
+		userRoomDbRepo,
+		roomStreamRedisRepo,
+		roomSubscriberRedisRepo,
+		userDbRepo,
+		tokenDbRepo,
+		emailTransactionRepo,
+		gameRedisRpo,
+	}
 }
 
-func (rs *RoomService) Find(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
+func (rs *RoomService) Find(roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
+	var ctx = context.Background()
+
 	room, err := rs.roomRedisRepo.FindInRedis(ctx, roomId, userId)
 	if err != nil {
 		return nil, err
@@ -162,6 +179,47 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 	if err = rs.roomSubscriberRedisRepo.RemoveRoomSubscriber(ctx, roomId, userId); err != nil {
 		log.Println("failed to remove room subscriber:", err)
 		return err
+	}
+
+	return nil
+}
+
+func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *websocket.Conn, timeStamp time.Time) error {
+	var ctx = context.Background()
+
+	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.roomSubscriberRedisRepo, rs.roomStreamRedisRepo)
+	defer roomSubscription.close(ctx)
+
+	err := roomSubscription.initRoomSubscriber(ctx)
+	if err != nil {
+		log.Println("Failed to initialise room subscriber:", err)
+		return err
+	}
+
+	existingRoomSubscribers, err := rs.roomSubscriberRedisRepo.GetRoomSubscribers(ctx, room.ID)
+	if err != nil {
+		log.Println("Failed to get room subscribers:", err)
+		return err
+	}
+
+	currentGame, err := rs.gameRedisRpo.GetCurrentGameFromRedis(ctx, room.ID)
+	if err != nil {
+		log.Println("Failed to get current room:", err)
+		return err
+	}
+
+	room.Subscribers = existingRoomSubscribers
+	room.CurrentGame = currentGame
+
+	err = wsjson.Write(ctx, roomSubscription.conn, room)
+	if err != nil {
+		log.Println("Failed to initialise room subscriber:", err)
+		return err
+	}
+
+	err = roomSubscription.subscribe(ctx, timeStamp)
+	if err != nil {
+		log.Println("Error subscribing to room stream:", err)
 	}
 
 	return nil

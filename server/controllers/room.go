@@ -5,9 +5,11 @@ import (
 	"10-typing/utils"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"nhooyr.io/websocket"
 )
 
 type RoomController struct {
@@ -71,8 +73,51 @@ func (rc *RoomController) CreateRoom(c *gin.Context) {
 	}
 
 	room, err := rc.roomService.CreateRoom(input.UserIds, input.Emails, *user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	stripSensitiveUserInformation(room.Users, user)
 
 	c.JSON(http.StatusOK, gin.H{"data": room})
+}
+
+func (rc *RoomController) ConnectToRoom(c *gin.Context) {
+	user, err := utils.GetUserFromContext(c)
+	if err != nil {
+		log.Println("Failed to process HTTP params:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
+		return
+	}
+
+	roomId, err := utils.GetRoomIdFromPath(c)
+	if err != nil {
+		log.Println("Failed to process HTTP params:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
+		return
+	}
+
+	timeStamp := time.Now()
+
+	room, err := rc.roomService.Find(roomId, user.ID)
+	if err != nil {
+		log.Println("no room found:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no room found"})
+		return
+	}
+
+	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
+		OriginPatterns: []string{"*"},
+	})
+	if err != nil {
+		log.Println("Failed to accept websocket connection:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to accept websocket connection"})
+		return
+	}
+
+	err = rc.roomService.RoomConnect(user.ID, room, conn, timeStamp)
+	if err != nil {
+		log.Println(err)
+	}
 }
