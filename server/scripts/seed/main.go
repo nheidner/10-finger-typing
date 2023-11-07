@@ -1,9 +1,9 @@
 package main
 
 import (
-	"10-typing/controllers"
 	"10-typing/models"
-	"context"
+	"10-typing/repositories"
+	"10-typing/services"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -15,15 +15,22 @@ import (
 )
 
 var (
-	userService  *models.UserService
-	textService  *models.TextService
-	scoreService *models.ScoreService
+	userService  *services.UserService
+	scoreService *services.ScoreService
+	textService  *services.TextService
 )
 
 func init() {
-	userService = &models.UserService{DB: models.DB}
-	textService = &models.TextService{DB: models.DB, RDB: models.RedisClient}
-	scoreService = &models.ScoreService{DB: models.DB}
+	userDbRepo := repositories.NewUserDbRepository(models.DB)
+	sessionDbRepo := repositories.NewSessionDbRepository(models.DB)
+	scoreDbRepo := repositories.NewScoreDbRepository(models.DB)
+	textDbRepo := repositories.NewTextDbRepository(models.DB)
+	textRedisRepo := repositories.NewTextRedisRepository(models.RedisClient)
+	openAiRepo := repositories.NewOpenAiRepository("")
+
+	userService = services.NewUserService(userDbRepo, sessionDbRepo, 32)
+	scoreService = services.NewScoreService(scoreDbRepo)
+	textService = services.NewTextService(textDbRepo, textRedisRepo, openAiRepo)
 }
 
 func main() {
@@ -55,7 +62,7 @@ func main() {
 }
 
 func seedUsers() ([]*models.User, error) {
-	usersInputData := []*models.CreateUserInput{
+	userData := []models.User{
 		{
 			Username:  "niko",
 			Email:     "niko@gmail.com",
@@ -79,15 +86,21 @@ func seedUsers() ([]*models.User, error) {
 		},
 	}
 
-	users := make([]*models.User, 0, len(usersInputData))
+	users := make([]*models.User, 0, len(userData))
 
-	for _, userInputData := range usersInputData {
-		user, err := userService.Create(*userInputData)
+	for _, userInputData := range userData {
+		user, err := userService.Create(
+			userInputData.Email,
+			userInputData.Username,
+			userInputData.FirstName,
+			userInputData.LastName,
+			userInputData.Password,
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		err = userService.Verify(user.ID)
+		err = userService.VerifyUser(user.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -102,17 +115,23 @@ func seedFakeUsers(n int) ([]*models.User, error) {
 	users := make([]*models.User, 0, n)
 
 	for i := 0; i < n; i++ {
-		userInputData, err := generateFakeData[models.CreateUserInput]()
+		userInputData, err := generateFakeData[models.User]()
 		if err != nil {
 			return nil, err
 		}
 
-		user, err := userService.Create(*userInputData)
+		user, err := userService.Create(
+			userInputData.Email,
+			userInputData.Username,
+			userInputData.FirstName,
+			userInputData.LastName,
+			userInputData.Password,
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		err = userService.Verify(user.ID)
+		err = userService.VerifyUser(user.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -127,13 +146,13 @@ func seedFakeTexts(n int) ([]*models.Text, error) {
 	texts := make([]*models.Text, 0, n)
 
 	for i := 0; i < n; i++ {
-		gptText := "The quick brown fox jumps over the lazy dog's back. The five boxing wizards jump quickly. Special characters: @#$%^&* (8). Numbers: 12345678. 1234567890. 1234567890. The quick brown fox jumps over the lazy dog's back. The five boxing wizards jump quickly. Special characters: @#$%^&* (8). Numbers: 12345678. 1234567890. 1234567890."
-		textInputData, err := generateFakeData[controllers.CreateTextInput]()
+		gptText := "The quick brown fox jumps over the lazy dogs back. The five boxing wizards jump quickly. Special characters: @#$%^&* (8). Numbers: 12345678. 1234567890. 1234567890. The quick brown fox jumps over the lazy dogs back. The five boxing wizards jump quickly. Special characters: @#$%^&* (8). Numbers: 12345678. 1234567890. 1234567890."
+		newText, err := generateFakeData[models.Text]()
 		if err != nil {
 			return nil, err
 		}
 
-		text, err := textService.Create(context.Background(), *textInputData, gptText)
+		text, err := textService.Create(newText.Language, gptText, newText.Punctuation, newText.SpecialCharacters, newText.Numbers)
 		if err != nil {
 			return nil, err
 		}
@@ -148,26 +167,19 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 	scores := make([]*models.Score, 0, n)
 
 	for i := 0; i < n; i++ {
-		scoreInputData, err := generateFakeData[controllers.CreateScoreInput]()
+		newScore, err := generateFakeData[models.Score]()
 		if err != nil {
 			return nil, errors.New("error generating fake data: " + err.Error())
 		}
 
 		randomUsersIndex := rand.Intn(len(users))
 		randomTextsIndex := rand.Intn(len(texts))
-
 		randomUser := users[randomUsersIndex]
 		randomText := texts[randomTextsIndex]
 
-		scoreInputData.UserId = randomUser.ID
-		scoreInputData.TextId = randomText.ID
-		scoreInputData.GameId = uuid.Nil
-
 		randomCharsAmount := rand.Intn(8)
-
 		typingErrors := make(models.ErrorsJSON, randomCharsAmount)
 		chars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
 		for i := 0; i < randomCharsAmount; i++ {
 			randomChar := string(chars[rand.Intn(len(chars))])
 			chars = strings.Replace(chars, randomChar, "", 1)
@@ -176,9 +188,14 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 			typingErrors[randomChar] = randomErrorsAmount
 		}
 
-		scoreInputData.Errors = typingErrors
-
-		score, err := scoreService.Create(*scoreInputData)
+		score, err := scoreService.Create(
+			uuid.Nil,
+			randomUser.ID,
+			randomText.ID,
+			newScore.WordsTyped,
+			newScore.TimeElapsed,
+			typingErrors,
+		)
 		if err != nil {
 			return nil, errors.New("error creating new score: " + err.Error())
 		}
@@ -189,7 +206,7 @@ func seedFakeScores(users []*models.User, texts []*models.Text, n int) ([]*model
 	return scores, nil
 }
 
-func generateFakeData[T models.CreateUserInput | controllers.CreateTextInput | controllers.CreateScoreInput]() (*T, error) {
+func generateFakeData[T models.User | models.Text | models.Score]() (*T, error) {
 	inputDataPtr := new(T)
 	err := faker.FakeData(inputDataPtr)
 

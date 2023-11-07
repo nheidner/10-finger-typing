@@ -2,9 +2,11 @@ package main
 
 import (
 	"10-typing/controllers"
-	"10-typing/middleware"
+	"10-typing/middlewares"
+
 	"10-typing/models"
 	"10-typing/repositories"
+	"10-typing/services"
 	"os"
 	"time"
 
@@ -28,75 +30,34 @@ func main() {
 	}
 
 	// Setup repos
+	emailTransactionRepo := repositories.NewEmailTransactionRepository(os.Getenv("POSTMARK_API_KEY"))
 	gameRedisRepo := repositories.NewGameRedisRepository(models.RedisClient)
+	openAiRepo := repositories.NewOpenAiRepository(os.Getenv("OPENAI_API_KEY"))
+	roomDbRepo := repositories.NewRoomDbRepository(models.DB)
 	roomRedisRepo := repositories.NewRoomRedisRepository(models.RedisClient)
+	roomStreamRedisRepo := repositories.NewRoomStreamRedisRepository(models.RedisClient)
+	roomSubscriberRedisRepo := repositories.NewRoomSubscriberRedisRepository(models.RedisClient)
+	scoreDbRepo := repositories.NewScoreDbRepository(models.DB)
+	sessionDbRepo := repositories.NewSessionDbRepository(models.DB)
+	textDbRepo := repositories.NewTextDbRepository(models.DB)
+	textRedisRepo := repositories.NewTextRedisRepository(models.RedisClient)
+	tokenDbRepo := repositories.NewTokenDbRepository(models.DB)
+	userDbRepo := repositories.NewUserDbRepository(models.DB)
+	userRoomDbRepo := repositories.NewUserRoomDbRepository(models.DB)
 
-	// Setup our model services
-	userService := models.UserService{
-		DB: models.DB,
-	}
-	sessionService := models.SessionService{
-		DB: models.DB,
-	}
-	scoreService := models.ScoreService{
-		DB: models.DB,
-	}
-	textService := models.TextService{
-		DB:  models.DB,
-		RDB: models.RedisClient,
-	}
-	roomService := models.RoomService{
-		DB:  models.DB,
-		RDB: models.RedisClient,
-	}
-	tokenService := models.TokenService{
-		DB: models.DB,
-	}
-	gameService := models.GameService{
-		DB:  models.DB,
-		RDB: models.RedisClient,
-	}
-	openAiService := models.OpenAiService{
-		ApiKey: os.Getenv("OPENAI_API_KEY"),
-	}
-	emailTransactionService := models.EmailTransactionService{
-		ApiKey: os.Getenv("POSTMARK_API_KEY"),
-	}
-	roomSubscriberService := models.RoomSubscriberService{
-		RDB: models.RedisClient,
-	}
-	roomStreamService := models.RoomStreamService{
-		RDB: models.RedisClient,
-	}
+	// Setup services
+	gameService := services.NewGameService(gameRedisRepo, roomStreamRedisRepo, scoreDbRepo, textRedisRepo)
+	roomService := services.NewRoomService(roomDbRepo, roomRedisRepo, userRoomDbRepo, roomStreamRedisRepo, roomSubscriberRedisRepo, userDbRepo, tokenDbRepo, emailTransactionRepo, gameRedisRepo)
+	scoreService := services.NewScoreService(scoreDbRepo)
+	textService := services.NewTextService(textDbRepo, textRedisRepo, openAiRepo)
+	userService := services.NewUserService(userDbRepo, sessionDbRepo, 32)
 
-	// Setup our controllers
-	userController := controllers.Users{
-		UserService:    &userService,
-		SessionService: &sessionService,
-	}
-	scoreController := controllers.Scores{
-		ScoreService: &scoreService,
-	}
-	textController := controllers.Texts{
-		TextService:   &textService,
-		OpenAiService: &openAiService,
-	}
-	roomController := controllers.Rooms{
-		RoomService:             &roomService,
-		TokenService:            &tokenService,
-		UserService:             &userService,
-		EmailTransactionService: &emailTransactionService,
-		RoomSubscriberService:   &roomSubscriberService,
-		GameService:             &gameService,
-		RoomStreamService:       &roomStreamService,
-	}
-	gameController := controllers.Games{
-		GameService:           &gameService,
-		RoomService:           &roomService,
-		TextService:           &textService,
-		RoomSubscriberService: &roomSubscriberService,
-		RoomStreamService:     &roomStreamService,
-	}
+	// Setup controllers
+	gameController := controllers.NewGameController(gameService)
+	roomController := controllers.NewRoomController(roomService)
+	scoreController := controllers.NewScoreController(scoreService)
+	textController := controllers.NewTextController(textService)
+	userController := controllers.NewUserController(userService)
 
 	api := router.Group("/api")
 
@@ -108,36 +69,38 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	authRequiredMiddleware := middlewares.AuthRequired(userDbRepo)
+
 	// USERS
-	api.GET("/users", userController.AuthRequired, userController.FindUsers)
-	api.GET("/users/:userid", userController.AuthRequired, userController.FindUser)
-	api.GET("/users/:userid/scores", userController.AuthRequired, scoreController.FindScoresByUser)
-	api.POST("/users/:userid/scores", userController.AuthRequired, userController.UserIdUrlParamMatchesAuthorizedUser, scoreController.CreateScore)
+	api.GET("/users", authRequiredMiddleware, userController.FindUsers)
+	api.GET("/users/:userid", authRequiredMiddleware, userController.FindUser)
+	api.GET("/users/:userid/scores", authRequiredMiddleware, scoreController.FindScoresByUser)
+	api.POST("/users/:userid/scores", authRequiredMiddleware, middlewares.UserIdUrlParamMatchesAuthorizedUser(), scoreController.CreateScore)
 	// why use the userId here -> without a user id the middleware function UserIdUrlParamMatchesAuthorizedUser would be unnecessary
-	api.GET("/users/:userid/text", userController.AuthRequired, userController.UserIdUrlParamMatchesAuthorizedUser, textController.FindText)
+	api.GET("/users/:userid/text", authRequiredMiddleware, middlewares.UserIdUrlParamMatchesAuthorizedUser(), textController.FindText)
 	api.POST("/users", userController.CreateUser)
 
 	// USER
-	api.GET("/user", userController.AuthRequired, userController.CurrentUser)
+	api.GET("/user", authRequiredMiddleware, userController.CurrentUser)
 	api.POST("/user/login", userController.Login)
-	api.POST("/user/logout", userController.AuthRequired, userController.Logout)
+	api.POST("/user/logout", authRequiredMiddleware, userController.Logout)
 
 	// SCORES
-	api.GET("/scores", userController.AuthRequired, scoreController.FindScores)
+	api.GET("/scores", authRequiredMiddleware, scoreController.FindScores)
 
 	// TEXTS
-	api.POST("/texts", userController.AuthRequired, textController.CreateText)
+	api.POST("/texts", authRequiredMiddleware, textController.CreateText)
 
 	// ROOMS
-	api.GET("/rooms/:roomid/ws", userController.AuthRequired, middleware.IsRoomMember(roomRedisRepo), roomController.ConnectToRoom)
-	api.POST("/rooms", userController.AuthRequired, roomController.CreateRoom)
-	api.POST("/rooms/:roomid/leave", userController.AuthRequired, middleware.IsRoomMember(roomRedisRepo), roomController.LeaveRoom)
-	api.POST("/rooms/:roomid/games", userController.AuthRequired, middleware.IsRoomAdmin(roomRedisRepo), gameController.CreateGame)
-	api.POST("/rooms/:roomid/start_game", userController.AuthRequired, middleware.IsRoomMember(roomRedisRepo), gameController.StartGame)
+	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, middlewares.IsRoomMember(roomRedisRepo), roomController.ConnectToRoom)
+	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
+	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, middlewares.IsRoomMember(roomRedisRepo), roomController.LeaveRoom)
+	api.POST("/rooms/:roomid/games", authRequiredMiddleware, middlewares.IsRoomAdmin(roomRedisRepo), gameController.CreateGame)
+	api.POST("/rooms/:roomid/start_game", authRequiredMiddleware, middlewares.IsRoomMember(roomRedisRepo), gameController.StartGame)
 	api.POST("/rooms/:roomid/game/score",
-		userController.AuthRequired,
-		middleware.IsRoomMember(roomRedisRepo),
-		middleware.IsCurrentGameUser(gameRedisRepo),
+		authRequiredMiddleware,
+		middlewares.IsRoomMember(roomRedisRepo),
+		middlewares.IsCurrentGameUser(gameRedisRepo),
 		gameController.FinishGame,
 	)
 

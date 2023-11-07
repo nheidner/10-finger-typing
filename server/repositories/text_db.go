@@ -48,7 +48,7 @@ func (tr *TextDbRepository) FindNewTextByUserId(
 	result.First(&text)
 
 	if result.Error != nil {
-		return nil, errors.New("error querying text:" + result.Error.Error())
+		return nil, errors.New("error querying text: " + result.Error.Error())
 	}
 
 	if result.Error == gorm.ErrRecordNotFound {
@@ -70,7 +70,7 @@ func (tr *TextDbRepository) Create(text models.Text) (*models.Text, error) {
 func (tr *TextDbRepository) GetAllTextIds() ([]uuid.UUID, error) {
 	var textIds []uuid.UUID
 
-	if err := tr.db.Model(&models.Text{}).Pluck("id", textIds).Error; err != nil {
+	if err := tr.db.Model(&models.Text{}).Pluck("id", &textIds).Error; err != nil {
 		return nil, err
 	}
 

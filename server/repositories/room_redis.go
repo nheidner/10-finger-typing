@@ -205,3 +205,18 @@ func (rr *RoomRedisRepository) DeleteRoomFromRedis(ctx context.Context, roomId u
 
 	return iter.Err()
 }
+
+func (rr *RoomRedisRepository) DeleteAllFromRedis(ctx context.Context) error {
+	pattern := "rooms:*"
+
+	iter := rr.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+	for iter.Next(ctx) {
+		key := iter.Val()
+
+		rr.redisClient.Del(ctx, key)
+
+		return iter.Err()
+	}
+
+	return nil
+}

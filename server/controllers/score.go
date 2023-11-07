@@ -11,13 +11,9 @@ import (
 	"github.com/google/uuid"
 )
 
-type ScoreController struct {
-	scoreService *services.ScoreService
-}
-
 type CreateScoreInput struct {
-	WordsTyped  int               `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=1000"`
-	TimeElapsed float64           `json:"timeElapsed" binding:"required" faker:"oneof: 60.0, 120.0, 180.0"`
+	WordsTyped  int               `json:"wordsTyped" binding:"required"`
+	TimeElapsed float64           `json:"timeElapsed" binding:"required"`
 	Errors      models.ErrorsJSON `json:"errors" binding:"required,typingerrors"`
 	TextId      uuid.UUID         `json:"textId" binding:"required"`
 }
@@ -25,6 +21,14 @@ type CreateScoreInput struct {
 type FindScoresSortOption struct {
 	Column string `validate:"required,oneof=accuracy errors created_at"`
 	Order  string `validate:"required,oneof=desc asc"`
+}
+
+type ScoreController struct {
+	scoreService *services.ScoreService
+}
+
+func NewScoreController(scoreService *services.ScoreService) *ScoreController {
+	return &ScoreController{scoreService}
 }
 
 func (sc *ScoreController) CreateScore(c *gin.Context) {

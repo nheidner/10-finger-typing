@@ -44,6 +44,6 @@ func (tr *TextRedisRepository) TextExists(ctx context.Context, textId uuid.UUID)
 	return r[0], nil
 }
 
-func (tr *TextRedisRepository) DeleteAllFromRedis() error {
-	return tr.redisClient.Del(context.Background(), textIdsKey).Err()
+func (tr *TextRedisRepository) DeleteAllFromRedis(ctx context.Context) error {
+	return tr.redisClient.Del(ctx, textIdsKey).Err()
 }

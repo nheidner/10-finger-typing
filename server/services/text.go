@@ -35,18 +35,22 @@ func (ts *TextService) FindNewTextForUser(
 }
 
 func (ts *TextService) Create(
-	language string,
+	language, text string,
 	punctuation bool,
 	specialCharacters, numbers int,
 ) (*models.Text, error) {
-	gptText, err := ts.openAiRepo.GenerateTypingText(language, punctuation, specialCharacters, numbers)
-	if err != nil {
-		return nil, err
+	if text == "" {
+		gptText, err := ts.openAiRepo.GenerateTypingText(language, punctuation, specialCharacters, numbers)
+		if err != nil {
+			return nil, err
+		}
+
+		text = gptText
 	}
 
 	newText := models.Text{
 		Language:          language,
-		Text:              gptText,
+		Text:              text,
 		Punctuation:       punctuation,
 		SpecialCharacters: specialCharacters,
 		Numbers:           numbers,

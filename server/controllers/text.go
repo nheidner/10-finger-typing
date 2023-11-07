@@ -9,13 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type CreateTextInput struct {
-	Language          string `json:"language" binding:"required" faker:"oneof: de en fr"`
-	Punctuation       bool   `json:"punctuation"`
-	SpecialCharacters int    `json:"specialCharacters" faker:"boundary_start=1, boundary_end=20"`
-	Numbers           int    `json:"numbers" faker:"boundary_start=1, boundary_end=20"`
-}
-
 type TextController struct {
 	textService *services.TextService
 }
@@ -66,14 +59,19 @@ func (tc *TextController) FindText(c *gin.Context) {
 }
 
 func (tc *TextController) CreateText(c *gin.Context) {
-	var input CreateTextInput
+	var input struct {
+		Language          string `json:"language" binding:"required"`
+		Punctuation       bool   `json:"punctuation"`
+		SpecialCharacters int    `json:"specialCharacters"`
+		Numbers           int    `json:"numbers"`
+	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	text, err := tc.textService.Create(input.Language, input.Punctuation, input.SpecialCharacters, input.Numbers)
+	text, err := tc.textService.Create(input.Language, "", input.Punctuation, input.SpecialCharacters, input.Numbers)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
