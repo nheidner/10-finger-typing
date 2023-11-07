@@ -89,7 +89,7 @@ export const getNewTextByUserid = async (
 
   const headers = cookie ? { cookie } : undefined;
 
-  return fetchApi<Text | null>(`/users/${userId}/text${queryString}`, {
+  return fetchApi<Text>(`/users/${userId}/text${queryString}`, {
     headers,
   });
 };

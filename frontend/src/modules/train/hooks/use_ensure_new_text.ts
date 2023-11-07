@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createNewText,
@@ -11,6 +10,7 @@ import {
   numeralOptions,
   specialCharactersOptions,
 } from "@/modules/train/constants";
+import { FetchError } from "@/utils/fetch";
 
 const getRandomNumberBetween = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -45,7 +45,11 @@ export const useEnsureTextData = ({
     retry: false,
   });
 
-  const { data: textData, isLoading: textIsLoading } = useQuery(
+  const {
+    data: textData,
+    isLoading: textIsLoading,
+    status,
+  } = useQuery(
     [
       "text",
       specialCharactersGte,
@@ -68,12 +72,31 @@ export const useEnsureTextData = ({
       }),
     {
       enabled: !!authenticatedUserData?.id,
+      retry: false,
       onSuccess(data) {
         queryClient.setQueryData(["texts", data?.id], () => data);
         router.push({
           pathname: router.pathname,
           query: { ...router.query, textId: data?.id },
         });
+      },
+      onError(err) {
+        if (err instanceof FetchError) {
+          const specialCharacters = getRandomNumberBetween(
+            specialCharactersGte,
+            specialCharactersLte
+          );
+          const numbers = getRandomNumberBetween(numbersGte, numbersLte);
+
+          mutateText({
+            query: {
+              specialCharacters,
+              numbers,
+              punctuation: usePunctuation,
+              language,
+            },
+          });
+        }
       },
     }
   );
@@ -89,36 +112,6 @@ export const useEnsureTextData = ({
       await queryClient.invalidateQueries({ queryKey: ["text"] });
     },
   });
-
-  useEffect(() => {
-    if (textData !== null) {
-      return;
-    }
-
-    const specialCharacters = getRandomNumberBetween(
-      specialCharactersGte,
-      specialCharactersLte
-    );
-    const numbers = getRandomNumberBetween(numbersGte, numbersLte);
-
-    mutateText({
-      query: {
-        specialCharacters,
-        numbers,
-        punctuation: usePunctuation,
-        language,
-      },
-    });
-  }, [
-    textData,
-    language,
-    specialCharactersLte,
-    numbersLte,
-    usePunctuation,
-    specialCharactersGte,
-    numbersGte,
-    mutateText,
-  ]);
 
   return {
     text: textData || newTextData,
