@@ -126,11 +126,9 @@ type RoomSubscriberCacheRepository interface {
 	GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberStatus, error)
 	GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberGameStatus, error)
 	GetRoomSubscribers(ctx context.Context, roomId uuid.UUID) ([]models.RoomSubscriber, error)
-	SetRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) error
 	SetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID, status models.SubscriberStatus) error
 	SetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error
 	DeleteRoomSubscriber(ctx context.Context, roomId, userId uuid.UUID) error
-	DeleteRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) error
 }
 
 type TextCacheRepository interface {

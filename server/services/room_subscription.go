@@ -4,10 +4,12 @@ import (
 	"10-typing/models"
 	"10-typing/repositories"
 	"context"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
 
 type roomSubscription struct {
@@ -16,11 +18,13 @@ type roomSubscription struct {
 	userId       uuid.UUID
 	conn         *websocket.Conn
 	cacheRepo    repositories.CacheRepository
+	cancel       context.CancelFunc
 }
 
 func newRoomSubscription(
 	conn *websocket.Conn, roomId, userId uuid.UUID,
 	cacheRepo repositories.CacheRepository,
+	cancel context.CancelFunc,
 ) *roomSubscription {
 	roomSubscriptionConnectionId := uuid.New()
 
@@ -30,16 +34,28 @@ func newRoomSubscription(
 		userId:       userId,
 		conn:         conn,
 		cacheRepo:    cacheRepo,
+		cancel:       cancel,
 	}
 }
 
 func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
-	err := rs.cacheRepo.SetRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
-	if err != nil {
-		return err
-	}
+	go func() {
+		for {
+			var v interface{}
+			err := wsjson.Read(context.Background(), rs.conn, &v)
+			if err != nil {
+				log.Println("error reading from WS connection :", err)
 
-	if err = rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus); err != nil {
+				if websocket.CloseStatus(err) == websocket.StatusGoingAway {
+					rs.cancel()
+				}
+
+				return
+			}
+		}
+	}()
+
+	if err := rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus); err != nil {
 		return err
 	}
 
@@ -50,10 +66,16 @@ func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
 }
 
 func (rs *roomSubscription) close(ctx context.Context) error {
-	rs.cacheRepo.DeleteRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
-
 	err := rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.InactiveSubscriberStatus)
 	if err != nil {
+		return err
+	}
+
+	userLeavePushMessage := models.PushMessage{
+		Type:    models.UserLeft,
+		Payload: rs.userId,
+	}
+	if err = rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, userLeavePushMessage); err != nil {
 		return err
 	}
 
@@ -65,6 +87,8 @@ func (rs *roomSubscription) subscribe(ctx context.Context, startTimestamp time.T
 
 	for {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case message, ok := <-messagesCh:
 			if !ok {
 				return nil

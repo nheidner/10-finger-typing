@@ -24,11 +24,6 @@ func getRoomSubscriberKey(roomId, userId uuid.UUID) string {
 	return getRoomKey(roomId) + ":subscribers:" + userId.String()
 }
 
-// rooms:[room_id]:subscribers:[user_id]:conns set: connection ids
-func getRoomSubscriberConnectionsKey(roomId, userid uuid.UUID) string {
-	return getRoomSubscriberKey(roomId, userid) + ":conns"
-}
-
 func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberStatus, error) {
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
@@ -107,12 +102,6 @@ func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid
 	return roomSubscribers, nil
 }
 
-func (repo *RedisRepository) SetRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) error {
-	roomSubscriberConnectionsKey := getRoomSubscriberConnectionsKey(roomId, userId)
-
-	return repo.redisClient.SAdd(ctx, roomSubscriberConnectionsKey, connectionId.String()).Err()
-}
-
 func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error {
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
@@ -134,10 +123,4 @@ func (repo *RedisRepository) DeleteRoomSubscriber(ctx context.Context, roomId, u
 
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
 	return repo.redisClient.SRem(ctx, roomSubscriberIdsKey, userId.String()).Err()
-}
-
-func (repo *RedisRepository) DeleteRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) error {
-	roomSubscriberConnectionsKey := getRoomSubscriberConnectionsKey(roomId, userId)
-
-	return repo.redisClient.SRem(ctx, roomSubscriberConnectionsKey, connectionId.String()).Err()
 }

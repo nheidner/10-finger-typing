@@ -167,10 +167,10 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 }
 
 func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *websocket.Conn) error {
-	var ctx = context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
-	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.cacheRepo)
-	defer roomSubscription.close(ctx)
+	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.cacheRepo, cancel)
+	defer roomSubscription.close(context.Background())
 
 	err := roomSubscription.initRoomSubscriber(ctx)
 	if err != nil {
