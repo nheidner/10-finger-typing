@@ -50,15 +50,6 @@ func (repo *SQLRepository) FindNewTextForUser(
 	return &text, nil
 }
 
-func (repo *SQLRepository) CreateText(text models.Text) (*models.Text, error) {
-	createResult := repo.db.Create(&text)
-	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
-		return nil, createResult.Error
-	}
-
-	return &text, nil
-}
-
 func (repo *SQLRepository) FindAllTextIds() ([]uuid.UUID, error) {
 	var textIds []uuid.UUID
 
@@ -67,6 +58,27 @@ func (repo *SQLRepository) FindAllTextIds() ([]uuid.UUID, error) {
 	}
 
 	return textIds, nil
+}
+
+func (repo *SQLRepository) FindTextById(textId uuid.UUID) (*models.Text, error) {
+	var text = models.Text{
+		ID: textId,
+	}
+
+	if err := repo.db.Find(&text).Error; err != nil {
+		return nil, err
+	}
+
+	return &text, nil
+}
+
+func (repo *SQLRepository) CreateText(text models.Text) (*models.Text, error) {
+	createResult := repo.db.Create(&text)
+	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
+		return nil, createResult.Error
+	}
+
+	return &text, nil
 }
 
 func (repo *SQLRepository) DeleteAllTexts() error {

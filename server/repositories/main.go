@@ -67,8 +67,9 @@ type TextDBRepository interface {
 		punctuation bool,
 		specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
 	) (*models.Text, error)
-	CreateText(text models.Text) (*models.Text, error)
 	FindAllTextIds() ([]uuid.UUID, error)
+	FindTextById(textId uuid.UUID) (*models.Text, error)
+	CreateText(text models.Text) (*models.Text, error)
 	DeleteAllTexts() error
 }
 

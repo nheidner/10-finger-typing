@@ -30,6 +30,10 @@ func GetUserIdFromPath(c *gin.Context) (userId uuid.UUID, err error) {
 	return getUuidFromPath(c, "userid")
 }
 
+func GetTextIdFromPath(c *gin.Context) (userId uuid.UUID, err error) {
+	return getUuidFromPath(c, "textid")
+}
+
 func GetUserFromContext(c *gin.Context) (user *models.User, err error) {
 	userContext, userExists := c.Get("user")
 	if !userExists {

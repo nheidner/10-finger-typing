@@ -17,7 +17,7 @@ func NewTextController(textService *services.TextService) *TextController {
 	return &TextController{textService}
 }
 
-func (tc *TextController) FindText(c *gin.Context) {
+func (tc *TextController) FindNewTextForUser(c *gin.Context) {
 	userId, err := utils.GetUserIdFromPath(c)
 
 	if err != nil {
@@ -52,6 +52,22 @@ func (tc *TextController) FindText(c *gin.Context) {
 	if err != nil {
 		log.Println("err :>>", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": text})
+}
+
+func (tc *TextController) FindTextById(c *gin.Context) {
+	textId, err := utils.GetTextIdFromPath(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	text, err := tc.textService.FindTextById(textId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

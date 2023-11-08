@@ -34,6 +34,10 @@ func (ts *TextService) FindNewTextForUser(
 	)
 }
 
+func (ts *TextService) FindTextById(textId uuid.UUID) (*models.Text, error) {
+	return ts.dbRepo.FindTextById(textId)
+}
+
 func (ts *TextService) Create(
 	language, text string,
 	punctuation bool,

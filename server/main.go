@@ -71,7 +71,7 @@ func main() {
 	api.GET("/users/:userid/scores", authRequiredMiddleware, scoreController.FindScoresByUser)
 	api.POST("/users/:userid/scores", authRequiredMiddleware, middlewares.UserIdUrlParamMatchesAuthorizedUser(), scoreController.CreateScore)
 	// why use the userId here -> without a user id the middleware function UserIdUrlParamMatchesAuthorizedUser would be unnecessary
-	api.GET("/users/:userid/text", authRequiredMiddleware, middlewares.UserIdUrlParamMatchesAuthorizedUser(), textController.FindText)
+	api.GET("/users/:userid/text", authRequiredMiddleware, middlewares.UserIdUrlParamMatchesAuthorizedUser(), textController.FindNewTextForUser)
 	api.POST("/users", userController.CreateUser)
 
 	// USER
@@ -84,6 +84,7 @@ func main() {
 
 	// TEXTS
 	api.POST("/texts", authRequiredMiddleware, textController.CreateText)
+	api.GET("/texts/:textid", authRequiredMiddleware, textController.FindTextById)
 
 	// ROOMS
 	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, isRoommemberMiddleware, roomController.ConnectToRoom)
