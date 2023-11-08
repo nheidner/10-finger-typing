@@ -40,8 +40,12 @@ func (repo *SQLRepository) FindRoom(roomId uuid.UUID) (*models.Room, error) {
 	return &room, nil
 }
 
-func (repo *SQLRepository) CreateRoom(newRoom *models.Room) error {
-	return repo.db.Create(newRoom).Error
+func (repo *SQLRepository) CreateRoom(newRoom models.Room) (*models.Room, error) {
+	if err := repo.db.Create(&newRoom).Error; err != nil {
+		return nil, err
+	}
+
+	return &newRoom, nil
 }
 
 func (repo *SQLRepository) SoftDeleteRoom(roomId uuid.UUID) error {

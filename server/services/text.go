@@ -23,7 +23,7 @@ func (ts *TextService) FindNewTextForUser(
 	punctuation bool,
 	specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
 ) (*models.Text, error) {
-	return ts.dbRepo.FindNewTextByUserId(
+	return ts.dbRepo.FindNewTextForUser(
 		userId,
 		language,
 		punctuation,
@@ -64,7 +64,7 @@ func (ts *TextService) Create(
 	}
 
 	// create text in redis and additionally: if no text ids key exists, query all text ids from DB and write them to text ids key
-	allTextsAreInRedis, err := ts.cacheRepo.AllTextsAreInCache(ctx)
+	allTextsAreInRedis, err := ts.cacheRepo.TextIdsKeyExists(ctx)
 	switch {
 	case err != nil:
 		return nil, err
@@ -76,18 +76,18 @@ func (ts *TextService) Create(
 
 		allTextIds = append(allTextIds, createdText.ID)
 
-		err = ts.cacheRepo.SetText(ctx, allTextIds...)
+		err = ts.cacheRepo.SetTextId(ctx, allTextIds...)
 
 		return createdText, err
 	default:
-		err = ts.cacheRepo.SetText(ctx, createdText.ID)
+		err = ts.cacheRepo.SetTextId(ctx, createdText.ID)
 
 		return createdText, err
 	}
 }
 
 func (ts *TextService) DeleteAll() error {
-	err := ts.cacheRepo.DeleteAllTextsFromRedis(context.Background())
+	err := ts.cacheRepo.DeleteTextIdsKey(context.Background())
 	if err != nil {
 		return err
 	}

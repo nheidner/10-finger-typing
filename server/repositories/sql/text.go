@@ -9,7 +9,7 @@ import (
 )
 
 // returns nil for *models.Text and nil for error when no record could be found
-func (repo *SQLRepository) FindNewTextByUserId(
+func (repo *SQLRepository) FindNewTextForUser(
 	userId uuid.UUID, language string,
 	punctuation bool,
 	specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,

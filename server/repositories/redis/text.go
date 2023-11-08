@@ -11,7 +11,7 @@ const (
 	textIdsKey = "text_ids"
 )
 
-func (repo *RedisRepository) SetText(ctx context.Context, textIds ...uuid.UUID) error {
+func (repo *RedisRepository) SetTextId(ctx context.Context, textIds ...uuid.UUID) error {
 	textIdsStr := make([]any, 0, len(textIds))
 	for _, textId := range textIds {
 		textIdsStr = append(textIdsStr, textId.String())
@@ -20,13 +20,13 @@ func (repo *RedisRepository) SetText(ctx context.Context, textIds ...uuid.UUID) 
 	return repo.redisClient.SAdd(ctx, textIdsKey, textIdsStr...).Err()
 }
 
-func (repo *RedisRepository) AllTextsAreInCache(ctx context.Context) (bool, error) {
+func (repo *RedisRepository) TextIdsKeyExists(ctx context.Context) (bool, error) {
 	r, err := repo.redisClient.Exists(ctx, textIdsKey).Result()
 
 	return r != 0, err
 }
 
-func (repo *RedisRepository) TextExists(ctx context.Context, textId uuid.UUID) (bool, error) {
+func (repo *RedisRepository) TextIdExists(ctx context.Context, textId uuid.UUID) (bool, error) {
 	r, err := repo.redisClient.SMIsMember(ctx, textIdsKey, textId.String()).Result()
 	if err != nil {
 		return false, err
@@ -35,6 +35,6 @@ func (repo *RedisRepository) TextExists(ctx context.Context, textId uuid.UUID) (
 	return r[0], nil
 }
 
-func (repo *RedisRepository) DeleteAllTextsFromRedis(ctx context.Context) error {
+func (repo *RedisRepository) DeleteTextIdsKey(ctx context.Context) error {
 	return repo.redisClient.Del(ctx, textIdsKey).Err()
 }

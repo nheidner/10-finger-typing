@@ -34,7 +34,7 @@ func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid
 	var ctx = context.Background()
 
 	// validate
-	textExists, err := gs.cacheRepo.TextExists(ctx, textId)
+	textExists, err := gs.cacheRepo.TextIdExists(ctx, textId)
 	if err != nil {
 		return uuid.Nil, err
 	}

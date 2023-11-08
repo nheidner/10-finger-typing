@@ -182,7 +182,7 @@ func (repo *RedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID) (
 	return r > 0, nil
 }
 
-func (repo *RedisRepository) DeleteRoomFromRedis(ctx context.Context, roomId uuid.UUID) error {
+func (repo *RedisRepository) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
 	roomKey := getRoomKey(roomId)
 
 	pattern := roomKey + "*"
@@ -197,7 +197,7 @@ func (repo *RedisRepository) DeleteRoomFromRedis(ctx context.Context, roomId uui
 	return iter.Err()
 }
 
-func (repo *RedisRepository) DeleteAllRoomsFromRedis(ctx context.Context) error {
+func (repo *RedisRepository) DeleteAllRooms(ctx context.Context) error {
 	pattern := "rooms:*"
 
 	iter := repo.redisClient.Scan(ctx, 0, pattern, 0).Iterator()

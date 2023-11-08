@@ -40,7 +40,7 @@ func main() {
 
 	var ctx = context.Background()
 
-	err = cacheRepo.DeleteAllTextsFromRedis(ctx)
+	err = cacheRepo.DeleteTextIdsKey(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -50,7 +50,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = cacheRepo.DeleteAllRoomsFromRedis(ctx)
+	err = cacheRepo.DeleteAllRooms(ctx)
 	if err != nil {
 		os.Exit(1)
 	}

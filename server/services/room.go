@@ -132,7 +132,7 @@ func (rs *RoomService) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
 		return err
 	}
 
-	return rs.cacheRepo.DeleteRoomFromRedis(ctx, roomId)
+	return rs.cacheRepo.DeleteRoom(ctx, roomId)
 }
 
 func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
@@ -208,29 +208,28 @@ func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *we
 }
 
 func (rs *RoomService) createRoomWithSubscribers(userIds []uuid.UUID, emails []string, adminId uuid.UUID) (*models.Room, error) {
-	var newRoom = &models.Room{
+	createdRoom, err := rs.dbRepo.CreateRoom(models.Room{
 		AdminId: adminId,
-	}
-
-	if err := rs.dbRepo.CreateRoom(newRoom); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 
 	// room subscribers
 	for _, userId := range userIds {
-		if err := rs.dbRepo.CreateUserRoom(userId, newRoom.ID); err != nil {
+		if err := rs.dbRepo.CreateUserRoom(userId, createdRoom.ID); err != nil {
 			return nil, err
 		}
 	}
 
-	newRoom, err := rs.dbRepo.FindRoom(newRoom.ID)
+	createdRoom, err = rs.dbRepo.FindRoom(createdRoom.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := rs.cacheRepo.SetRoom(context.Background(), *newRoom); err != nil {
+	if err := rs.cacheRepo.SetRoom(context.Background(), *createdRoom); err != nil {
 		return nil, err
 	}
 
-	return newRoom, nil
+	return createdRoom, nil
 }

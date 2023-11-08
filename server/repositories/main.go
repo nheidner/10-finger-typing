@@ -45,7 +45,7 @@ type EmailTransactionRepository interface {
 type RoomDBRepository interface {
 	FindRoomByUser(roomId uuid.UUID, userId uuid.UUID) (*models.Room, error)
 	FindRoom(roomId uuid.UUID) (*models.Room, error)
-	CreateRoom(newRoom *models.Room) error
+	CreateRoom(newRoom models.Room) (*models.Room, error)
 	SoftDeleteRoom(roomId uuid.UUID) error
 	DeleteAllRooms() error
 }
@@ -63,7 +63,7 @@ type SessionDBRepository interface {
 }
 
 type TextDBRepository interface {
-	FindNewTextByUserId(
+	FindNewTextForUser(
 		userId uuid.UUID, language string,
 		punctuation bool,
 		specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
@@ -110,8 +110,8 @@ type RoomCacheRepository interface {
 	RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error)
 	RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error)
 	RoomExists(ctx context.Context, roomId uuid.UUID) (bool, error)
-	DeleteRoomFromRedis(ctx context.Context, roomId uuid.UUID) error
-	DeleteAllRoomsFromRedis(ctx context.Context) error
+	DeleteRoom(ctx context.Context, roomId uuid.UUID) error
+	DeleteAllRooms(ctx context.Context) error
 }
 
 type RoomStreamCacheRepository interface {
@@ -134,8 +134,8 @@ type RoomSubscriberCacheRepository interface {
 }
 
 type TextCacheRepository interface {
-	SetText(ctx context.Context, textIds ...uuid.UUID) error
-	AllTextsAreInCache(ctx context.Context) (bool, error)
-	TextExists(ctx context.Context, textId uuid.UUID) (bool, error)
-	DeleteAllTextsFromRedis(ctx context.Context) error
+	SetTextId(ctx context.Context, textIds ...uuid.UUID) error
+	TextIdsKeyExists(ctx context.Context) (bool, error)
+	TextIdExists(ctx context.Context, textId uuid.UUID) (bool, error)
+	DeleteTextIdsKey(ctx context.Context) error
 }
