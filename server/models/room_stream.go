@@ -37,3 +37,9 @@ func (p *PushMessageType) String() string {
 func (p *PushMessageType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
 }
+
+type PushMessage struct {
+	Type PushMessageType `json:"type"`
+	// cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
+	Payload any `json:"payload"`
+}

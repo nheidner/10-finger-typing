@@ -193,7 +193,12 @@ func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *we
 	room.Subscribers = existingRoomSubscribers
 	room.CurrentGame = currentGame
 
-	err = wsjson.Write(ctx, roomSubscription.conn, room)
+	initialMessage := &models.PushMessage{
+		Type:    models.InitialState,
+		Payload: room,
+	}
+
+	err = wsjson.Write(ctx, roomSubscription.conn, initialMessage)
 	if err != nil {
 		log.Println("Failed to initialise room subscriber:", err)
 		return err

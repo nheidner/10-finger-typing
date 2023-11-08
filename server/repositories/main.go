@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"10-typing/models"
-	redisrepo "10-typing/repositories/redis"
 	"context"
 	"time"
 
@@ -116,7 +115,7 @@ type RoomCacheRepository interface {
 
 type RoomStreamCacheRepository interface {
 	// call PublishPushMessage with type and payload and not with push message type
-	PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage redisrepo.PushMessage) error
+	PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage models.PushMessage) error
 	PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error
 	GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan []byte, <-chan error)
 	GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan models.StreamActionType, <-chan error)

@@ -24,13 +24,7 @@ func getRoomStreamKey(roomId uuid.UUID) string {
 	return getRoomKey(roomId) + ":stream"
 }
 
-type PushMessage struct {
-	Type models.PushMessageType `json:"type"`
-	// cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
-	Payload any `json:"payload"`
-}
-
-func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage PushMessage) error {
+func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage models.PushMessage) error {
 	roomStreamKey := getRoomStreamKey(roomId)
 	pushMessageData, err := json.Marshal(pushMessage)
 	if err != nil {

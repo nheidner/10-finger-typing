@@ -3,7 +3,6 @@ package services
 import (
 	"10-typing/models"
 	"10-typing/repositories"
-	redisrepo "10-typing/repositories/redis"
 	"context"
 	"errors"
 	"log"
@@ -154,7 +153,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 			return err
 		}
 
-		countdownPushMessage := redisrepo.PushMessage{
+		countdownPushMessage := models.PushMessage{
 			Type: models.CountdownStart,
 			Payload: map[string]any{
 				"duration": countdownDurationSeconds,
@@ -217,7 +216,7 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 	if err != nil {
 		return errors.New("error findind scores:" + err.Error())
 	}
-	scorePushMessage := redisrepo.PushMessage{
+	scorePushMessage := models.PushMessage{
 		Type:    models.GameScores,
 		Payload: scores,
 	}
