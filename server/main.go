@@ -63,6 +63,7 @@ func main() {
 	}))
 
 	authRequiredMiddleware := middlewares.AuthRequired(dbRepo)
+	isRoommemberMiddleware := middlewares.IsRoomMember(cacheRepo)
 
 	// USERS
 	api.GET("/users", authRequiredMiddleware, userController.FindUsers)
@@ -85,14 +86,14 @@ func main() {
 	api.POST("/texts", authRequiredMiddleware, textController.CreateText)
 
 	// ROOMS
-	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, middlewares.IsRoomMember(cacheRepo), roomController.ConnectToRoom)
+	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, isRoommemberMiddleware, roomController.ConnectToRoom)
 	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
-	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, middlewares.IsRoomMember(cacheRepo), roomController.LeaveRoom)
+	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, isRoommemberMiddleware, roomController.LeaveRoom)
 	api.POST("/rooms/:roomid/games", authRequiredMiddleware, middlewares.IsRoomAdmin(cacheRepo), gameController.CreateGame)
-	api.POST("/rooms/:roomid/start_game", authRequiredMiddleware, middlewares.IsRoomMember(cacheRepo), gameController.StartGame)
+	api.POST("/rooms/:roomid/start_game", authRequiredMiddleware, isRoommemberMiddleware, gameController.StartGame)
 	api.POST("/rooms/:roomid/game/score",
 		authRequiredMiddleware,
-		middlewares.IsRoomMember(cacheRepo),
+		isRoommemberMiddleware,
 		middlewares.IsCurrentGameUser(cacheRepo),
 		gameController.FinishGame,
 	)
