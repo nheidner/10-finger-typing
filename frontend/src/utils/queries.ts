@@ -61,6 +61,10 @@ type TextQueryParams = {
   language: LanguageCode;
 };
 
+export const getTextById = async (textId: string) => {
+  return fetchApi<Text>(`/texts/${textId}`);
+};
+
 export const getNewTextByUserid = async (
   userId: string,
   {
