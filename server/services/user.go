@@ -17,21 +17,20 @@ const (
 )
 
 type UserService struct {
-	userDbRepo           *repositories.UserDbRepository
-	sessionDbRepo        *repositories.SessionDbRepository
+	dbRepo               repositories.DBRepository
 	sessionBytesPerToken int
 }
 
-func NewUserService(userDbRepo *repositories.UserDbRepository, sessionDbRepo *repositories.SessionDbRepository, sessionBytesPerToken int) *UserService {
-	return &UserService{userDbRepo, sessionDbRepo, sessionBytesPerToken}
+func NewUserService(dbRepo repositories.DBRepository, sessionBytesPerToken int) *UserService {
+	return &UserService{dbRepo, sessionBytesPerToken}
 }
 
 func (us *UserService) FindUsers(username, usernameSubstr string) ([]models.User, error) {
-	return us.userDbRepo.FindUsers(username, usernameSubstr)
+	return us.dbRepo.FindUsers(username, usernameSubstr)
 }
 
 func (us *UserService) FindUserById(userId uuid.UUID) (*models.User, error) {
-	return us.userDbRepo.FindOneById(userId)
+	return us.dbRepo.FindUserById(userId)
 }
 
 func (us *UserService) Create(email, username, firstName, lastName, password string) (*models.User, error) {
@@ -49,15 +48,15 @@ func (us *UserService) Create(email, username, firstName, lastName, password str
 		PasswordHash: hashedPassword,
 	}
 
-	return us.userDbRepo.Create(newUser)
+	return us.dbRepo.CreateUser(newUser)
 }
 
 func (us *UserService) VerifyUser(userId uuid.UUID) error {
-	return us.userDbRepo.Verify(userId)
+	return us.dbRepo.VerifyUser(userId)
 }
 
 func (us *UserService) Login(email, password string) (user *models.User, sessionToken string, err error) {
-	user, err = us.userDbRepo.FindByEmail(email)
+	user, err = us.dbRepo.FindUserByEmail(email)
 	switch {
 	case err != nil:
 		return nil, "", err
@@ -86,7 +85,7 @@ func (us *UserService) Login(email, password string) (user *models.User, session
 func (us *UserService) DeleteSession(token string) error {
 	tokenHash := utils.HashSessionToken(token)
 
-	return us.sessionDbRepo.DeleteByTokenHash(tokenHash)
+	return us.dbRepo.DeleteSessionByTokenHash(tokenHash)
 }
 
 func (us *UserService) hashedPassword(password string) (hashedPassword string, err error) {
@@ -114,5 +113,5 @@ func (us *UserService) createSession(userId uuid.UUID) (*models.Session, error) 
 		TokenHash: utils.HashSessionToken(token),
 	}
 
-	return us.sessionDbRepo.Create(newSession)
+	return us.dbRepo.CreateSession(newSession)
 }

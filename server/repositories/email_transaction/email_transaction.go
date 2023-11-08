@@ -1,4 +1,4 @@
-package repositories
+package email_transaction_repo
 
 import (
 	"fmt"

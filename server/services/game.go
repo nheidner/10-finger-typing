@@ -3,6 +3,7 @@ package services
 import (
 	"10-typing/models"
 	"10-typing/repositories"
+	redisrepo "10-typing/repositories/redis"
 	"context"
 	"errors"
 	"log"
@@ -18,26 +19,22 @@ const (
 )
 
 type GameService struct {
-	gameRedisRepo       *repositories.GameRedisRepository
-	roomStreamRedisRepo *repositories.RoomStreamRedisRepository
-	scoreDbRepo         *repositories.ScoreDbRepository
-	textRedisRepo       *repositories.TextRedisRepository
+	dbRepo    repositories.DBRepository
+	cacheRepo repositories.CacheRepository
 }
 
 func NewGameService(
-	gameRedisRepo *repositories.GameRedisRepository,
-	roomStreamRedisRepo *repositories.RoomStreamRedisRepository,
-	scoreDbRepo *repositories.ScoreDbRepository,
-	textRedisRepo *repositories.TextRedisRepository,
+	dbRepo repositories.DBRepository,
+	cacheRepo repositories.CacheRepository,
 ) *GameService {
-	return &GameService{gameRedisRepo, roomStreamRedisRepo, scoreDbRepo, textRedisRepo}
+	return &GameService{dbRepo, cacheRepo}
 }
 
 func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
 	var ctx = context.Background()
 
 	// validate
-	textExists, err := gs.textRedisRepo.TextExists(ctx, textId)
+	textExists, err := gs.cacheRepo.TextExists(ctx, textId)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -45,7 +42,7 @@ func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid
 		return uuid.Nil, errors.New("text does not exist")
 	}
 
-	currentGameStatus, err := gs.gameRedisRepo.GetCurrentGameStatus(ctx, roomId)
+	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -56,7 +53,7 @@ func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid
 
 	var gameId = uuid.New()
 
-	if err := gs.gameRedisRepo.SetNewCurrentGameInRedis(ctx, gameId, textId, roomId, userId); err != nil {
+	if err := gs.cacheRepo.SetNewCurrentGame(ctx, gameId, textId, roomId, userId); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -74,7 +71,7 @@ func (gs *GameService) UserFinishesGame(
 	var ctx = context.Background()
 
 	// check if game status is not already finished
-	currentGameStatus, err := gs.gameRedisRepo.GetCurrentGameStatus(ctx, roomId)
+	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	switch {
 	case err != nil:
 		log.Println("error setting current game status: ", err)
@@ -85,7 +82,7 @@ func (gs *GameService) UserFinishesGame(
 	}
 
 	// get game id
-	gameId, err := gs.gameRedisRepo.GetCurrentGameId(ctx, roomId)
+	gameId, err := gs.cacheRepo.GetCurrentGameId(ctx, roomId)
 	if err != nil {
 		log.Println("error when getting current game id from redis: ", err)
 		return err
@@ -106,14 +103,14 @@ func (gs *GameService) UserFinishesGame(
 		TextId:       textId,
 	}
 
-	_, err = gs.scoreDbRepo.Create(newScore)
+	_, err = gs.dbRepo.CreateScore(newScore)
 	if err != nil {
 		log.Println("error when creating a new score: ", err)
 		return err
 	}
 
 	// post action on stream
-	err = gs.roomStreamRedisRepo.PublishAction(ctx, roomId, models.GameUserScoreAction)
+	err = gs.cacheRepo.PublishAction(ctx, roomId, models.GameUserScoreAction)
 	if err != nil {
 		log.Println("error when publishing the game user score action: ", err)
 		return err
@@ -125,7 +122,7 @@ func (gs *GameService) UserFinishesGame(
 func (gs *GameService) AddUserToGame(roomId, userId uuid.UUID) error {
 	var ctx = context.Background()
 
-	currentGameStatus, err := gs.gameRedisRepo.GetCurrentGameStatus(ctx, roomId)
+	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	if err != nil {
 		return err
 	}
@@ -134,7 +131,7 @@ func (gs *GameService) AddUserToGame(roomId, userId uuid.UUID) error {
 		return err
 	}
 
-	err = gs.gameRedisRepo.AddGameUserInRedis(ctx, roomId, userId)
+	err = gs.cacheRepo.SetGameUser(ctx, roomId, userId)
 	if err != nil {
 		return err
 	}
@@ -145,26 +142,26 @@ func (gs *GameService) AddUserToGame(roomId, userId uuid.UUID) error {
 func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 	var ctx = context.Background()
 
-	numberGameUsers, err := gs.gameRedisRepo.GetCurrentGameUsersNumber(ctx, roomId)
+	numberGameUsers, err := gs.cacheRepo.GetCurrentGameUsersNumber(ctx, roomId)
 	if err != nil {
 		return err
 	}
 
 	if numberGameUsers == 2 {
 		// start countdown
-		err := gs.gameRedisRepo.SetCurrentGameStatusInRedis(ctx, roomId, models.CountdownGameStatus)
+		err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.CountdownGameStatus)
 		if err != nil {
 			return err
 		}
 
-		countdownPushMessage := repositories.PushMessage{
+		countdownPushMessage := redisrepo.PushMessage{
 			Type: models.CountdownStart,
 			Payload: map[string]any{
 				"duration": countdownDurationSeconds,
 			},
 		}
 
-		err = gs.roomStreamRedisRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
+		err = gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
 		if err != nil {
 			return err
 		}
@@ -183,7 +180,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 	var ctx = context.Background()
 
-	numberGameUsers, err := gs.gameRedisRepo.GetCurrentGameUsersNumber(ctx, roomId)
+	numberGameUsers, err := gs.cacheRepo.GetCurrentGameUsersNumber(ctx, roomId)
 	if err != nil {
 		return errors.New("error getting current game users:" + err.Error())
 	}
@@ -201,17 +198,17 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 	}
 
 	// set game status to Finished
-	err = gs.gameRedisRepo.SetCurrentGameStatusInRedis(ctx, roomId, models.FinishedGameStatus)
+	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
 	if err != nil {
 		return errors.New("error setting game status to finished:" + err.Error())
 	}
 
-	gameId, err := gs.gameRedisRepo.GetCurrentGameId(ctx, roomId)
+	gameId, err := gs.cacheRepo.GetCurrentGameId(ctx, roomId)
 	if err != nil {
 		return errors.New("error when getting current game id from redis: " + err.Error())
 	}
 
-	scores, err := gs.scoreDbRepo.FindScores(
+	scores, err := gs.dbRepo.FindScores(
 		uuid.Nil, gameId,
 		"",
 		[]models.SortOption{{Column: "words_per_minute", Order: "desc"}},
@@ -220,12 +217,12 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 	if err != nil {
 		return errors.New("error findind scores:" + err.Error())
 	}
-	scorePushMessage := repositories.PushMessage{
+	scorePushMessage := redisrepo.PushMessage{
 		Type:    models.GameScores,
 		Payload: scores,
 	}
 
-	return gs.roomStreamRedisRepo.PublishPushMessage(ctx, roomId, scorePushMessage)
+	return gs.cacheRepo.PublishPushMessage(ctx, roomId, scorePushMessage)
 }
 
 func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber int, roomId uuid.UUID) <-chan struct{} {
@@ -233,7 +230,7 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 
 	go func() {
 		defer close(allReceived)
-		actionCh, errCh := gs.roomStreamRedisRepo.GetAction(ctx, roomId, time.Time{})
+		actionCh, errCh := gs.cacheRepo.GetAction(ctx, roomId, time.Time{})
 
 		for resultsCount := 0; resultsCount < playersNumber; {
 			select {

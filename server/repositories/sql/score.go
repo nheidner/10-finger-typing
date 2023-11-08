@@ -1,26 +1,23 @@
-package repositories
+package sql_repo
 
 import (
 	"10-typing/models"
 	"errors"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-type ScoreDbRepository struct {
-	db *gorm.DB
+type ScoreDBRepository interface {
+	FindScores(userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error)
+	CreateScore(score models.Score) (*models.Score, error)
+	DeleteAllScores() error
 }
 
-func NewScoreDbRepository(db *gorm.DB) *ScoreDbRepository {
-	return &ScoreDbRepository{db}
-}
-
-func (sr *ScoreDbRepository) FindScores(userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error) {
+func (repo *SQLRepository) FindScores(userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error) {
 	var scores []models.Score
 
-	findScoresDbQuery := sr.db
+	findScoresDbQuery := repo.db
 	if userId != uuid.Nil {
 		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", userId)
 	}
@@ -48,14 +45,14 @@ func (sr *ScoreDbRepository) FindScores(userId, gameId uuid.UUID, username strin
 	return scores, nil
 }
 
-func (sr *ScoreDbRepository) Create(score models.Score) (*models.Score, error) {
+func (repo *SQLRepository) CreateScore(score models.Score) (*models.Score, error) {
 	omittedFiels := []string{"WordsPerMinute", "Accuracy"}
 
 	if score.GameId == uuid.Nil {
 		omittedFiels = append(omittedFiels, "GameId")
 	}
 
-	createResult := sr.db.
+	createResult := repo.db.
 		Omit(omittedFiels...).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
@@ -79,6 +76,6 @@ func (sr *ScoreDbRepository) Create(score models.Score) (*models.Score, error) {
 	return &score, nil
 }
 
-func (sr *ScoreDbRepository) DeleteAll() error {
-	return sr.db.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error
+func (repo *SQLRepository) DeleteAllScores() error {
+	return repo.db.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthRequired(userDbRepo *repositories.UserDbRepository) func(c *gin.Context) {
+func AuthRequired(dbRepo repositories.DBRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		token, err := utils.ReadCookie(c.Request, models.CookieSession)
 		if err != nil {
@@ -20,7 +20,7 @@ func AuthRequired(userDbRepo *repositories.UserDbRepository) func(c *gin.Context
 		}
 
 		tokenHash := utils.HashSessionToken(token)
-		user, err := userDbRepo.FindUserByValidSessionTokenHash(tokenHash)
+		user, err := dbRepo.FindUserByValidSessionTokenHash(tokenHash)
 
 		if user == nil || err != nil {
 			log.Println("User related to session cookie could not be found", err)

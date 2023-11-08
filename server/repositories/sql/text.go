@@ -1,4 +1,4 @@
-package repositories
+package sql_repo
 
 import (
 	"10-typing/models"
@@ -8,21 +8,13 @@ import (
 	"gorm.io/gorm"
 )
 
-type TextDbRepository struct {
-	db *gorm.DB
-}
-
-func NewTextDbRepository(db *gorm.DB) *TextDbRepository {
-	return &TextDbRepository{db}
-}
-
 // returns nil for *models.Text and nil for error when no record could be found
-func (tr *TextDbRepository) FindNewTextByUserId(
+func (repo *SQLRepository) FindNewTextByUserId(
 	userId uuid.UUID, language string,
 	punctuation bool,
 	specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
 ) (*models.Text, error) {
-	result := tr.db.
+	result := repo.db.
 		Joins("LEFT JOIN scores s1 ON texts.id = s1.text_id").
 		Joins("LEFT JOIN scores s2 ON s1.text_id = s2.text_id AND s2.user_id = ?", userId).
 		Where("s2.text_id IS NULL").
@@ -58,8 +50,8 @@ func (tr *TextDbRepository) FindNewTextByUserId(
 	return &text, nil
 }
 
-func (tr *TextDbRepository) Create(text models.Text) (*models.Text, error) {
-	createResult := tr.db.Create(&text)
+func (repo *SQLRepository) CreateText(text models.Text) (*models.Text, error) {
+	createResult := repo.db.Create(&text)
 	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
 		return nil, createResult.Error
 	}
@@ -67,16 +59,16 @@ func (tr *TextDbRepository) Create(text models.Text) (*models.Text, error) {
 	return &text, nil
 }
 
-func (tr *TextDbRepository) GetAllTextIds() ([]uuid.UUID, error) {
+func (repo *SQLRepository) FindAllTextIds() ([]uuid.UUID, error) {
 	var textIds []uuid.UUID
 
-	if err := tr.db.Model(&models.Text{}).Pluck("id", &textIds).Error; err != nil {
+	if err := repo.db.Model(&models.Text{}).Pluck("id", &textIds).Error; err != nil {
 		return nil, err
 	}
 
 	return textIds, nil
 }
 
-func (tr *TextDbRepository) DeleteAll() error {
-	return tr.db.Exec("TRUNCATE texts RESTART IDENTITY CASCADE").Error
+func (repo *SQLRepository) DeleteAllTexts() error {
+	return repo.db.Exec("TRUNCATE texts RESTART IDENTITY CASCADE").Error
 }

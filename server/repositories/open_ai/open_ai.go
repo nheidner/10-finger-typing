@@ -1,4 +1,4 @@
-package repositories
+package open_ai_repo
 
 import (
 	"bytes"

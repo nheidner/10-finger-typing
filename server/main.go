@@ -3,9 +3,12 @@ package main
 import (
 	"10-typing/controllers"
 	"10-typing/middlewares"
+	email_transaction_repo "10-typing/repositories/email_transaction"
+	open_ai_repo "10-typing/repositories/open_ai"
+	redis_repo "10-typing/repositories/redis"
+	sql_repo "10-typing/repositories/sql"
 
 	"10-typing/models"
-	"10-typing/repositories"
 	"10-typing/services"
 	"os"
 	"time"
@@ -30,27 +33,17 @@ func main() {
 	}
 
 	// Setup repos
-	emailTransactionRepo := repositories.NewEmailTransactionRepository(os.Getenv("POSTMARK_API_KEY"))
-	gameRedisRepo := repositories.NewGameRedisRepository(models.RedisClient)
-	openAiRepo := repositories.NewOpenAiRepository(os.Getenv("OPENAI_API_KEY"))
-	roomDbRepo := repositories.NewRoomDbRepository(models.DB)
-	roomRedisRepo := repositories.NewRoomRedisRepository(models.RedisClient)
-	roomStreamRedisRepo := repositories.NewRoomStreamRedisRepository(models.RedisClient)
-	roomSubscriberRedisRepo := repositories.NewRoomSubscriberRedisRepository(models.RedisClient)
-	scoreDbRepo := repositories.NewScoreDbRepository(models.DB)
-	sessionDbRepo := repositories.NewSessionDbRepository(models.DB)
-	textDbRepo := repositories.NewTextDbRepository(models.DB)
-	textRedisRepo := repositories.NewTextRedisRepository(models.RedisClient)
-	tokenDbRepo := repositories.NewTokenDbRepository(models.DB)
-	userDbRepo := repositories.NewUserDbRepository(models.DB)
-	userRoomDbRepo := repositories.NewUserRoomDbRepository(models.DB)
+	dbRepo := sql_repo.NewSQLRepository(models.DB)
+	cacheRepo := redis_repo.NewRedisRepository(models.RedisClient)
+	emailTransactionRepo := email_transaction_repo.NewEmailTransactionRepository(os.Getenv("POSTMARK_API_KEY"))
+	openAiRepo := open_ai_repo.NewOpenAiRepository(os.Getenv("OPENAI_API_KEY"))
 
 	// Setup services
-	gameService := services.NewGameService(gameRedisRepo, roomStreamRedisRepo, scoreDbRepo, textRedisRepo)
-	roomService := services.NewRoomService(roomDbRepo, roomRedisRepo, userRoomDbRepo, roomStreamRedisRepo, roomSubscriberRedisRepo, userDbRepo, tokenDbRepo, emailTransactionRepo, gameRedisRepo)
-	scoreService := services.NewScoreService(scoreDbRepo)
-	textService := services.NewTextService(textDbRepo, textRedisRepo, openAiRepo)
-	userService := services.NewUserService(userDbRepo, sessionDbRepo, 32)
+	gameService := services.NewGameService(dbRepo, cacheRepo)
+	roomService := services.NewRoomService(dbRepo, cacheRepo, emailTransactionRepo)
+	scoreService := services.NewScoreService(dbRepo)
+	textService := services.NewTextService(dbRepo, cacheRepo, openAiRepo)
+	userService := services.NewUserService(dbRepo, 32)
 
 	// Setup controllers
 	gameController := controllers.NewGameController(gameService)
@@ -69,7 +62,7 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	authRequiredMiddleware := middlewares.AuthRequired(userDbRepo)
+	authRequiredMiddleware := middlewares.AuthRequired(dbRepo)
 
 	// USERS
 	api.GET("/users", authRequiredMiddleware, userController.FindUsers)
@@ -92,15 +85,15 @@ func main() {
 	api.POST("/texts", authRequiredMiddleware, textController.CreateText)
 
 	// ROOMS
-	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, middlewares.IsRoomMember(roomRedisRepo), roomController.ConnectToRoom)
+	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, middlewares.IsRoomMember(cacheRepo), roomController.ConnectToRoom)
 	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
-	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, middlewares.IsRoomMember(roomRedisRepo), roomController.LeaveRoom)
-	api.POST("/rooms/:roomid/games", authRequiredMiddleware, middlewares.IsRoomAdmin(roomRedisRepo), gameController.CreateGame)
-	api.POST("/rooms/:roomid/start_game", authRequiredMiddleware, middlewares.IsRoomMember(roomRedisRepo), gameController.StartGame)
+	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, middlewares.IsRoomMember(cacheRepo), roomController.LeaveRoom)
+	api.POST("/rooms/:roomid/games", authRequiredMiddleware, middlewares.IsRoomAdmin(cacheRepo), gameController.CreateGame)
+	api.POST("/rooms/:roomid/start_game", authRequiredMiddleware, middlewares.IsRoomMember(cacheRepo), gameController.StartGame)
 	api.POST("/rooms/:roomid/game/score",
 		authRequiredMiddleware,
-		middlewares.IsRoomMember(roomRedisRepo),
-		middlewares.IsCurrentGameUser(gameRedisRepo),
+		middlewares.IsRoomMember(cacheRepo),
+		middlewares.IsCurrentGameUser(cacheRepo),
 		gameController.FinishGame,
 	)
 

@@ -2,7 +2,9 @@ package main
 
 import (
 	"10-typing/models"
-	"10-typing/repositories"
+	open_ai_repo "10-typing/repositories/open_ai"
+	redis_repo "10-typing/repositories/redis"
+	sql_repo "10-typing/repositories/sql"
 	"10-typing/services"
 	"errors"
 	"fmt"
@@ -21,16 +23,13 @@ var (
 )
 
 func init() {
-	userDbRepo := repositories.NewUserDbRepository(models.DB)
-	sessionDbRepo := repositories.NewSessionDbRepository(models.DB)
-	scoreDbRepo := repositories.NewScoreDbRepository(models.DB)
-	textDbRepo := repositories.NewTextDbRepository(models.DB)
-	textRedisRepo := repositories.NewTextRedisRepository(models.RedisClient)
-	openAiRepo := repositories.NewOpenAiRepository("")
+	cacheRepo := redis_repo.NewRedisRepository(models.RedisClient)
+	dbRepo := sql_repo.NewSQLRepository(models.DB)
+	openAiRepo := open_ai_repo.NewOpenAiRepository("")
 
-	userService = services.NewUserService(userDbRepo, sessionDbRepo, 32)
-	scoreService = services.NewScoreService(scoreDbRepo)
-	textService = services.NewTextService(textDbRepo, textRedisRepo, openAiRepo)
+	userService = services.NewUserService(dbRepo, 32)
+	scoreService = services.NewScoreService(dbRepo)
+	textService = services.NewTextService(dbRepo, cacheRepo, openAiRepo)
 }
 
 func main() {

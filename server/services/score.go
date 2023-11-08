@@ -8,11 +8,11 @@ import (
 )
 
 type ScoreService struct {
-	scoreRepo *repositories.ScoreDbRepository
+	dbRepo repositories.DBRepository
 }
 
-func NewScoreService(scoreRepo *repositories.ScoreDbRepository) *ScoreService {
-	return &ScoreService{scoreRepo}
+func NewScoreService(dbRepo repositories.DBRepository) *ScoreService {
+	return &ScoreService{dbRepo}
 }
 
 func (ss *ScoreService) Create(
@@ -36,7 +36,7 @@ func (ss *ScoreService) Create(
 		TextId:       textId,
 	}
 
-	return ss.scoreRepo.Create(newScore)
+	return ss.dbRepo.CreateScore(newScore)
 }
 
 func (ss *ScoreService) FindScores(
@@ -44,5 +44,5 @@ func (ss *ScoreService) FindScores(
 	username string,
 	sortOptions []models.SortOption,
 ) ([]models.Score, error) {
-	return ss.scoreRepo.FindScores(userId, gameId, username, sortOptions)
+	return ss.dbRepo.FindScores(userId, gameId, username, sortOptions)
 }

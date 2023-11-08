@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func IsRoomAdmin(roomRedisRepo *repositories.RoomRedisRepository) func(c *gin.Context) {
+func IsRoomAdmin(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
@@ -26,7 +26,7 @@ func IsRoomAdmin(roomRedisRepo *repositories.RoomRedisRepository) func(c *gin.Co
 			return
 		}
 
-		isAdmin, err := roomRedisRepo.RoomHasAdmin(context.Background(), roomId, user.ID)
+		isAdmin, err := cacheRepo.RoomHasAdmin(context.Background(), roomId, user.ID)
 		if err != nil {
 			log.Println(err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
@@ -43,7 +43,7 @@ func IsRoomAdmin(roomRedisRepo *repositories.RoomRedisRepository) func(c *gin.Co
 	}
 }
 
-func IsRoomMember(roomRedisRepo *repositories.RoomRedisRepository) func(c *gin.Context) {
+func IsRoomMember(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
@@ -59,7 +59,7 @@ func IsRoomMember(roomRedisRepo *repositories.RoomRedisRepository) func(c *gin.C
 			return
 		}
 
-		isRoomMember, err := roomRedisRepo.RoomHasSubscribers(context.Background(), roomId, user.ID)
+		isRoomMember, err := cacheRepo.RoomHasSubscribers(context.Background(), roomId, user.ID)
 		if err != nil {
 			log.Println(err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})

@@ -1,4 +1,4 @@
-package repositories
+package redis_repo
 
 import (
 	"10-typing/models"
@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -23,18 +22,10 @@ func getRoomKey(roomId uuid.UUID) string {
 	return "rooms:" + roomId.String()
 }
 
-type RoomRedisRepository struct {
-	redisClient *redis.Client
-}
-
-func NewRoomRedisRepository(redisClient *redis.Client) *RoomRedisRepository {
-	return &RoomRedisRepository{redisClient}
-}
-
-func (rr *RoomRedisRepository) FindInRedis(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
+func (repo *RedisRepository) GetRoom(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
 	roomKey := getRoomKey(roomId)
 
-	roomData, err := rr.redisClient.HGetAll(ctx, roomKey).Result()
+	roomData, err := repo.redisClient.HGetAll(ctx, roomKey).Result()
 	switch {
 	case err != nil:
 		return nil, err
@@ -43,7 +34,7 @@ func (rr *RoomRedisRepository) FindInRedis(ctx context.Context, roomId uuid.UUID
 	}
 
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
-	roomSubscriberIds, err := rr.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
+	roomSubscriberIds, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +53,7 @@ func (rr *RoomRedisRepository) FindInRedis(ctx context.Context, roomId uuid.UUID
 
 		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
 
-		roomSubscriber, err := rr.redisClient.HGetAll(ctx, roomSubscriberKey).Result()
+		roomSubscriber, err := repo.redisClient.HGetAll(ctx, roomSubscriberKey).Result()
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +90,7 @@ func (rr *RoomRedisRepository) FindInRedis(ctx context.Context, roomId uuid.UUID
 	}, nil
 }
 
-func (rr *RoomRedisRepository) CreateRoomInRedis(ctx context.Context, room models.Room) error {
+func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) error {
 	// add room
 	roomKey := getRoomKey(room.ID)
 	roomValue := map[string]any{
@@ -107,7 +98,7 @@ func (rr *RoomRedisRepository) CreateRoomInRedis(ctx context.Context, room model
 		roomCreatedAtField: room.CreatedAt.UnixMilli(),
 		roomUpdatedAtField: room.UpdatedAt.UnixMilli(),
 	}
-	if err := rr.redisClient.HSet(ctx, roomKey, roomValue).Err(); err != nil {
+	if err := repo.redisClient.HSet(ctx, roomKey, roomValue).Err(); err != nil {
 		return err
 	}
 
@@ -118,7 +109,7 @@ func (rr *RoomRedisRepository) CreateRoomInRedis(ctx context.Context, room model
 		roomSubscriberIdsValue = append(roomSubscriberIdsValue, subscriber.ID.String())
 	}
 
-	if err := rr.redisClient.SAdd(ctx, roomSubscriberIdsKey, roomSubscriberIdsValue).Err(); err != nil {
+	if err := repo.redisClient.SAdd(ctx, roomSubscriberIdsKey, roomSubscriberIdsValue).Err(); err != nil {
 		return err
 	}
 
@@ -131,7 +122,7 @@ func (rr *RoomRedisRepository) CreateRoomInRedis(ctx context.Context, room model
 			roomSubscriberGameStatusField: strconv.Itoa(int(models.NilSubscriberGameStatus)),
 		}
 
-		if err := rr.redisClient.HSet(ctx, roomSubscriberKey, roomSubscriberValue).Err(); err != nil {
+		if err := repo.redisClient.HSet(ctx, roomSubscriberKey, roomSubscriberValue).Err(); err != nil {
 			log.Println(err)
 			return err
 		}
@@ -140,10 +131,10 @@ func (rr *RoomRedisRepository) CreateRoomInRedis(ctx context.Context, room model
 	return nil
 }
 
-func (rr *RoomRedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
+func (repo *RedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
 	roomKey := getRoomKey(roomId)
 
-	r, err := rr.redisClient.HGet(ctx, roomKey, roomAdminIdField).Result()
+	r, err := repo.redisClient.HGet(ctx, roomKey, roomAdminIdField).Result()
 	if err != nil {
 		return false, err
 	}
@@ -151,7 +142,7 @@ func (rr *RoomRedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId
 	return r == adminId.String(), nil
 }
 
-func (rr *RoomRedisRepository) RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error) {
+func (repo *RedisRepository) RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error) {
 	if len(userIds) == 0 {
 		return false, fmt.Errorf("at least one user id must be specified")
 	}
@@ -164,26 +155,26 @@ func (rr *RoomRedisRepository) RoomHasSubscribers(ctx context.Context, roomId uu
 		userIdStrs = append(userIdStrs, userId.String())
 	}
 
-	if err := rr.redisClient.SAdd(ctx, tempUserIdsKey, userIdStrs...).Err(); err != nil {
+	if err := repo.redisClient.SAdd(ctx, tempUserIdsKey, userIdStrs...).Err(); err != nil {
 		return false, err
 	}
 
-	r, err := rr.redisClient.SInter(ctx, roomSubscriberIds, tempUserIdsKey).Result()
+	r, err := repo.redisClient.SInter(ctx, roomSubscriberIds, tempUserIdsKey).Result()
 	if err != nil {
 		return false, err
 	}
 
-	if err := rr.redisClient.Del(ctx, tempUserIdsKey).Err(); err != nil {
+	if err := repo.redisClient.Del(ctx, tempUserIdsKey).Err(); err != nil {
 		return false, err
 	}
 
 	return len(r) == len(userIds), nil
 }
 
-func (rr *RoomRedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID) (bool, error) {
+func (repo *RedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID) (bool, error) {
 	roomKey := getRoomKey(roomId)
 
-	r, err := rr.redisClient.Exists(ctx, roomKey).Result()
+	r, err := repo.redisClient.Exists(ctx, roomKey).Result()
 	if err != nil {
 		return false, err
 	}
@@ -191,29 +182,29 @@ func (rr *RoomRedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID)
 	return r > 0, nil
 }
 
-func (rr *RoomRedisRepository) DeleteRoomFromRedis(ctx context.Context, roomId uuid.UUID) error {
+func (repo *RedisRepository) DeleteRoomFromRedis(ctx context.Context, roomId uuid.UUID) error {
 	roomKey := getRoomKey(roomId)
 
 	pattern := roomKey + "*"
-	iter := rr.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+	iter := repo.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
 
 	for iter.Next(ctx) {
 		key := iter.Val()
 
-		rr.redisClient.Del(ctx, key)
+		repo.redisClient.Del(ctx, key)
 	}
 
 	return iter.Err()
 }
 
-func (rr *RoomRedisRepository) DeleteAllFromRedis(ctx context.Context) error {
+func (repo *RedisRepository) DeleteAllRoomsFromRedis(ctx context.Context) error {
 	pattern := "rooms:*"
 
-	iter := rr.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+	iter := repo.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
 	for iter.Next(ctx) {
 		key := iter.Val()
 
-		rr.redisClient.Del(ctx, key)
+		repo.redisClient.Del(ctx, key)
 
 		return iter.Err()
 	}

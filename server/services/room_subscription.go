@@ -11,44 +11,41 @@ import (
 )
 
 type roomSubscription struct {
-	connectionId            uuid.UUID
-	roomId                  uuid.UUID
-	userId                  uuid.UUID
-	conn                    *websocket.Conn
-	roomSubscriberRedisRepo *repositories.RoomSubscriberRedisRepository
-	roomStreamRedisRepo     *repositories.RoomStreamRedisRepository
+	connectionId uuid.UUID
+	roomId       uuid.UUID
+	userId       uuid.UUID
+	conn         *websocket.Conn
+	cacheRepo    repositories.CacheRepository
 }
 
 func newRoomSubscription(
 	conn *websocket.Conn, roomId, userId uuid.UUID,
-	roomSubscriberRedisRepo *repositories.RoomSubscriberRedisRepository,
-	roomStreamRedisRepo *repositories.RoomStreamRedisRepository,
+	cacheRepo repositories.CacheRepository,
 ) *roomSubscription {
 	roomSubscriptionConnectionId := uuid.New()
 
 	return &roomSubscription{
-		connectionId:            roomSubscriptionConnectionId,
-		roomId:                  roomId,
-		userId:                  userId,
-		conn:                    conn,
-		roomSubscriberRedisRepo: roomSubscriberRedisRepo,
-		roomStreamRedisRepo:     roomStreamRedisRepo,
+		connectionId: roomSubscriptionConnectionId,
+		roomId:       roomId,
+		userId:       userId,
+		conn:         conn,
+		cacheRepo:    cacheRepo,
 	}
 }
 
 func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
-	err := rs.roomSubscriberRedisRepo.SetRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
+	err := rs.cacheRepo.SetRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
 	if err != nil {
 		return err
 	}
 
-	return rs.roomSubscriberRedisRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus)
+	return rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus)
 }
 
 func (rs *roomSubscription) close(ctx context.Context) error {
-	rs.roomSubscriberRedisRepo.RemoveRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
+	rs.cacheRepo.DeleteRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
 
-	err := rs.roomSubscriberRedisRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.InactiveSubscriberStatus)
+	err := rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.InactiveSubscriberStatus)
 	if err != nil {
 		return err
 	}
@@ -57,7 +54,7 @@ func (rs *roomSubscription) close(ctx context.Context) error {
 }
 
 func (rs *roomSubscription) subscribe(ctx context.Context, startTimestamp time.Time) error {
-	messagesCh, errCh := rs.roomStreamRedisRepo.GetPushMessages(ctx, rs.roomId, startTimestamp)
+	messagesCh, errCh := rs.cacheRepo.GetPushMessages(ctx, rs.roomId, startTimestamp)
 
 	for {
 		select {

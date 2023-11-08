@@ -14,56 +14,38 @@ import (
 )
 
 type RoomService struct {
-	roomDbRepo              *repositories.RoomDbRepository
-	roomRedisRepo           *repositories.RoomRedisRepository
-	userRoomDbRepo          *repositories.UserRoomDbRepository
-	roomStreamRedisRepo     *repositories.RoomStreamRedisRepository
-	roomSubscriberRedisRepo *repositories.RoomSubscriberRedisRepository
-	userDbRepo              *repositories.UserDbRepository
-	tokenDbRepo             *repositories.TokenDbRepository
-	emailTransactionRepo    *repositories.EmailTransactionRepository
-	gameRedisRpo            *repositories.GameRedisRepository
+	dbRepo               repositories.DBRepository
+	cacheRepo            repositories.CacheRepository
+	emailTransactionRepo repositories.EmailTransactionRepository
 }
 
 func NewRoomService(
-	roomDbRepo *repositories.RoomDbRepository,
-	roomRedisRepo *repositories.RoomRedisRepository,
-	userRoomDbRepo *repositories.UserRoomDbRepository,
-	roomStreamRedisRepo *repositories.RoomStreamRedisRepository,
-	roomSubscriberRedisRepo *repositories.RoomSubscriberRedisRepository,
-	userDbRepo *repositories.UserDbRepository,
-	tokenDbRepo *repositories.TokenDbRepository,
-	emailTransactionRepo *repositories.EmailTransactionRepository,
-	gameRedisRpo *repositories.GameRedisRepository,
+	dbRepo repositories.DBRepository,
+	cacheRepo repositories.CacheRepository,
+	emailTransactionRepo repositories.EmailTransactionRepository,
 ) *RoomService {
 	return &RoomService{
-		roomDbRepo,
-		roomRedisRepo,
-		userRoomDbRepo,
-		roomStreamRedisRepo,
-		roomSubscriberRedisRepo,
-		userDbRepo,
-		tokenDbRepo,
+		dbRepo,
+		cacheRepo,
 		emailTransactionRepo,
-		gameRedisRpo,
 	}
 }
 
 func (rs *RoomService) Find(roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
 	var ctx = context.Background()
 
-	room, err := rs.roomRedisRepo.FindInRedis(ctx, roomId, userId)
+	room, err := rs.cacheRepo.GetRoom(ctx, roomId, userId)
 	if err != nil {
 		return nil, err
 	}
 
 	if room == nil {
-		room, err = rs.roomDbRepo.FindInDb(roomId, userId)
+		room, err = rs.dbRepo.FindRoomByUser(roomId, userId)
 		if err != nil {
 			return nil, err
 		}
 
-		if err = rs.roomRedisRepo.CreateRoomInRedis(ctx, *room); err != nil {
+		if err = rs.cacheRepo.SetRoom(ctx, *room); err != nil {
 			// no error should be returned
 			log.Println(err)
 		}
@@ -98,7 +80,7 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, authenti
 	var allEmails []string
 
 	for _, email := range emails {
-		user, err := rs.userDbRepo.FindByEmail(email)
+		user, err := rs.dbRepo.FindUserByEmail(email)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +101,7 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, authenti
 
 	// create tokens and send invites to non registered users
 	for _, email := range emails {
-		token, err := rs.tokenDbRepo.Create(room.ID)
+		token, err := rs.dbRepo.CreateToken(room.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -146,24 +128,24 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, authenti
 }
 
 func (rs *RoomService) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
-	if err := rs.roomDbRepo.SoftDeleteRoomFromDB(roomId); err != nil {
+	if err := rs.dbRepo.SoftDeleteRoom(roomId); err != nil {
 		return err
 	}
 
-	return rs.roomRedisRepo.DeleteRoomFromRedis(ctx, roomId)
+	return rs.cacheRepo.DeleteRoomFromRedis(ctx, roomId)
 }
 
 func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 	var ctx = context.Background()
 
-	isAdmin, err := rs.roomRedisRepo.RoomHasAdmin(ctx, roomId, userId)
+	isAdmin, err := rs.cacheRepo.RoomHasAdmin(ctx, roomId, userId)
 	if err != nil {
 		return err
 	}
 
 	if isAdmin {
 		// first need to send terminate action message so that all websocket that remained connected, disconnect
-		if err := rs.roomStreamRedisRepo.PublishAction(ctx, roomId, models.TerminateAction); err != nil {
+		if err := rs.cacheRepo.PublishAction(ctx, roomId, models.TerminateAction); err != nil {
 			log.Println("terminate action failed:", err)
 			return err
 		}
@@ -176,7 +158,7 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 		return nil
 	}
 
-	if err = rs.roomSubscriberRedisRepo.RemoveRoomSubscriber(ctx, roomId, userId); err != nil {
+	if err = rs.cacheRepo.DeleteRoomSubscriber(ctx, roomId, userId); err != nil {
 		log.Println("failed to remove room subscriber:", err)
 		return err
 	}
@@ -187,7 +169,7 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *websocket.Conn, timeStamp time.Time) error {
 	var ctx = context.Background()
 
-	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.roomSubscriberRedisRepo, rs.roomStreamRedisRepo)
+	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.cacheRepo)
 	defer roomSubscription.close(ctx)
 
 	err := roomSubscription.initRoomSubscriber(ctx)
@@ -196,13 +178,13 @@ func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *we
 		return err
 	}
 
-	existingRoomSubscribers, err := rs.roomSubscriberRedisRepo.GetRoomSubscribers(ctx, room.ID)
+	existingRoomSubscribers, err := rs.cacheRepo.GetRoomSubscribers(ctx, room.ID)
 	if err != nil {
 		log.Println("Failed to get room subscribers:", err)
 		return err
 	}
 
-	currentGame, err := rs.gameRedisRpo.GetCurrentGameFromRedis(ctx, room.ID)
+	currentGame, err := rs.cacheRepo.GetCurrentGame(ctx, room.ID)
 	if err != nil {
 		log.Println("Failed to get current room:", err)
 		return err
@@ -230,23 +212,23 @@ func (rs *RoomService) createRoomWithSubscribers(userIds []uuid.UUID, emails []s
 		AdminId: adminId,
 	}
 
-	if err := rs.roomDbRepo.Create(newRoom); err != nil {
+	if err := rs.dbRepo.CreateRoom(newRoom); err != nil {
 		return nil, err
 	}
 
 	// room subscribers
 	for _, userId := range userIds {
-		if err := rs.userRoomDbRepo.Create(userId, newRoom.ID); err != nil {
+		if err := rs.dbRepo.CreateUserRoom(userId, newRoom.ID); err != nil {
 			return nil, err
 		}
 	}
 
-	newRoom, err := rs.roomDbRepo.FindRoomWithUsers(newRoom.ID)
+	newRoom, err := rs.dbRepo.FindRoom(newRoom.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := rs.roomRedisRepo.CreateRoomInRedis(context.Background(), *newRoom); err != nil {
+	if err := rs.cacheRepo.SetRoom(context.Background(), *newRoom); err != nil {
 		return nil, err
 	}
 

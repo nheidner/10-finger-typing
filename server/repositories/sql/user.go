@@ -1,25 +1,16 @@
-package repositories
+package sql_repo
 
 import (
 	"10-typing/models"
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
-type UserDbRepository struct {
-	db *gorm.DB
-}
-
-func NewUserDbRepository(db *gorm.DB) *UserDbRepository {
-	return &UserDbRepository{db}
-}
-
-func (ur *UserDbRepository) FindByEmail(email string) (*models.User, error) {
+func (repo *SQLRepository) FindUserByEmail(email string) (*models.User, error) {
 	var user models.User
 
-	result := ur.db.Where("email = ?", email).Find(&user)
+	result := repo.db.Where("email = ?", email).Find(&user)
 	switch {
 	case result.Error != nil:
 		return nil, result.Error
@@ -30,9 +21,9 @@ func (ur *UserDbRepository) FindByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
-func (ur *UserDbRepository) FindUsers(username, usernameSubstr string) ([]models.User, error) {
+func (repo *SQLRepository) FindUsers(username, usernameSubstr string) ([]models.User, error) {
 	var users []models.User
-	findUsersDbQuery := ur.db
+	findUsersDbQuery := repo.db
 
 	if username != "" {
 		findUsersDbQuery = findUsersDbQuery.Where("username = ?", username)
@@ -51,12 +42,12 @@ func (ur *UserDbRepository) FindUsers(username, usernameSubstr string) ([]models
 	return users, nil
 }
 
-func (ur *UserDbRepository) FindOneById(userId uuid.UUID) (*models.User, error) {
+func (repo *SQLRepository) FindUserById(userId uuid.UUID) (*models.User, error) {
 	user := models.User{
 		ID: userId,
 	}
 
-	result := ur.db.Find(&user)
+	result := repo.db.Find(&user)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -64,10 +55,10 @@ func (ur *UserDbRepository) FindOneById(userId uuid.UUID) (*models.User, error) 
 	return &user, nil
 }
 
-func (ur *UserDbRepository) FindUserByValidSessionTokenHash(tokenHash string) (*models.User, error) {
+func (repo *SQLRepository) FindUserByValidSessionTokenHash(tokenHash string) (*models.User, error) {
 	var user models.User
 
-	result := ur.db.
+	result := repo.db.
 		Joins("INNER JOIN sessions ON users.id = sessions.user_id").
 		Where("sessions.token_hash = ? AND sessions.created_at > ?", tokenHash, time.Now().Add(-models.SessionDuration*time.Second)).
 		Find(&user)
@@ -82,18 +73,18 @@ func (ur *UserDbRepository) FindUserByValidSessionTokenHash(tokenHash string) (*
 	return &user, nil
 }
 
-func (ur *UserDbRepository) Create(newUser models.User) (*models.User, error) {
-	if err := ur.db.Create(&newUser).Error; err != nil {
+func (repo *SQLRepository) CreateUser(newUser models.User) (*models.User, error) {
+	if err := repo.db.Create(&newUser).Error; err != nil {
 		return nil, err
 	}
 
 	return &newUser, nil
 }
 
-func (ur *UserDbRepository) Verify(userId uuid.UUID) error {
-	return ur.db.Model(&models.User{}).Where("id = ?", userId).Update("is_verified", true).Error
+func (repo *SQLRepository) VerifyUser(userId uuid.UUID) error {
+	return repo.db.Model(&models.User{}).Where("id = ?", userId).Update("is_verified", true).Error
 }
 
-func (ur *UserDbRepository) DeleteAll() error {
-	return ur.db.Exec("TRUNCATE users RESTART IDENTITY CASCADE").Error
+func (repo *SQLRepository) DeleteAllUsers() error {
+	return repo.db.Exec("TRUNCATE users RESTART IDENTITY CASCADE").Error
 }

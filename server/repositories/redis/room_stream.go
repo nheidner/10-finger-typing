@@ -1,4 +1,4 @@
-package repositories
+package redis_repo
 
 import (
 	"10-typing/models"
@@ -30,22 +30,14 @@ type PushMessage struct {
 	Payload any `json:"payload"`
 }
 
-type RoomStreamRedisRepository struct {
-	redisClient *redis.Client
-}
-
-func NewRoomStreamRedisRepository(redisClient *redis.Client) *RoomStreamRedisRepository {
-	return &RoomStreamRedisRepository{redisClient}
-}
-
-func (rsr *RoomStreamRedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage PushMessage) error {
+func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage PushMessage) error {
 	roomStreamKey := getRoomStreamKey(roomId)
 	pushMessageData, err := json.Marshal(pushMessage)
 	if err != nil {
 		return err
 	}
 
-	return rsr.redisClient.XAdd(ctx, &redis.XAddArgs{
+	return repo.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]interface{}{
 			streamEntryTypeField:    strconv.Itoa(int(models.PushMessageStreamEntryType)),
@@ -54,10 +46,10 @@ func (rsr *RoomStreamRedisRepository) PublishPushMessage(ctx context.Context, ro
 	}).Err()
 }
 
-func (rsr *RoomStreamRedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error {
+func (repo *RedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error {
 	roomStreamKey := getRoomStreamKey(roomId)
 
-	return rsr.redisClient.XAdd(ctx, &redis.XAddArgs{
+	return repo.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]string{
 			streamEntryTypeField:   strconv.Itoa(int(models.PushMessageStreamEntryType)),
@@ -66,7 +58,7 @@ func (rsr *RoomStreamRedisRepository) PublishAction(ctx context.Context, roomId 
 	}).Err()
 }
 
-func (rsr *RoomStreamRedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan []byte, <-chan error) {
+func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan []byte, <-chan error) {
 	out := make(chan []byte)
 	errCh := make(chan error)
 
@@ -81,7 +73,7 @@ func (rsr *RoomStreamRedisRepository) GetPushMessages(ctx context.Context, roomI
 		}
 
 		for {
-			r, err := rsr.redisClient.XRead(ctx, &redis.XReadArgs{
+			r, err := repo.redisClient.XRead(ctx, &redis.XReadArgs{
 				Streams: []string{roomStreamKey, id},
 				Count:   1,
 				Block:   0,
@@ -130,7 +122,7 @@ func (rsr *RoomStreamRedisRepository) GetPushMessages(ctx context.Context, roomI
 	return out, errCh
 }
 
-func (rsr *RoomStreamRedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan models.StreamActionType, <-chan error) {
+func (repo *RedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan models.StreamActionType, <-chan error) {
 	out := make(chan models.StreamActionType)
 	errCh := make(chan error)
 
@@ -146,11 +138,11 @@ func (rsr *RoomStreamRedisRepository) GetAction(ctx context.Context, roomId uuid
 
 		for {
 			select {
-			// this does not really work because rsr.redisClient.XRead is blocking and not a channel operation
+			// this does not really work because repo.redisClient.XRead is blocking and not a channel operation
 			case <-ctx.Done():
 				return
 			default:
-				r, err := rsr.redisClient.XRead(ctx, &redis.XReadArgs{
+				r, err := repo.redisClient.XRead(ctx, &redis.XReadArgs{
 					Streams: []string{roomStreamKey, id},
 					Count:   1,
 					Block:   0,

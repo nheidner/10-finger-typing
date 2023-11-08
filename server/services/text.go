@@ -9,13 +9,13 @@ import (
 )
 
 type TextService struct {
-	textDbRepo    *repositories.TextDbRepository
-	textRedisRepo *repositories.TextRedisRepository
-	openAiRepo    *repositories.OpenAiRepository
+	dbRepo     repositories.DBRepository
+	cacheRepo  repositories.CacheRepository
+	openAiRepo repositories.OpenAiRepository
 }
 
-func NewTextService(textDbRepo *repositories.TextDbRepository, textRedisRepo *repositories.TextRedisRepository, openAiRepo *repositories.OpenAiRepository) *TextService {
-	return &TextService{textDbRepo, textRedisRepo, openAiRepo}
+func NewTextService(dbRepo repositories.DBRepository, cacheRepo repositories.CacheRepository, openAiRepo repositories.OpenAiRepository) *TextService {
+	return &TextService{dbRepo, cacheRepo, openAiRepo}
 }
 
 func (ts *TextService) FindNewTextForUser(
@@ -23,7 +23,7 @@ func (ts *TextService) FindNewTextForUser(
 	punctuation bool,
 	specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
 ) (*models.Text, error) {
-	return ts.textDbRepo.FindNewTextByUserId(
+	return ts.dbRepo.FindNewTextByUserId(
 		userId,
 		language,
 		punctuation,
@@ -58,39 +58,39 @@ func (ts *TextService) Create(
 
 	var ctx = context.Background()
 
-	createdText, err := ts.textDbRepo.Create(newText)
+	createdText, err := ts.dbRepo.CreateText(newText)
 	if err != nil {
 		return nil, err
 	}
 
 	// create text in redis and additionally: if no text ids key exists, query all text ids from DB and write them to text ids key
-	allTextsAreInRedis, err := ts.textRedisRepo.AllTextsAreInRedis(ctx)
+	allTextsAreInRedis, err := ts.cacheRepo.AllTextsAreInCache(ctx)
 	switch {
 	case err != nil:
 		return nil, err
 	case !allTextsAreInRedis:
-		allTextIds, err := ts.textDbRepo.GetAllTextIds()
+		allTextIds, err := ts.dbRepo.FindAllTextIds()
 		if err != nil {
 			return nil, err
 		}
 
 		allTextIds = append(allTextIds, createdText.ID)
 
-		err = ts.textRedisRepo.CreateInRedis(ctx, allTextIds...)
+		err = ts.cacheRepo.SetText(ctx, allTextIds...)
 
 		return createdText, err
 	default:
-		err = ts.textRedisRepo.CreateInRedis(ctx, createdText.ID)
+		err = ts.cacheRepo.SetText(ctx, createdText.ID)
 
 		return createdText, err
 	}
 }
 
 func (ts *TextService) DeleteAll() error {
-	err := ts.textDbRepo.DeleteAll()
+	err := ts.cacheRepo.DeleteAllTextsFromRedis(context.Background())
 	if err != nil {
 		return err
 	}
 
-	return ts.textDbRepo.DeleteAll()
+	return ts.dbRepo.DeleteAllTexts()
 }

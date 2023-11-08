@@ -1,4 +1,4 @@
-package repositories
+package redis_repo
 
 import (
 	"10-typing/models"
@@ -26,19 +26,11 @@ func getCurrentGameUserIdsKey(roomId uuid.UUID) string {
 	return getCurrentGameKey(roomId) + ":user_ids"
 }
 
-type GameRedisRepository struct {
-	redisClient *redis.Client
-}
-
-func NewGameRedisRepository(redisClient *redis.Client) *GameRedisRepository {
-	return &GameRedisRepository{redisClient}
-}
-
 // GET METHODS
-func (gr *GameRedisRepository) GetCurrentGameUsersIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
+func (repo *RedisRepository) GetCurrentGameUserIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
-	r, err := gr.redisClient.SMembers(ctx, currentGameUserIdsKey).Result()
+	r, err := repo.redisClient.SMembers(ctx, currentGameUserIdsKey).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +48,10 @@ func (gr *GameRedisRepository) GetCurrentGameUsersIds(ctx context.Context, roomI
 	return gameUserIds, nil
 }
 
-func (gr *GameRedisRepository) GetCurrentGameUsersNumber(ctx context.Context, roomId uuid.UUID) (int, error) {
+func (repo *RedisRepository) GetCurrentGameUsersNumber(ctx context.Context, roomId uuid.UUID) (int, error) {
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
-	r, err := gr.redisClient.SCard(ctx, currentGameUserIdsKey).Result()
+	r, err := repo.redisClient.SCard(ctx, currentGameUserIdsKey).Result()
 	if err != nil {
 		return 0, err
 	}
@@ -67,10 +59,10 @@ func (gr *GameRedisRepository) GetCurrentGameUsersNumber(ctx context.Context, ro
 	return int(r), nil
 }
 
-func (gr *GameRedisRepository) GetCurrentGameStatus(ctx context.Context, roomId uuid.UUID) (models.GameStatus, error) {
+func (repo *RedisRepository) GetCurrentGameStatus(ctx context.Context, roomId uuid.UUID) (models.GameStatus, error) {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	gameStatusInt, err := gr.redisClient.HGet(ctx, currentGameKey, currentGameStatusField).Int()
+	gameStatusInt, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameStatusField).Int()
 	switch {
 	case err == redis.Nil:
 		return models.NilGameStatus, nil
@@ -81,10 +73,10 @@ func (gr *GameRedisRepository) GetCurrentGameStatus(ctx context.Context, roomId 
 	return models.GameStatus(gameStatusInt), nil
 }
 
-func (gr *GameRedisRepository) GetCurrentGameId(ctx context.Context, roomId uuid.UUID) (uuid.UUID, error) {
+func (repo *RedisRepository) GetCurrentGameId(ctx context.Context, roomId uuid.UUID) (uuid.UUID, error) {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	gameIdStr, err := gr.redisClient.HGet(ctx, currentGameKey, currentGameIdField).Result()
+	gameIdStr, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameIdField).Result()
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -97,10 +89,10 @@ func (gr *GameRedisRepository) GetCurrentGameId(ctx context.Context, roomId uuid
 	return gameId, nil
 }
 
-func (gr *GameRedisRepository) GetCurrentGameFromRedis(ctx context.Context, roomId uuid.UUID) (*models.Game, error) {
+func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUID) (*models.Game, error) {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	r, err := gr.redisClient.HGetAll(ctx, currentGameKey).Result()
+	r, err := repo.redisClient.HGetAll(ctx, currentGameKey).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +135,7 @@ func (gr *GameRedisRepository) GetCurrentGameFromRedis(ctx context.Context, room
 }
 
 // SET METHODS
-func (gr *GameRedisRepository) SetNewCurrentGameInRedis(ctx context.Context, newGameId, textId, roomId uuid.UUID, userIds ...uuid.UUID) error {
+func (repo *RedisRepository) SetNewCurrentGame(ctx context.Context, newGameId, textId, roomId uuid.UUID, userIds ...uuid.UUID) error {
 	if len(userIds) == 0 {
 		return fmt.Errorf("at least one user id must be specified")
 	}
@@ -157,7 +149,7 @@ func (gr *GameRedisRepository) SetNewCurrentGameInRedis(ctx context.Context, new
 		currentGameTextIdField: textIdStr,
 		currentGameStatusField: statusStr,
 	}
-	if err := gr.redisClient.HSet(ctx, currentGameKey, currentGameValue).Err(); err != nil {
+	if err := repo.redisClient.HSet(ctx, currentGameKey, currentGameValue).Err(); err != nil {
 		return err
 	}
 
@@ -166,30 +158,30 @@ func (gr *GameRedisRepository) SetNewCurrentGameInRedis(ctx context.Context, new
 	for _, userId := range userIds {
 		userIdStrs = append(userIdStrs, userId.String())
 	}
-	if err := gr.redisClient.SAdd(ctx, currentGameUserIdsKey, userIdStrs...).Err(); err != nil {
+	if err := repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userIdStrs...).Err(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (gr *GameRedisRepository) AddGameUserInRedis(ctx context.Context, roomId, userId uuid.UUID) error {
+func (repo *RedisRepository) SetGameUser(ctx context.Context, roomId, userId uuid.UUID) error {
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
-	return gr.redisClient.SAdd(ctx, currentGameUserIdsKey, userId).Err()
+	return repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userId).Err()
 }
 
-func (gr *GameRedisRepository) SetCurrentGameStatusInRedis(ctx context.Context, roomId uuid.UUID, gameStatus models.GameStatus) error {
+func (repo *RedisRepository) SetCurrentGameStatus(ctx context.Context, roomId uuid.UUID, gameStatus models.GameStatus) error {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	return gr.redisClient.HSet(ctx, currentGameKey, currentGameStatusField, gameStatus).Err()
+	return repo.redisClient.HSet(ctx, currentGameKey, currentGameStatusField, gameStatus).Err()
 }
 
 // IS.. METHODS
-func (gr *GameRedisRepository) IsCurrentGame(ctx context.Context, roomId, gameId uuid.UUID) (bool, error) {
+func (repo *RedisRepository) IsCurrentGame(ctx context.Context, roomId, gameId uuid.UUID) (bool, error) {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	r, err := gr.redisClient.HGet(ctx, currentGameKey, currentGameIdField).Result()
+	r, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameIdField).Result()
 	if err != nil {
 		return false, err
 	}
@@ -197,8 +189,8 @@ func (gr *GameRedisRepository) IsCurrentGame(ctx context.Context, roomId, gameId
 	return r == gameId.String(), nil
 }
 
-func (gr *GameRedisRepository) IsCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) (bool, error) {
+func (repo *RedisRepository) IsCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) (bool, error) {
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
-	return gr.redisClient.SIsMember(ctx, currentGameUserIdsKey, userId.String()).Result()
+	return repo.redisClient.SIsMember(ctx, currentGameUserIdsKey, userId.String()).Result()
 }

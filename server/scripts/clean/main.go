@@ -2,7 +2,8 @@ package main
 
 import (
 	"10-typing/models"
-	"10-typing/repositories"
+	redis_repo "10-typing/repositories/redis"
+	sql_repo "10-typing/repositories/sql"
 	"context"
 	"os"
 )
@@ -10,33 +11,28 @@ import (
 func main() {
 	models.ConnectDatabase()
 
-	textDbRepo := repositories.NewTextDbRepository(models.DB)
-	textRedisRepo := repositories.NewTextRedisRepository(models.RedisClient)
-	roomDbRepo := repositories.NewRoomDbRepository(models.DB)
-	roomRedisRepo := repositories.NewRoomRedisRepository(models.RedisClient)
-	scoreDbRepo := repositories.NewScoreDbRepository(models.DB)
-	sessionDbRepo := repositories.NewSessionDbRepository(models.DB)
-	userDbRepo := repositories.NewUserDbRepository(models.DB)
+	cacheRepo := redis_repo.NewRedisRepository(models.RedisClient)
+	dbRepo := sql_repo.NewSQLRepository(models.DB)
 
-	err := userDbRepo.DeleteAll()
+	err := dbRepo.DeleteAllUsers()
 	if err != nil {
 		os.Exit(1)
 		return
 	}
 
-	err = sessionDbRepo.DeleteAll()
+	err = dbRepo.DeleteAllSessions()
 	if err != nil {
 		os.Exit(1)
 		return
 	}
 
-	err = scoreDbRepo.DeleteAll()
+	err = dbRepo.DeleteAllScores()
 	if err != nil {
 		os.Exit(1)
 		return
 	}
 
-	err = textDbRepo.DeleteAll()
+	err = dbRepo.DeleteAllTexts()
 	if err != nil {
 		os.Exit(1)
 		return
@@ -44,17 +40,17 @@ func main() {
 
 	var ctx = context.Background()
 
-	err = textRedisRepo.DeleteAllFromRedis(ctx)
+	err = cacheRepo.DeleteAllTextsFromRedis(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	err = roomDbRepo.DeleteAll()
+	err = dbRepo.DeleteAllRooms()
 	if err != nil {
 		os.Exit(1)
 	}
 
-	err = roomRedisRepo.DeleteAllFromRedis(ctx)
+	err = cacheRepo.DeleteAllRoomsFromRedis(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
