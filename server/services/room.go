@@ -166,7 +166,7 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 	return nil
 }
 
-func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *websocket.Conn, timeStamp time.Time) error {
+func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *websocket.Conn) error {
 	var ctx = context.Background()
 
 	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.cacheRepo)
@@ -177,6 +177,8 @@ func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *we
 		log.Println("Failed to initialise room subscriber:", err)
 		return err
 	}
+
+	timeStamp := time.Now()
 
 	existingRoomSubscribers, err := rs.cacheRepo.GetRoomSubscribers(ctx, room.ID)
 	if err != nil {

@@ -65,9 +65,9 @@ func (repo *RedisRepository) GetCurrentGameStatus(ctx context.Context, roomId uu
 	gameStatusInt, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameStatusField).Int()
 	switch {
 	case err == redis.Nil:
-		return models.NilGameStatus, nil
+		return models.UnstartedGameStatus, nil
 	case err != nil:
-		return models.NilGameStatus, err
+		return models.UnstartedGameStatus, err
 	}
 
 	return models.GameStatus(gameStatusInt), nil
@@ -97,7 +97,7 @@ func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUI
 		return nil, err
 	}
 
-	status := models.NilGameStatus
+	status := models.UnstartedGameStatus
 	statusStr, ok := r[currentGameStatusField]
 	if ok {
 		statusInt, err := strconv.Atoi(statusStr)

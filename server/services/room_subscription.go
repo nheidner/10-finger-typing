@@ -39,7 +39,14 @@ func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
 		return err
 	}
 
-	return rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus)
+	if err = rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus); err != nil {
+		return err
+	}
+
+	return rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
+		Type:    models.UserJoined,
+		Payload: rs.userId,
+	})
 }
 
 func (rs *roomSubscription) close(ctx context.Context) error {

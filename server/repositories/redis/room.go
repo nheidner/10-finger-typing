@@ -118,8 +118,8 @@ func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) erro
 		roomSubscriberKey := getRoomSubscriberKey(room.ID, subscriber.ID)
 		roomSubscriberValue := map[string]any{
 			roomSubscriberUsernameField:   subscriber.Username,
-			roomSubscriberStatusField:     strconv.Itoa(int(models.NilSubscriberStatus)),
-			roomSubscriberGameStatusField: strconv.Itoa(int(models.NilSubscriberGameStatus)),
+			roomSubscriberStatusField:     strconv.Itoa(int(models.InactiveSubscriberStatus)),
+			roomSubscriberGameStatusField: strconv.Itoa(int(models.InactiveSubscriberStatus)),
 		}
 
 		if err := repo.redisClient.HSet(ctx, roomSubscriberKey, roomSubscriberValue).Err(); err != nil {

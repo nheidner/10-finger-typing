@@ -30,11 +30,11 @@ const (
 	GameScores
 )
 
-func (p *PushMessageType) String() string {
-	return []string{"user_joined", "new_game", "cursor", "countdown_start", "user_left", "initial_state", "game_result"}[*p]
+func (p PushMessageType) String() string {
+	return []string{"user_joined", "new_game", "cursor", "countdown_start", "user_left", "initial_state", "game_result"}[p]
 }
 
-func (p *PushMessageType) MarshalJSON() ([]byte, error) {
+func (p PushMessageType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
 }
 

@@ -22,15 +22,14 @@ type Game struct {
 type GameStatus int
 
 const (
-	NilGameStatus GameStatus = iota
-	UnstartedGameStatus
+	UnstartedGameStatus GameStatus = iota
 	CountdownGameStatus
 	StartedGameStatus
 	FinishedGameStatus
 )
 
 func (s *GameStatus) String() string {
-	return []string{"undefined", "unstarted", "started", "finished"}[*s]
+	return []string{"unstarted", "countdown", "started", "finished"}[*s]
 }
 
 func (s *GameStatus) MarshalJSON() ([]byte, error) {

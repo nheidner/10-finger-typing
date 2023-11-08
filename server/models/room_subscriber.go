@@ -16,13 +16,12 @@ type RoomSubscriber struct {
 type SubscriberStatus int
 
 const (
-	NilSubscriberStatus SubscriberStatus = iota
-	InactiveSubscriberStatus
+	InactiveSubscriberStatus SubscriberStatus = iota
 	ActiveSubscriberStatus
 )
 
 func (s *SubscriberStatus) String() string {
-	return []string{"undefined", "inactive", "active"}[*s]
+	return []string{"inactive", "active"}[*s]
 }
 
 func (s *SubscriberStatus) MarshalJSON() ([]byte, error) {
@@ -32,14 +31,13 @@ func (s *SubscriberStatus) MarshalJSON() ([]byte, error) {
 type SubscriberGameStatus int
 
 const (
-	NilSubscriberGameStatus SubscriberGameStatus = iota
-	UnstartedSubscriberGameStatus
+	UnstartedSubscriberGameStatus SubscriberGameStatus = iota
 	StartedSubscriberGameStatus
 	FinishedSubscriberGameStatus
 )
 
 func (s *SubscriberGameStatus) String() string {
-	return []string{"undefined", "unstarted", "started", "finished"}[*s]
+	return []string{"unstarted", "started", "finished"}[*s]
 }
 
 func (s *SubscriberGameStatus) MarshalJSON() ([]byte, error) {

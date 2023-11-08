@@ -34,7 +34,7 @@ func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId
 
 	status, err := repo.redisClient.HGet(ctx, roomSubscriberKey, roomSubscriberStatusField).Int()
 	if err != nil {
-		return models.NilSubscriberStatus, err
+		return models.InactiveSubscriberStatus, err
 	}
 
 	return models.SubscriberStatus(status), nil
@@ -45,7 +45,7 @@ func (repo *RedisRepository) GetRoomSubscriberGameStatus(ctx context.Context, ro
 
 	status, err := repo.redisClient.HGet(ctx, roomSubscriberKey, roomSubscriberGameStatusField).Int()
 	if err != nil {
-		return models.NilSubscriberGameStatus, err
+		return models.UnstartedSubscriberGameStatus, err
 	}
 
 	return models.SubscriberGameStatus(status), nil
@@ -73,7 +73,7 @@ func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid
 			return nil, err
 		}
 
-		status := models.NilSubscriberStatus
+		status := models.InactiveSubscriberStatus
 		statusStr, ok := r[roomSubscriberStatusField]
 		if ok {
 			statusInt, err := strconv.Atoi(statusStr)
@@ -83,7 +83,7 @@ func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid
 			status = models.SubscriberStatus(statusInt)
 		}
 
-		subscriberGameStatus := models.NilSubscriberGameStatus
+		subscriberGameStatus := models.UnstartedSubscriberGameStatus
 		subscriberGameStatusStr, ok := r[roomSubscriberGameStatusField]
 		if ok {
 			subscriberGameStatusInt, err := strconv.Atoi(subscriberGameStatusStr)

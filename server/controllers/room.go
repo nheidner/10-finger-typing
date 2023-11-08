@@ -5,7 +5,6 @@ import (
 	"10-typing/utils"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -98,8 +97,6 @@ func (rc *RoomController) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	timeStamp := time.Now()
-
 	room, err := rc.roomService.Find(roomId, user.ID)
 	if err != nil {
 		log.Println("no room found:", err)
@@ -116,7 +113,7 @@ func (rc *RoomController) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	err = rc.roomService.RoomConnect(user.ID, room, conn, timeStamp)
+	err = rc.roomService.RoomConnect(user.ID, room, conn)
 	if err != nil {
 		log.Println(err)
 	}
