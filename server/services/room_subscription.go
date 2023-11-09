@@ -4,12 +4,12 @@ import (
 	"10-typing/models"
 	"10-typing/repositories"
 	"context"
+	"encoding/json"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 type roomSubscription struct {
@@ -41,8 +41,7 @@ func newRoomSubscription(
 func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
 	go func() {
 		for {
-			var v interface{}
-			err := wsjson.Read(context.Background(), rs.conn, &v)
+			messageType, message, err := rs.conn.Read(context.Background())
 			if err != nil {
 				log.Println("error reading from WS connection :", err)
 
@@ -52,7 +51,31 @@ func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
 
 				return
 			}
+
+			if messageType == websocket.MessageText {
+				var msg map[string]any
+				if err := json.Unmarshal(message, &msg); err != nil {
+					log.Println("error unmarshalling message: >>", err)
+					continue
+				}
+				switch msg["type"] {
+				case "cursor":
+					// TODO: handle cursor
+				case "ping":
+					response := map[string]any{"type": "pong"}
+					responseBytes, err := json.Marshal(response)
+					if err != nil {
+						log.Println("error marshalling ping message: >>", err)
+						continue
+					}
+
+					if err := rs.conn.Write(context.Background(), websocket.MessageText, responseBytes); err != nil {
+						log.Println("error writing message: >>", err)
+					}
+				}
+			}
 		}
+
 	}()
 
 	if err := rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus); err != nil {
