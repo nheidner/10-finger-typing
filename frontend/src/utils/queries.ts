@@ -65,6 +65,10 @@ export const getTextById = async (textId: string) => {
   return fetchApi<Text>(`/texts/${textId}`);
 };
 
+export const startGame = async (roomId: string) => {
+  return fetchApi<string>(`/rooms/${roomId}/start_game`, { method: "POST" });
+};
+
 export const getNewTextByUserid = async (
   userId: string,
   {

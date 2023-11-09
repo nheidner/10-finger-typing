@@ -1,7 +1,8 @@
 import { ChangeEvent, FC, useEffect, useRef, useState } from "react";
-import { Text, User } from "@/types";
+import { Text } from "@/types";
 import classNames from "classnames";
 import { UserData } from "../types";
+import { LoadingOverlay } from "@/components/LoadingOverlay";
 
 type LetterType = "correct" | "incorrect" | "notTyped";
 
@@ -10,7 +11,8 @@ export const Content: FC<{
   isLoading: boolean;
   onType?: (cursor: number) => void;
   userData: { [userId: number]: UserData };
-}> = ({ text, isLoading, onType, userData }) => {
+  isActive: boolean;
+}> = ({ text, isLoading, onType, userData, isActive }) => {
   const [editedText, setEditedText] = useState<
     {
       char: string;
@@ -92,41 +94,43 @@ export const Content: FC<{
   }
 
   return (
-    <section className="relative">
-      <input
-        type="text"
-        className="absolute opacity-0"
-        onChange={handleInput}
-        ref={inputRef}
-        value={input}
-      />
-      <div className="font-courier" onClick={focusTextInput}>
-        {editedText.map((char, index) => {
-          const otherUserCursor = Object.entries(userData).reduce(
-            (acc, [_, userData]) => {
-              return userData.cursor === index || acc;
-            },
-            false
-          );
+    <LoadingOverlay isLoading={!isActive}>
+      <section className="relative">
+        <input
+          type="text"
+          className="absolute opacity-0"
+          onChange={handleInput}
+          ref={inputRef}
+          value={input}
+        />
+        <div className="font-courier" onClick={focusTextInput}>
+          {editedText.map((char, index) => {
+            const otherUserCursor = Object.entries(userData).reduce(
+              (acc, [_, userData]) => {
+                return userData.cursor === index || acc;
+              },
+              false
+            );
 
-          return (
-            <span
-              key={index}
-              className={classNames(
-                otherUserCursor &&
-                  "before:content-[] border-b-4 border-gray-200",
-                cursorIndex === index &&
-                  "before:content-[] border-b-4 border-gray-400",
-                char.type === "correct" && "text-green-700",
-                char.type === "incorrect" && "text-red-700",
-                "text-2xl"
-              )}
-            >
-              {char.char}
-            </span>
-          );
-        })}
-      </div>
-    </section>
+            return (
+              <span
+                key={index}
+                className={classNames(
+                  otherUserCursor &&
+                    "before:content-[] border-b-4 border-gray-200",
+                  cursorIndex === index &&
+                    "before:content-[] border-b-4 border-gray-400",
+                  char.type === "correct" && "text-green-700",
+                  char.type === "incorrect" && "text-red-700",
+                  "text-2xl"
+                )}
+              >
+                {char.char}
+              </span>
+            );
+          })}
+        </div>
+      </section>
+    </LoadingOverlay>
   );
 };

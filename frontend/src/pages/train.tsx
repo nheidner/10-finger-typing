@@ -61,6 +61,7 @@ const TrainPage: NextPage<{
       </section>
       <InviteModal isOpen={newRoomModalIsOpen} setOpen={setNewRoomModalOpen} />
       <Content
+        isActive={true}
         isLoading={textIsLoading}
         text={textData || null}
         userData={userData}

@@ -1,7 +1,7 @@
 import { LanguageCode, LanguageName } from "@/types";
 
 export const specialCharactersOptions: {
-  [value: string]: number[] | LanguageCode;
+  [value: string]: number[];
 } = {
   "0-4": [0, 4],
   "5-9": [5, 9],
@@ -9,7 +9,7 @@ export const specialCharactersOptions: {
   "15-19": [15, 19],
 };
 
-export const numeralOptions: { [value: string]: number[] | LanguageCode } = {
+export const numeralOptions: { [value: string]: number[] } = {
   "0-4": [0, 4],
   "5-9": [5, 9],
   "10-14": [10, 14],
