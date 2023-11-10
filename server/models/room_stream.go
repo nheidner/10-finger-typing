@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"errors"
 )
 
 type StreamEntryType int
@@ -36,6 +37,37 @@ func (p PushMessageType) String() string {
 
 func (p PushMessageType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
+}
+
+func (p *PushMessageType) ParseFromString(data string) error {
+	stringToPushMessageTypeMap := map[string]PushMessageType{
+		"user_joined":     UserJoined,
+		"new_game":        NewGame,
+		"cursor":          Cursor,
+		"countdown_start": CountdownStart,
+		"user_left":       UserLeft,
+		"initial_state":   InitialState,
+		"game_result":     GameScores,
+	}
+
+	pushMessageType, ok := stringToPushMessageTypeMap[data]
+	if !ok {
+		return errors.New("invalid PushMessageType")
+	}
+
+	*p = pushMessageType
+
+	return nil
+}
+
+func (p *PushMessageType) UnmarshalJSON(data []byte) error {
+
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	return p.ParseFromString(s)
 }
 
 type PushMessage struct {
