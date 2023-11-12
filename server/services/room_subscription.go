@@ -75,31 +75,37 @@ func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
 				}
 			}
 		}
-
 	}()
 
-	if err := rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.ActiveSubscriberStatus); err != nil {
-		return err
-	}
-
-	return rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
-		Type:    models.UserJoined,
-		Payload: rs.userId,
-	})
-}
-
-func (rs *roomSubscription) close(ctx context.Context) error {
-	err := rs.cacheRepo.SetRoomSubscriberStatus(ctx, rs.roomId, rs.userId, models.InactiveSubscriberStatus)
+	roomSubscriberStatusHasBeenUpdated, err := rs.cacheRepo.SetRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
 	if err != nil {
 		return err
 	}
 
-	userLeavePushMessage := models.PushMessage{
-		Type:    models.UserLeft,
-		Payload: rs.userId,
+	if roomSubscriberStatusHasBeenUpdated {
+		return rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
+			Type:    models.UserJoined,
+			Payload: rs.userId,
+		})
 	}
-	if err = rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, userLeavePushMessage); err != nil {
+
+	return nil
+}
+
+func (rs *roomSubscription) close(ctx context.Context) error {
+	roomSubscriberStatusHasBeenUpdated, err := rs.cacheRepo.DeleteRoomSubscriberConnection(ctx, rs.roomId, rs.userId, rs.connectionId)
+	if err != nil {
 		return err
+	}
+
+	if roomSubscriberStatusHasBeenUpdated {
+		userLeavePushMessage := models.PushMessage{
+			Type:    models.UserLeft,
+			Payload: rs.userId,
+		}
+		if err = rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, userLeavePushMessage); err != nil {
+			return err
+		}
 	}
 
 	return rs.conn.Close(websocket.StatusPolicyViolation, "connection too slow to keep up with messages")

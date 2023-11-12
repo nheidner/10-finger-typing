@@ -5,6 +5,7 @@ import (
 	"10-typing/repositories"
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 const (
-	gameDurationSeconds           = 30
+	gameDurationSeconds           = 10
 	waitForResultsDurationSeconds = 5
 	countdownDurationSeconds      = 3
 )
@@ -146,6 +147,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		return err
 	}
 
+	// TODO: can only be called once
 	if numberGameUsers == 2 {
 		// start countdown
 		err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.CountdownGameStatus)
@@ -154,10 +156,8 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		}
 
 		countdownPushMessage := models.PushMessage{
-			Type: models.CountdownStart,
-			Payload: map[string]any{
-				"duration": countdownDurationSeconds,
-			},
+			Type:    models.CountdownStart,
+			Payload: countdownDurationSeconds,
 		}
 
 		err = gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
@@ -168,7 +168,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		go func() {
 			time.Sleep(countdownDurationSeconds*time.Second + gameDurationSeconds*time.Second)
 			if err = gs.handleGameResults(roomId); err != nil {
-				log.Println(err)
+				log.Println("error handling game results", err)
 			}
 		}()
 	}
@@ -196,6 +196,8 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 		cancel()
 	}
 
+	ctx = context.Background()
+
 	// set game status to Finished
 	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
 	if err != nil {
@@ -212,6 +214,8 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 		"",
 		[]models.SortOption{{Column: "words_per_minute", Order: "desc"}},
 	)
+
+	fmt.Println("scores :>>", scores)
 
 	if err != nil {
 		return errors.New("error findind scores:" + err.Error())

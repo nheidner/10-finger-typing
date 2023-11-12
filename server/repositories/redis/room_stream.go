@@ -90,6 +90,7 @@ func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UU
 			case strconv.Itoa(int(models.ActionStreamEntryType)):
 				if values[streamEntryActionField] == strconv.Itoa(int(models.TerminateAction)) {
 					log.Println("stream consumer is terminated")
+					// TODO: shouldn't there an error be returned through the error channel
 					return
 				}
 			case strconv.Itoa(int(models.PushMessageStreamEntryType)):

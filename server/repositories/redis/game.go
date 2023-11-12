@@ -168,13 +168,13 @@ func (repo *RedisRepository) SetNewCurrentGame(ctx context.Context, newGameId, t
 func (repo *RedisRepository) SetGameUser(ctx context.Context, roomId, userId uuid.UUID) error {
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
-	return repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userId).Err()
+	return repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userId.String()).Err()
 }
 
 func (repo *RedisRepository) SetCurrentGameStatus(ctx context.Context, roomId uuid.UUID, gameStatus models.GameStatus) error {
 	currentGameKey := getCurrentGameKey(roomId)
 
-	return repo.redisClient.HSet(ctx, currentGameKey, currentGameStatusField, gameStatus).Err()
+	return repo.redisClient.HSet(ctx, currentGameKey, currentGameStatusField, strconv.Itoa(int(gameStatus))).Err()
 }
 
 // IS.. METHODS

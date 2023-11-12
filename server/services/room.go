@@ -174,7 +174,8 @@ func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *we
 
 	err := roomSubscription.initRoomSubscriber(ctx)
 	if err != nil {
-		log.Println("Failed to initialise room subscriber:", err)
+		log.Println("failed to initialise room subscriber:", err)
+		roomSubscription.cancel()
 		return err
 	}
 
@@ -182,13 +183,13 @@ func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *we
 
 	existingRoomSubscribers, err := rs.cacheRepo.GetRoomSubscribers(ctx, room.ID)
 	if err != nil {
-		log.Println("Failed to get room subscribers:", err)
+		log.Println("failed to get room subscribers:", err)
 		return err
 	}
 
 	currentGame, err := rs.cacheRepo.GetCurrentGame(ctx, room.ID)
 	if err != nil {
-		log.Println("Failed to get current room:", err)
+		log.Println("failed to get current room:", err)
 		return err
 	}
 

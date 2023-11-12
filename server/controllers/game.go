@@ -65,13 +65,13 @@ func (gc *GameController) StartGame(c *gin.Context) {
 	}
 
 	if err = gc.gameService.AddUserToGame(roomId, user.ID); err != nil {
-		log.Println(err.Error())
+		log.Println("error adding user to game", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error"})
 		return
 	}
 
 	if err = gc.gameService.InitiateGameIfReady(roomId); err != nil {
-		log.Println(err.Error())
+		log.Println("error initiating game", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
 		return
 	}
