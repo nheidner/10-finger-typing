@@ -31,36 +31,26 @@ func getRoomSubscriberConnectionKey(roomId, userId uuid.UUID) string {
 	return getRoomSubscriberKey(roomId, userId) + ":conns"
 }
 
-func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (status models.SubscriberStatus, roomSubscriberStatusHasBeenUpdated bool, err error) {
-	numberRoomSubscriberConns, err := repo.getNumberRoomSubscriberConnections(ctx, roomId, userId)
+func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (numberRoomSubscriberConns int64, roomSubscriberStatusHasBeenUpdated bool, err error) {
+	numberRoomSubscriberConns, err = repo.getNumberRoomSubscriberConnections(ctx, roomId, userId)
 	if err != nil {
-		return models.InactiveSubscriberStatus, false, err
+		return 0, false, err
 	}
 
-	status, err = repo.getRoomSubscriberStatus(ctx, roomId, userId)
+	status, err := repo.getRoomSubscriberStatus(ctx, roomId, userId)
 	if err != nil {
-		return models.InactiveSubscriberStatus, false, err
+		return 0, false, err
 	}
 
-	// have to check all possibilities because deleted connection might have been expired
-	switch {
-	case numberRoomSubscriberConns > 0 && status == models.ActiveSubscriberStatus:
-		return models.ActiveSubscriberStatus, false, nil
-	case numberRoomSubscriberConns == 0 && status == models.InactiveSubscriberStatus:
-		return models.InactiveSubscriberStatus, false, nil
-	case numberRoomSubscriberConns > 0 && status == models.InactiveSubscriberStatus:
-		if err = repo.setRoomSubscriberStatus(ctx, roomId, userId, models.ActiveSubscriberStatus); err != nil {
-			return models.InactiveSubscriberStatus, false, err
-		}
-
-		return models.ActiveSubscriberStatus, true, nil
-	default: // numberRoomSubscriberConns == 0 && status == models.ActiveSubscriberStatus
+	if numberRoomSubscriberConns == 0 && status == models.ActiveSubscriberStatus {
 		if err = repo.setRoomSubscriberStatus(ctx, roomId, userId, models.InactiveSubscriberStatus); err != nil {
-			return models.InactiveSubscriberStatus, false, err
+			return 0, false, err
 		}
 
-		return models.InactiveSubscriberStatus, true, nil
+		return numberRoomSubscriberConns, true, nil
 	}
+
+	return numberRoomSubscriberConns, false, nil
 }
 
 func (repo *RedisRepository) GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberGameStatus, error) {
@@ -181,25 +171,12 @@ func (repo *RedisRepository) DeleteRoomSubscriberConnection(ctx context.Context,
 		return false, err
 	}
 
-	numberRoomSubscriberConns, err := repo.getNumberRoomSubscriberConnections(ctx, roomId, userId)
+	_, roomSubscriberStatusHasBeenUpdated, err = repo.GetRoomSubscriberStatus(ctx, roomId, userId)
 	if err != nil {
 		return false, err
 	}
 
-	status, err := repo.getRoomSubscriberStatus(ctx, roomId, userId)
-	if err != nil {
-		return false, err
-	}
-
-	if numberRoomSubscriberConns == 0 && status == models.ActiveSubscriberStatus {
-		if err = repo.setRoomSubscriberStatus(ctx, roomId, userId, models.InactiveSubscriberStatus); err != nil {
-			return false, err
-		}
-
-		return true, nil
-	}
-
-	return false, nil
+	return roomSubscriberStatusHasBeenUpdated, nil
 }
 
 func (repo *RedisRepository) getRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberStatus, error) {
@@ -225,7 +202,7 @@ func (repo *RedisRepository) getNumberRoomSubscriberConnections(ctx context.Cont
 	nowMilli := time.Now().UnixMilli()
 	nowMilliStr := strconv.Itoa(int(nowMilli))
 
-	if err := repo.redisClient.ZRangeByScore(ctx, roomSubscriberConnectionKey, &redis.ZRangeBy{Min: "0", Max: nowMilliStr}).Err(); err != nil {
+	if err := repo.redisClient.ZRemRangeByScore(ctx, roomSubscriberConnectionKey, "0", nowMilliStr).Err(); err != nil {
 		return 0, err
 	}
 

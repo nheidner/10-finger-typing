@@ -12,6 +12,11 @@ import (
 	"nhooyr.io/websocket"
 )
 
+const (
+	observeRoomSubscriberStatusMaxDurationSeconds = 60 * 60 * 24
+	observeRoomSubscriberStatusIntervalSeconds    = 4
+)
+
 type roomSubscription struct {
 	connectionId uuid.UUID
 	roomId       uuid.UUID
@@ -83,6 +88,8 @@ func (rs *roomSubscription) initRoomSubscriber(ctx context.Context) error {
 	}
 
 	if roomSubscriberStatusHasBeenUpdated {
+		go observeRoomSubscriberStatus(context.Background(), rs.cacheRepo, rs.roomId, rs.userId)
+
 		return rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
 			Type:    models.UserJoined,
 			Payload: rs.userId,
@@ -130,6 +137,77 @@ func (rs *roomSubscription) subscribe(ctx context.Context, startTimestamp time.T
 			}
 
 			return err
+		}
+	}
+}
+
+func observeRoomSubscriberStatus(ctx context.Context, cacheRepo repositories.CacheRepository, roomId, userId uuid.UUID) {
+	t := time.NewTicker(observeRoomSubscriberStatusIntervalSeconds * time.Second)
+	maxT := time.NewTimer(observeRoomSubscriberStatusMaxDurationSeconds * time.Second)
+	defer maxT.Stop()
+	defer t.Stop()
+
+	messagesCh, errCh := cacheRepo.GetPushMessages(ctx, roomId, time.Time{})
+
+	for {
+		select {
+		// when a user left and shortly after (less than ticker duration) a new connection with a new ticker is established, two tickers would be running
+		case messageData, ok := <-messagesCh:
+			if !ok {
+				log.Println("error getting push messages")
+				return
+			}
+
+			var message models.PushMessage
+			if err := json.Unmarshal(messageData, &message); err != nil {
+				log.Println("error unmarshalling push message", err)
+				return
+			}
+			messagePayloadStr, ok := message.Payload.(string)
+			if !ok {
+				log.Println("payload is not a string")
+				return
+			}
+			if message.Type == models.UserLeft && messagePayloadStr == userId.String() {
+				log.Println("stop roomSubscriber checker after receiving user_left message")
+				return
+			}
+		case err := <-errCh:
+			if err != nil {
+				log.Println("error getting push messages:", err)
+			}
+
+			return
+		case <-ctx.Done():
+			log.Println("context done:", ctx.Err())
+			return
+		case <-t.C:
+			numberRoomSubscriberConns, roomSubscriberStatusHasBeenUpdated, err := cacheRepo.GetRoomSubscriberStatus(ctx, roomId, userId)
+			if err != nil {
+				log.Println("error getting room subscriber status", err)
+				return
+			}
+
+			if roomSubscriberStatusHasBeenUpdated {
+				userLeavePushMessage := models.PushMessage{
+					Type:    models.UserLeft,
+					Payload: userId,
+				}
+				if err = cacheRepo.PublishPushMessage(ctx, roomId, userLeavePushMessage); err != nil {
+					log.Println("error publishing push message:", err)
+				}
+
+				log.Println("stop roomSubscriber checker")
+				return
+			}
+
+			if numberRoomSubscriberConns == 0 {
+				log.Println("stop roomSubscriber checker")
+				return
+			}
+		case <-maxT.C:
+			log.Println("max time to update roomSubscriberStatus reached")
+			return
 		}
 	}
 }

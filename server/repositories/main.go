@@ -123,7 +123,7 @@ type RoomStreamCacheRepository interface {
 }
 
 type RoomSubscriberCacheRepository interface {
-	GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (status models.SubscriberStatus, roomSubscriberStatusHasBeenUpdated bool, err error)
+	GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (numberRoomSubscriberConns int64, roomSubscriberStatusHasBeenUpdated bool, err error)
 	GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberGameStatus, error)
 	GetRoomSubscribers(ctx context.Context, roomId uuid.UUID) ([]models.RoomSubscriber, error)
 	SetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error
