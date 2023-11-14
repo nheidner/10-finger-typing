@@ -41,6 +41,17 @@ export interface Room {
   id: string;
 }
 
+type RoomInvitationPayload = {
+  by: string;
+  roomId: string;
+};
+
+export interface UserNotification {
+  id: string;
+  type: "room_invitation";
+  payload: RoomInvitationPayload;
+}
+
 export type GameStatus = "unstarted" | "started" | "finished";
 export type SubscriberGameStatus = "unstarted" | "started" | "finished";
 export type SubscriberStatus = "inactive" | "active";

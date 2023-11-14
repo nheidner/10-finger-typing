@@ -1,4 +1,11 @@
-import { Room, Score, Text, LanguageCode, User } from "@/types";
+import {
+  Room,
+  Score,
+  Text,
+  LanguageCode,
+  User,
+  UserNotification,
+} from "@/types";
 import { fetchApi } from "./fetch";
 
 export type NewRoomBodyParams = {
@@ -48,6 +55,12 @@ export const createRoomAndText = async ({
 };
 
 export const getAuthenticatedUser = async () => fetchApi<User>("/user");
+
+export const getRealtimeUserNotification = async (lastId: string) => {
+  return fetchApi<UserNotification | null>(
+    `/notification/realtime?lastId=${encodeURIComponent(lastId)}`
+  );
+};
 
 export const logout = async () =>
   fetchApi<string>("/user/logout", { method: "POST" });

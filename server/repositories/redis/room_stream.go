@@ -94,19 +94,19 @@ func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UU
 					return
 				}
 			case strconv.Itoa(int(models.PushMessageStreamEntryType)):
-				messsage, ok := values[streamEntryMessageField]
+				message, ok := values[streamEntryMessageField]
 				if !ok {
 					errCh <- errors.New("no " + streamEntryMessageField + " field in stream entry")
 					return
 				}
 
-				messsageStr, ok := messsage.(string)
+				messageStr, ok := message.(string)
 				if !ok {
 					errCh <- errors.New("underlying type of " + streamEntryMessageField + " stream entry field is not string")
 					return
 				}
 
-				out <- []byte(messsageStr)
+				out <- []byte(messageStr)
 			default:
 				errCh <- errors.New(streamEntryTypeField + " has not a correct value in stream entry")
 				return

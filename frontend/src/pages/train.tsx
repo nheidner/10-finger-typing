@@ -4,15 +4,12 @@ import { useState } from "react";
 import { LanguageName } from "@/types";
 import { Content } from "@/modules/train/components/Content";
 import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
-import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
-import { UserData } from "@/modules/train/types";
 import { InviteModal } from "@/modules/train/components/invite_modal";
 import {
   languageOptions,
   numeralOptions,
   specialCharactersOptions,
 } from "@/modules/train/constants";
-import { useRouter } from "next/router";
 import { TextConfigOptions } from "@/components/TextConfigOptions";
 
 const TrainPage: NextPage<{

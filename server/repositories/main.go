@@ -30,6 +30,7 @@ type CacheRepository interface {
 	RoomStreamCacheRepository
 	RoomSubscriberCacheRepository
 	TextCacheRepository
+	UserNotificationCacheRepository
 }
 
 type OpenAiRepository interface {
@@ -137,4 +138,9 @@ type TextCacheRepository interface {
 	TextIdsKeyExists(ctx context.Context) (bool, error)
 	TextIdExists(ctx context.Context, textId uuid.UUID) (bool, error)
 	DeleteTextIdsKey(ctx context.Context) error
+}
+
+type UserNotificationCacheRepository interface {
+	PublishUserNotification(ctx context.Context, userId uuid.UUID, userNotification models.UserNotification) error
+	GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) (userNotification *models.UserNotification, err error)
 }

@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Header } from "../components/Header";
 import { useRouter } from "next/router";
 import { FetchError } from "@/utils/fetch";
+import { Notifications } from "@/components/Notifications";
 
 const App = ({ Component, pageProps }: AppProps) => {
   const router = useRouter();
@@ -43,6 +44,7 @@ const App = ({ Component, pageProps }: AppProps) => {
       <ReactQueryDevtools initialIsOpen={false} />
       <Hydrate state={pageProps.dehydratedState}>
         <main className="max-w-7xl mx-auto px-10 box-content">
+          <Notifications />
           <Header />
           <Component {...pageProps} />
         </main>

@@ -124,6 +124,24 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, authenti
 		}
 	}
 
+	for _, roomSubscriber := range room.Users {
+		if roomSubscriber.ID == authenticatedUser.ID {
+			continue
+		}
+
+		userNotification := models.UserNotification{
+			Type: models.RoomInvitation,
+			Payload: map[string]any{
+				"by":     authenticatedUser.Username,
+				"roomId": room.ID,
+			},
+		}
+
+		if err = rs.cacheRepo.PublishUserNotification(context.Background(), roomSubscriber.ID, userNotification); err != nil {
+			return nil, err
+		}
+	}
+
 	return room, nil
 }
 

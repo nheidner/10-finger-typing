@@ -44,6 +44,7 @@ func main() {
 	scoreService := services.NewScoreService(dbRepo)
 	textService := services.NewTextService(dbRepo, cacheRepo, openAiRepo)
 	userService := services.NewUserService(dbRepo, 32)
+	userNoticationService := services.NewUserNotificationService(cacheRepo)
 
 	// Setup controllers
 	gameController := controllers.NewGameController(gameService)
@@ -51,6 +52,7 @@ func main() {
 	scoreController := controllers.NewScoreController(scoreService)
 	textController := controllers.NewTextController(textService)
 	userController := controllers.NewUserController(userService)
+	userNoticationController := controllers.NewUserNotificationController(userNoticationService)
 
 	api := router.Group("/api")
 
@@ -78,6 +80,9 @@ func main() {
 	api.GET("/user", authRequiredMiddleware, userController.CurrentUser)
 	api.POST("/user/login", userController.Login)
 	api.POST("/user/logout", authRequiredMiddleware, userController.Logout)
+
+	// NOTIFICATIONS
+	api.GET("/notification/realtime", authRequiredMiddleware, userNoticationController.FindRealtimeUserNotification)
 
 	// SCORES
 	api.GET("/scores", authRequiredMiddleware, scoreController.FindScores)
