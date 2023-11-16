@@ -162,7 +162,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		return err
 	}
 
-	if gameStatus > models.UnstartedGameStatus {
+	if gameStatus != models.UnstartedGameStatus {
 		return nil
 	}
 
