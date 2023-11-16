@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -19,8 +21,10 @@ func init() {
 
 func connectRedis() {
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr:     redisHost + ":" + redisPort,
-		Password: redisPassword,
-		DB:       redisDbname,
+		Addr:         redisHost + ":" + redisPort,
+		Password:     redisPassword,
+		DB:           redisDbname,
+		ReadTimeout:  20 * time.Second,
+		WriteTimeout: 20 * time.Second,
 	})
 }

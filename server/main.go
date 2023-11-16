@@ -7,6 +7,8 @@ import (
 	open_ai_repo "10-typing/repositories/open_ai"
 	redis_repo "10-typing/repositories/redis"
 	sql_repo "10-typing/repositories/sql"
+	"fmt"
+	"runtime"
 
 	"10-typing/models"
 	"10-typing/services"
@@ -25,6 +27,8 @@ func main() {
 	if err != nil {
 		panic("Error loading .env file")
 	}
+
+	fmt.Println("GOMAXPROCS: >>", runtime.GOMAXPROCS(0))
 
 	router := gin.Default()
 

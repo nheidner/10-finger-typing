@@ -34,39 +34,27 @@ func (repo *RedisRepository) PublishUserNotification(ctx context.Context, userId
 	}).Err()
 }
 
-func (repo *RedisRepository) GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) (*models.UserNotification, error) {
+func (repo *RedisRepository) GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) chan models.StreamSubscriptionResult[*models.UserNotification] {
 	userNotificationStreamKey := getUserNotificationStreamKey(userId)
 
-	id := "$"
-	if startId != "" {
-		id = startId
-	}
+	return getStreamEntry[*models.UserNotification](ctx, repo, userNotificationStreamKey, startId, func(values map[string]interface{}, entryId string) (*models.UserNotification, error) {
+		message, ok := values[streamEntryMessageField]
+		if !ok {
+			return nil, errors.New("no " + streamEntryMessageField + " field in stream entry")
+		}
 
-	r, err := repo.redisClient.XRead(ctx, &redis.XReadArgs{
-		Streams: []string{userNotificationStreamKey, id},
-		Count:   1,
-		Block:   0,
-	}).Result()
-	if err != nil {
-		return nil, err
-	}
+		messageStr, ok := message.(string)
+		if !ok {
+			return nil, errors.New("underlying type of " + streamEntryMessageField + " stream entry field is not string")
+		}
 
-	userNotificationId := r[0].Messages[0].ID
-	message, ok := r[0].Messages[0].Values[streamEntryMessageField]
-	if !ok {
-		return nil, errors.New("no " + streamEntryMessageField + " field in stream entry")
-	}
-	messageStr, ok := message.(string)
-	if !ok {
-		return nil, errors.New("underlying type of " + streamEntryMessageField + " stream entry field is not string")
-	}
+		var userNotification models.UserNotification
+		if err := json.Unmarshal([]byte(messageStr), &userNotification); err != nil {
+			return nil, err
+		}
 
-	var userNotification models.UserNotification
-	if err := json.Unmarshal([]byte(messageStr), &userNotification); err != nil {
-		return nil, err
-	}
+		userNotification.Id = entryId
 
-	userNotification.Id = userNotificationId
-
-	return &userNotification, nil
+		return &userNotification, nil
+	})
 }

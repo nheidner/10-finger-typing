@@ -233,31 +233,29 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 
 	go func() {
 		defer close(allReceived)
-		actionCh, errCh := gs.cacheRepo.GetAction(ctx, roomId, time.Time{})
+
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		actionResultCh := gs.cacheRepo.GetAction(ctx, roomId, time.Time{})
 
 		for resultsCount := 0; resultsCount < playersNumber; {
 			select {
-			case action, ok := <-actionCh:
+			case actionResult, ok := <-actionResultCh:
 				if !ok {
 					return
 				}
-
-				if action == models.GameUserScoreAction {
+				if actionResult.Error != nil {
+					log.Println("error from action result channel: ", actionResult.Error)
+					return
+				}
+				if actionResult.Value == models.GameUserScoreAction {
 					resultsCount++
 					continue
 				}
-
-			case err, ok := <-errCh:
-				if !ok {
-					return
-				}
-
-				log.Println(err)
-				return
 			case <-ctx.Done():
 				return
 			}
-
 		}
 
 		allReceived <- struct{}{}

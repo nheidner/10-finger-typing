@@ -113,7 +113,7 @@ func (rc *RoomController) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	err = rc.roomService.RoomConnect(user.ID, room, conn)
+	err = rc.roomService.RoomConnect(c.Request.Context(), user.ID, room, conn)
 	if err != nil {
 		log.Println(err)
 	}

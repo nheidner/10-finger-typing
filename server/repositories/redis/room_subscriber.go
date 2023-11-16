@@ -27,6 +27,7 @@ func getRoomSubscriberKey(roomId, userId uuid.UUID) string {
 	return getRoomKey(roomId) + ":subscribers:" + userId.String()
 }
 
+// rooms:[room_id]:subscribers:[user_id]:conns
 func getRoomSubscriberConnectionKey(roomId, userId uuid.UUID) string {
 	return getRoomSubscriberKey(roomId, userId) + ":conns"
 }
@@ -126,6 +127,7 @@ func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, ro
 	return repo.redisClient.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberGameStatusField: strconv.Itoa(int(status))}).Err()
 }
 
+// adds room subscriber connection to rooms:[room_id]:subscribers:[user_id]:conns and adapts room subscribe status to active if necessary
 func (repo *RedisRepository) SetRoomSubscriberConnection(ctx context.Context, roomId, userId, newConnectionId uuid.UUID) (roomSubscriberStatusHasBeenUpdated bool, err error) {
 	status, err := repo.getRoomSubscriberStatus(ctx, roomId, userId)
 	if err != nil {

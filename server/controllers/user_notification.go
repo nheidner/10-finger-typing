@@ -32,7 +32,7 @@ func (uc *UserNotificationController) FindRealtimeUserNotification(c *gin.Contex
 		return
 	}
 
-	userNotification, err := uc.userNotificationService.FindRealtimeUserNotification(user.ID, query.LastId)
+	userNotification, err := uc.userNotificationService.FindRealtimeUserNotification(c.Request.Context(), user.ID, query.LastId)
 	switch {
 	case err != nil:
 		log.Println("error finding real time user notification:", err)

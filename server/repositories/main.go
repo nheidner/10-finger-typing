@@ -119,8 +119,8 @@ type RoomStreamCacheRepository interface {
 	// call PublishPushMessage with type and payload and not with push message type
 	PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage models.PushMessage) error
 	PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error
-	GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan []byte, <-chan error)
-	GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) (<-chan models.StreamActionType, <-chan error)
+	GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[[]byte]
+	GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[models.StreamActionType]
 }
 
 type RoomSubscriberCacheRepository interface {
@@ -142,5 +142,5 @@ type TextCacheRepository interface {
 
 type UserNotificationCacheRepository interface {
 	PublishUserNotification(ctx context.Context, userId uuid.UUID, userNotification models.UserNotification) error
-	GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) (userNotification *models.UserNotification, err error)
+	GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) chan models.StreamSubscriptionResult[*models.UserNotification]
 }

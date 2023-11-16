@@ -75,3 +75,8 @@ type PushMessage struct {
 	// cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
 	Payload any `json:"payload"`
 }
+
+type StreamSubscriptionResult[T []byte | StreamActionType | *UserNotification] struct {
+	Error error
+	Value T
+}

@@ -4,13 +4,13 @@ import (
 	"10-typing/models"
 	"10-typing/repositories"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 type RoomService struct {
@@ -184,53 +184,71 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 	return nil
 }
 
-func (rs *RoomService) RoomConnect(userId uuid.UUID, room *models.Room, conn *websocket.Conn) error {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.cacheRepo, cancel)
-	defer roomSubscription.close(context.Background())
-
-	err := roomSubscription.initRoomSubscriber(ctx)
-	if err != nil {
-		log.Println("failed to initialise room subscriber:", err)
-		roomSubscription.cancel()
-		return err
-	}
+// reads from connection and handles incoming ping and cursor messages.
+//
+// gets initial_state data and sends it as message to client.
+//
+// subscribes to room redis stream and sends messages to client.
+func (rs *RoomService) RoomConnect(ctx context.Context, userId uuid.UUID, room *models.Room, conn *websocket.Conn) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.cacheRepo)
+	defer roomSubscription.close(ctx)
 
 	timeStamp := time.Now()
+	errCh := make(chan error)
 
-	existingRoomSubscribers, err := rs.cacheRepo.GetRoomSubscribers(ctx, room.ID)
-	if err != nil {
-		log.Println("failed to get room subscribers:", err)
-		return err
-	}
+	go func() {
+		err := roomSubscription.handleMessages(ctx)
+		if err != nil {
+			err = errors.New("error handling messages " + err.Error())
+			log.Println(err)
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+	}()
 
-	currentGame, err := rs.cacheRepo.GetCurrentGame(ctx, room.ID)
-	if err != nil {
-		log.Println("failed to get current room:", err)
-		return err
-	}
+	go func() {
+		err := roomSubscription.handleRoomSubscriberStatus(ctx)
+		if err != nil {
+			err = errors.New("error room subscriber status " + err.Error())
+			log.Println(err)
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+	}()
 
-	room.Subscribers = existingRoomSubscribers
-	room.CurrentGame = currentGame
+	go func() {
+		err := roomSubscription.sendInitialState(ctx, *room)
+		if err != nil {
+			err = errors.New("error sending initial state " + err.Error())
+			log.Println(err)
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+	}()
 
-	initialMessage := &models.PushMessage{
-		Type:    models.InitialState,
-		Payload: room,
-	}
+	go func() {
+		err := roomSubscription.subscribe(ctx, timeStamp)
+		if err != nil {
+			err = errors.New("error subscribing " + err.Error())
+			log.Println(err)
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+	}()
 
-	err = wsjson.Write(ctx, roomSubscription.conn, initialMessage)
-	if err != nil {
-		log.Println("Failed to initialise room subscriber:", err)
-		return err
-	}
+	err := <-errCh
 
-	err = roomSubscription.subscribe(ctx, timeStamp)
-	if err != nil {
-		log.Println("Error subscribing to room stream:", err)
-	}
-
-	return nil
+	return err
 }
 
 func (rs *RoomService) createRoomWithSubscribers(userIds []uuid.UUID, emails []string, adminId uuid.UUID) (*models.Room, error) {
