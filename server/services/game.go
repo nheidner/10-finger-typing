@@ -57,6 +57,12 @@ func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid
 		return uuid.Nil, err
 	}
 
+	if err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.UnstartedGameStatus); err != nil {
+		return uuid.Nil, err
+	}
+
+	// TODO: send new_game message
+
 	return gameId, nil
 }
 
@@ -147,31 +153,41 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		return err
 	}
 
-	// TODO: can only be called once
-	if numberGameUsers == 2 {
-		// start countdown
-		err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.CountdownGameStatus)
-		if err != nil {
-			return err
-		}
-
-		countdownPushMessage := models.PushMessage{
-			Type:    models.CountdownStart,
-			Payload: countdownDurationSeconds,
-		}
-
-		err = gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			time.Sleep(countdownDurationSeconds*time.Second + gameDurationSeconds*time.Second)
-			if err = gs.handleGameResults(roomId); err != nil {
-				log.Println("error handling game results", err)
-			}
-		}()
+	if numberGameUsers != 2 {
+		return nil
 	}
+
+	gameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
+	if err != nil {
+		return err
+	}
+
+	if gameStatus > models.UnstartedGameStatus {
+		return nil
+	}
+
+	// start countdown
+	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.CountdownGameStatus)
+	if err != nil {
+		return err
+	}
+
+	countdownPushMessage := models.PushMessage{
+		Type:    models.CountdownStart,
+		Payload: countdownDurationSeconds,
+	}
+
+	err = gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		time.Sleep(countdownDurationSeconds*time.Second + gameDurationSeconds*time.Second)
+		if err = gs.handleGameResults(roomId); err != nil {
+			log.Println("error handling game results", err)
+		}
+	}()
 
 	return nil
 }
