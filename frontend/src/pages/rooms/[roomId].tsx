@@ -69,6 +69,7 @@ const RoomPage: NextPage<{
   const [game, setGame] = useState<Game | null>(null);
   const [gameStatus, setGameStatus] = useState<GameStatus>("unstarted");
   const [count, setCount] = useState<number | null>(null);
+  const [userMarkedGameStart, setUserMarkedGameStart] = useState(false);
 
   const { data: textData, isLoading: textIsLoading } = useQuery(
     ["texts", game?.textId],
@@ -301,11 +302,34 @@ const RoomPage: NextPage<{
     }
   }, [count]);
 
+  const handleStartGame = () => {
+    setUserMarkedGameStart(true);
+    startGame();
+  };
+
   const countDown =
     count !== null ? (
       <div className="fixed text-9xl left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2">
         {count > 0 ? count : "start"}
       </div>
+    ) : null;
+
+  const buttonText = userMarkedGameStart
+    ? "waiting for other users"
+    : count
+    ? "Participate"
+    : "Start Game";
+
+  const startGameButton =
+    gameStatus === "unstarted" ? (
+      <button
+        disabled={userMarkedGameStart || count === 0}
+        type="button"
+        className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:bg-slate-500 disabled:hover:bg-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+        onClick={handleStartGame}
+      >
+        {buttonText}
+      </button>
     ) : null;
 
   return (
@@ -343,13 +367,7 @@ const RoomPage: NextPage<{
             </div>
           );
         })}
-        <button
-          type="button"
-          className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-          onClick={() => startGame()}
-        >
-          Start Game
-        </button>
+        {startGameButton}
       </section>
       <Content
         isActive={gameStatus == "started"}
