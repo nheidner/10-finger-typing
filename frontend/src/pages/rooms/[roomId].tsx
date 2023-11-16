@@ -68,6 +68,7 @@ const RoomPage: NextPage<{
   const [roomSubscribers, setRoomSubscribers] = useState<RoomSubscriber[]>([]);
   const [game, setGame] = useState<Game | null>(null);
   const [gameStatus, setGameStatus] = useState<GameStatus>("unstarted");
+  const [count, setCount] = useState<number | null>(null);
 
   const { data: textData, isLoading: textIsLoading } = useQuery(
     ["texts", game?.textId],
@@ -119,7 +120,6 @@ const RoomPage: NextPage<{
     let pingInterval: ReturnType<typeof setInterval> | null = null;
     let waitForPongTimeout: ReturnType<typeof setTimeout> | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let countdownTimeout: ReturnType<typeof setTimeout> | null = null;
     let isComponentMounted = true;
 
     const connectSocket = () => {
@@ -214,9 +214,7 @@ const RoomPage: NextPage<{
           case "countdown_start": {
             const payload = message.payload as CountdownStartPayload;
 
-            countdownTimeout = setTimeout(() => {
-              setGameStatus("started");
-            }, payload * 1000);
+            setCount(payload);
             break;
           }
           default:
@@ -251,10 +249,12 @@ const RoomPage: NextPage<{
               }, backoffDelay);
             }
           }
-        } else {
-          console.error("Connection died");
-          // Here you can implement reconnection logic if needed.
+
+          return;
         }
+
+        console.error("Connection died", e);
+        // Here you can implement reconnection logic if needed.
       };
     };
 
@@ -275,14 +275,42 @@ const RoomPage: NextPage<{
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
-      if (countdownTimeout) {
-        clearTimeout(countdownTimeout);
-      }
     };
   }, [roomId]);
 
+  useEffect(() => {
+    if (count) {
+      const timer = setTimeout(() => {
+        setCount((oldCount) => {
+          if (oldCount) {
+            return oldCount - 1;
+          }
+
+          return oldCount;
+        });
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+
+    if (count === 0) {
+      setTimeout(() => {
+        setGameStatus("started");
+        setCount(null);
+      }, 200);
+    }
+  }, [count]);
+
+  const countDown =
+    count !== null ? (
+      <div className="fixed text-9xl left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2">
+        {count > 0 ? count : "start"}
+      </div>
+    ) : null;
+
   return (
     <>
+      {countDown}
       <div>{roomId}</div>
       <section className="flex gap-2 items-center">
         {sortedRoomSubscribers.map((roomSubscriber) => {
