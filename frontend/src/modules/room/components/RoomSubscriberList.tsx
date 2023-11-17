@@ -1,10 +1,9 @@
 import { Avatar } from "@/components/Avatar";
-import { User } from "@/types";
+import { RoomSubscriber, SubscriberGameStatus, User } from "@/types";
 import { getAuthenticatedUser } from "@/utils/queries";
 import { useQuery } from "@tanstack/react-query";
 import classNames from "classnames";
 import { FC, useMemo } from "react";
-import { RoomSubscriber, SubscriberGameStatus } from "../types";
 
 const statusToSortingWeightMapping: {
   [key in SubscriberGameStatus | "inactive"]: number;

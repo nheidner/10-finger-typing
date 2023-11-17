@@ -38,11 +38,12 @@ export const createGame = async ({
   });
 };
 
-export type NewScoreBodyParams = {
+export type NewGameScoreBodyParams = {
   wordsTyped: number;
   timeElapsed: number;
   errors: { [error: string]: number };
-  textId: number;
+  textId: string;
+  gameId: string;
 };
 
 export const createScore = async ({
@@ -50,7 +51,7 @@ export const createScore = async ({
   body,
 }: {
   roomId: string;
-  body: NewGameBodyParams;
+  body: NewGameScoreBodyParams;
 }) => {
   return fetchApi<{ id: string }>(`/rooms/${roomId}/current-game/score`, {
     method: "POST",

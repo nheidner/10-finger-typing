@@ -3,17 +3,18 @@ import { GameDurationCounter } from "@/modules/room/components/GameDurationCount
 import { RoomSubscriberList } from "@/modules/room/components/RoomSubscriberList";
 import { StartGameButton } from "@/modules/room/components/StartGameButton";
 import { useConnectToRoom } from "@/modules/room/hooks/use_connect_to_room";
-import { GameStatus } from "@/modules/room/types";
 import { Content } from "@/modules/train/components/Content";
-import { getTextById } from "@/utils/queries";
+import { GameStatus, Score } from "@/types";
+import { createScore, getTextById } from "@/utils/queries";
 import {
   DehydratedState,
   QueryClient,
   dehydrate,
+  useMutation,
   useQuery,
 } from "@tanstack/react-query";
 import { NextPage, NextPageContext } from "next";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const RoomPage: NextPage<{
   dehydratedState: DehydratedState;
@@ -31,6 +32,26 @@ const RoomPage: NextPage<{
       enabled: !!game?.textId,
     }
   );
+
+  const { mutate } = useMutation({
+    mutationKey: ["create game score", roomId, game?.id],
+    mutationFn: createScore,
+  });
+
+  useEffect(() => {
+    if (gameStatus === "finished" && game?.textId && gameDuration && game.id) {
+      mutate({
+        roomId: roomId,
+        body: {
+          textId: game.textId,
+          gameId: game.id,
+          timeElapsed: gameDuration,
+          errors: { a: 5, b: 3, c: 1 },
+          wordsTyped: 40,
+        },
+      });
+    }
+  }, [gameStatus, game?.textId, mutate, roomId, gameDuration, game?.id]);
 
   return (
     <>
