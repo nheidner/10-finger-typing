@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	waitForResultsDurationSeconds = 5
+	waitForResultsDurationSeconds = 10
 	countdownDurationSeconds      = 3
 )
 
@@ -197,7 +197,17 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 	}
 
 	go func() {
-		time.Sleep(countdownDurationSeconds*time.Second + time.Duration(gameDurationSec)*time.Second)
+		time.Sleep(countdownDurationSeconds * time.Second)
+
+		// after blocking for countdown duration, set game status to "started"
+		err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus)
+		if err != nil {
+			log.Println("error setting game status to finished:", err.Error())
+			return
+		}
+
+		time.Sleep(time.Duration(gameDurationSec) * time.Second)
+
 		if err = gs.handleGameResults(roomId); err != nil {
 			log.Println("error handling game results", err)
 		}
@@ -228,7 +238,7 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 
 	ctx = context.Background()
 
-	// set game status to Finished
+	// set game status to finished
 	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
 	if err != nil {
 		return errors.New("error setting game status to finished:" + err.Error())
@@ -239,11 +249,7 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 		return errors.New("error when getting current game id from redis: " + err.Error())
 	}
 
-	scores, err := gs.dbRepo.FindScores(
-		uuid.Nil, gameId,
-		"",
-		[]models.SortOption{{Column: "words_per_minute", Order: "desc"}},
-	)
+	scores, err := gs.dbRepo.FindScores(uuid.Nil, gameId, "", []models.SortOption{{Column: "words_per_minute", Order: "desc"}})
 
 	fmt.Println("scores :>>", scores)
 

@@ -19,5 +19,5 @@ type Room struct {
 	Tokens          []Token          `json:"-"`
 	Games           []Game           `json:"-"`
 	CurrentGame     *Game            `json:"currentGame" gorm:"-"`
-	GameDurationSec int              `json:"gameDurationSec" gorm:"default:30;not null"`
+	GameDurationSec int              `json:"gameDurationSec" gorm:"default:5;not null"`
 }

@@ -15,8 +15,8 @@ type Game struct {
 	DeletedAt *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
 	TextId    uuid.UUID       `json:"textId" gorm:"not null"`
 	RoomId    uuid.UUID       `json:"roomId" gorm:"not null"`
-	Scores    []Score         `json:"-"`
-	Status    GameStatus      `json:"status" gorm:"-"`
+	// Scores    []Score         `json:"-"` // TODO: cannot have foreign key fk_games_scores for case when adding game score before adding game
+	Status GameStatus `json:"status" gorm:"-"`
 }
 
 type GameStatus int

@@ -45,7 +45,7 @@ func (repo *RedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID
 	return repo.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]string{
-			streamEntryTypeField:   strconv.Itoa(int(models.PushMessageStreamEntryType)),
+			streamEntryTypeField:   strconv.Itoa(int(models.ActionStreamEntryType)),
 			streamEntryActionField: strconv.Itoa(int(action)),
 		},
 	}).Err()
@@ -91,7 +91,10 @@ func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UU
 
 func (repo *RedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[models.StreamActionType] {
 	roomStreamKey := getRoomStreamKey(roomId)
-	startId := strconv.FormatInt(startTime.UnixMilli(), 10)
+	startId := ""
+	if (startTime != time.Time{}) {
+		startId = strconv.FormatInt(startTime.UnixMilli(), 10)
+	}
 
 	return getStreamEntry[models.StreamActionType](ctx, repo, roomStreamKey, startId, func(values map[string]interface{}, entryId string) (models.StreamActionType, error) {
 		streamEntryType, err := getStreamEntryTypeFromMap(values)
