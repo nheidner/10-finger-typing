@@ -30,13 +30,6 @@ export interface Text {
   numbers: number;
 }
 
-export interface Game {
-  id: string;
-  roomId: string;
-  status: GameStatus;
-  textId: string;
-}
-
 export interface Room {
   id: string;
 }
@@ -51,7 +44,3 @@ export interface UserNotification {
   type: "room_invitation";
   payload: RoomInvitationPayload;
 }
-
-export type GameStatus = "unstarted" | "started" | "finished";
-export type SubscriberGameStatus = "unstarted" | "started" | "finished";
-export type SubscriberStatus = "inactive" | "active";
