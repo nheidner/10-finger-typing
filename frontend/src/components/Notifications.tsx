@@ -86,7 +86,10 @@ export const Notifications = () => {
                   {notification.payload.by}
                 </Link>{" "}
                 to{" "}
-                <Link href={`/rooms/${notification.payload.roomId}`}>
+                <Link
+                  href={`/rooms/${notification.payload.roomId}`}
+                  onClick={() => closeNotification(notification.id)}
+                >
                   this room.
                 </Link>
               </>
