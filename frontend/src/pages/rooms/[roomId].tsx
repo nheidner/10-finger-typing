@@ -1,4 +1,5 @@
 import { Avatar } from "@/components/Avatar";
+import { GameDurationCounter } from "@/modules/room/GameDurationCounter";
 import { Content } from "@/modules/train/components/Content";
 import {
   Game,
@@ -22,7 +23,7 @@ import {
 } from "@tanstack/react-query";
 import classNames from "classnames";
 import { NextPage, NextPageContext } from "next";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { FC, useEffect, useMemo, useRef, useState } from "react";
 
 interface RoomSubscriber {
   userId: string;
@@ -368,9 +369,14 @@ const RoomPage: NextPage<{
           );
         })}
         {startGameButton}
+        <GameDurationCounter
+          gameStatus={gameStatus}
+          setGameStatus={setGameStatus}
+          gameDuration={10}
+        />
       </section>
       <Content
-        isActive={gameStatus == "started"}
+        isActive={gameStatus === "started"}
         isLoading={textIsLoading}
         text={textData || null}
         userData={{}}
