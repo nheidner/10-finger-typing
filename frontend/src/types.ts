@@ -30,8 +30,28 @@ export interface Text {
   numbers: number;
 }
 
-export interface Room {
+export interface Game {
   id: string;
+  roomId: string;
+  status: GameStatus;
+  textId: string;
+}
+
+export type GameStatus = "unstarted" | "started" | "finished" | "countdown";
+export type SubscriberGameStatus = "unstarted" | "started" | "finished";
+export type SubscriberStatus = "inactive" | "active";
+
+export interface RoomSubscriber {
+  userId: string;
+  gameStatus: SubscriberGameStatus;
+  status: SubscriberStatus;
+  username: string;
+}
+export interface Room {
+  adminId: string;
+  currentGame: Game;
+  roomSubscribers: RoomSubscriber[];
+  gameDurationSec: number;
 }
 
 type RoomInvitationPayload = {

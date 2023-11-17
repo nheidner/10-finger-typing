@@ -14,7 +14,7 @@ const (
 	roomSubscriberStatusField     = "status"
 	roomSubscriberGameStatusField = "game_status"
 	roomSubscriberUsernameField   = "username"
-	connectionExpirationMilli     = 1000 * 10
+	connectionExpirationMilli     = 1000 * 60 * 10
 )
 
 // rooms:[room_id]:subscribers_ids set: user ids

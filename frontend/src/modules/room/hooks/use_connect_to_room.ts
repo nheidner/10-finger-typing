@@ -2,14 +2,12 @@ import { getWsUrl } from "@/utils/get_api_url";
 import { useEffect, useRef, useState } from "react";
 import {
   CountdownStartPayload,
-  Game,
-  GameStatus,
   InitialStatePayload,
   Message,
-  RoomSubscriber,
   UserJoinedPayload,
   UserLeftPayload,
 } from "../types";
+import { Game, GameStatus, RoomSubscriber } from "@/types";
 
 const notReceivePongReason = "did not receive pong";
 const apiUrl = getWsUrl();
@@ -89,6 +87,7 @@ export const useConnectToRoom = (
 
             setGame(payload.currentGame);
             setRoomSubscribers(payload.roomSubscribers);
+            setGameDuration(payload.gameDurationSec);
             break;
           }
           case "user_joined": {
@@ -130,7 +129,6 @@ export const useConnectToRoom = (
 
             setGameStatus("countdown");
             setCountDownDuration(payload);
-            setGameDuration(10);
             break;
           }
           default:

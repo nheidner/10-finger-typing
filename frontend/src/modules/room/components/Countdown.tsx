@@ -1,5 +1,5 @@
 import { FC, useEffect, useState } from "react";
-import { GameStatus } from "../types";
+import { GameStatus } from "@/types";
 
 export const CountDown: FC<{
   gameStatus: GameStatus;

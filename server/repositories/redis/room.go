@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	roomAdminIdField   = "admin_id"
-	roomCreatedAtField = "created_at"
-	roomUpdatedAtField = "updated_at"
+	roomAdminIdField         = "admin_id"
+	roomCreatedAtField       = "created_at"
+	roomUpdatedAtField       = "updated_at"
+	roomGameDurationSecField = "game_duration"
 )
 
 // rooms:[room_id] hash: roomAdminId, createdAt, updatedAt
@@ -80,13 +81,18 @@ func (repo *RedisRepository) GetRoom(ctx context.Context, roomId uuid.UUID, user
 	if err != nil {
 		return nil, err
 	}
+	gameDurationSec, err := strconv.Atoi(roomData[roomGameDurationSecField])
+	if err != nil {
+		return nil, err
+	}
 
 	return &models.Room{
-		ID:          roomId,
-		AdminId:     adminId,
-		CreatedAt:   createdAt,
-		UpdatedAt:   updatedAt,
-		Subscribers: roomSubscribers,
+		ID:              roomId,
+		AdminId:         adminId,
+		CreatedAt:       createdAt,
+		UpdatedAt:       updatedAt,
+		Subscribers:     roomSubscribers,
+		GameDurationSec: gameDurationSec,
 	}, nil
 }
 
@@ -94,9 +100,10 @@ func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) erro
 	// add room
 	roomKey := getRoomKey(room.ID)
 	roomValue := map[string]any{
-		roomAdminIdField:   room.AdminId.String(),
-		roomCreatedAtField: room.CreatedAt.UnixMilli(),
-		roomUpdatedAtField: room.UpdatedAt.UnixMilli(),
+		roomAdminIdField:         room.AdminId.String(),
+		roomCreatedAtField:       room.CreatedAt.UnixMilli(),
+		roomUpdatedAtField:       room.UpdatedAt.UnixMilli(),
+		roomGameDurationSecField: room.GameDurationSec,
 	}
 	if err := repo.redisClient.HSet(ctx, roomKey, roomValue).Err(); err != nil {
 		return err

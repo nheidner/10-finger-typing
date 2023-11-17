@@ -53,8 +53,9 @@ func (rc *RoomController) LeaveRoom(c *gin.Context) {
 }
 
 type CreateRoomInput struct {
-	UserIds []uuid.UUID `json:"userIds"`
-	Emails  []string    `json:"emails" binding:"dive,email"`
+	UserIds         []uuid.UUID `json:"userIds"`
+	Emails          []string    `json:"emails" binding:"dive,email"`
+	GameDurationSec int         `json:"gameDurationSec"`
 }
 
 func (rc *RoomController) CreateRoom(c *gin.Context) {
@@ -71,7 +72,7 @@ func (rc *RoomController) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	room, err := rc.roomService.CreateRoom(input.UserIds, input.Emails, *user)
+	room, err := rc.roomService.CreateRoom(input.UserIds, input.Emails, input.GameDurationSec, *user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

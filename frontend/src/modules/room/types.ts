@@ -1,28 +1,6 @@
-import { User } from "@/types";
+import { Room, User } from "@/types";
 
-export interface Game {
-  id: string;
-  roomId: string;
-  status: GameStatus;
-  textId: string;
-}
-
-export type GameStatus = "unstarted" | "started" | "finished" | "countdown";
-export type SubscriberGameStatus = "unstarted" | "started" | "finished";
-export type SubscriberStatus = "inactive" | "active";
-
-export interface RoomSubscriber {
-  userId: string;
-  gameStatus: SubscriberGameStatus;
-  status: SubscriberStatus;
-  username: string;
-}
-
-export type InitialStatePayload = {
-  adminId: string;
-  currentGame: Game;
-  roomSubscribers: RoomSubscriber[];
-};
+export type InitialStatePayload = Room;
 
 export type UserJoinedPayload = string;
 

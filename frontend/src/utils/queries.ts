@@ -11,10 +11,13 @@ import { fetchApi } from "./fetch";
 export type NewRoomBodyParams = {
   userIds: string[];
   emails: string[];
+  gameDurationSec?: number;
 };
 
 export const createRoom = async ({ body }: { body: NewRoomBodyParams }) => {
-  return fetchApi<Room>("/rooms", {
+  return fetchApi<{
+    id: string;
+  }>("/rooms", {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -30,6 +33,26 @@ export const createGame = async ({
   body: NewGameBodyParams;
 }) => {
   return fetchApi<{ id: string }>(`/rooms/${roomId}/games`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+};
+
+export type NewScoreBodyParams = {
+  wordsTyped: number;
+  timeElapsed: number;
+  errors: { [error: string]: number };
+  textId: number;
+};
+
+export const createScore = async ({
+  roomId,
+  body,
+}: {
+  roomId: string;
+  body: NewGameBodyParams;
+}) => {
+  return fetchApi<{ id: string }>(`/rooms/${roomId}/current-game/score`, {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -79,7 +102,7 @@ export const getTextById = async (textId: string) => {
 };
 
 export const startGame = async (roomId: string) => {
-  return fetchApi<string>(`/rooms/${roomId}/start_game`, { method: "POST" });
+  return fetchApi<string>(`/rooms/${roomId}/start-game`, { method: "POST" });
 };
 
 export const getNewTextByUserid = async (

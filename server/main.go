@@ -100,8 +100,8 @@ func main() {
 	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
 	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, isRoommemberMiddleware, roomController.LeaveRoom)
 	api.POST("/rooms/:roomid/games", authRequiredMiddleware, middlewares.IsRoomAdmin(cacheRepo), gameController.CreateGame)
-	api.POST("/rooms/:roomid/start_game", authRequiredMiddleware, isRoommemberMiddleware, gameController.StartGame)
-	api.POST("/rooms/:roomid/game/score",
+	api.POST("/rooms/:roomid/start-game", authRequiredMiddleware, isRoommemberMiddleware, gameController.StartGame)
+	api.POST("/rooms/:roomid/current-game/score",
 		authRequiredMiddleware,
 		isRoommemberMiddleware,
 		middlewares.IsCurrentGameUser(cacheRepo),

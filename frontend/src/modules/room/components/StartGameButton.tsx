@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { FC, useState } from "react";
 import { startGame as startGameQuery } from "@/utils/queries";
-import { GameStatus } from "../types";
+import { GameStatus } from "@/types";
 
 export const StartGameButton: FC<{
   gameStatus: GameStatus;

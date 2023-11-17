@@ -54,7 +54,7 @@ func (rs *RoomService) Find(roomId uuid.UUID, userId uuid.UUID) (*models.Room, e
 	return room, nil
 }
 
-func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, authenticatedUser models.User) (*models.Room, error) {
+func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, gameDurationSec int, authenticatedUser models.User) (*models.Room, error) {
 	// validate
 	if (len(userIds) == 0) && (len(emails) == 0) {
 		return nil, fmt.Errorf("you cannot create a room just for yourself")
@@ -94,7 +94,7 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, authenti
 	}
 
 	// create room
-	room, err := rs.createRoomWithSubscribers(userIds, allEmails, authenticatedUser.ID)
+	room, err := rs.createRoomWithSubscribers(userIds, allEmails, authenticatedUser.ID, gameDurationSec)
 	if err != nil {
 		return nil, err
 	}
@@ -251,10 +251,15 @@ func (rs *RoomService) RoomConnect(ctx context.Context, userId uuid.UUID, room *
 	return err
 }
 
-func (rs *RoomService) createRoomWithSubscribers(userIds []uuid.UUID, emails []string, adminId uuid.UUID) (*models.Room, error) {
-	createdRoom, err := rs.dbRepo.CreateRoom(models.Room{
+func (rs *RoomService) createRoomWithSubscribers(userIds []uuid.UUID, emails []string, adminId uuid.UUID, gameDurationSec int) (*models.Room, error) {
+	newRoom := models.Room{
 		AdminId: adminId,
-	})
+	}
+	if gameDurationSec != 0 {
+		newRoom.GameDurationSec = gameDurationSec
+	}
+
+	createdRoom, err := rs.dbRepo.CreateRoom(newRoom)
 	if err != nil {
 		return nil, err
 	}

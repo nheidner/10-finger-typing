@@ -1,32 +1,40 @@
-import { GameStatus } from "../types";
+import { GameStatus } from "@/types";
 import { FC, useEffect, useState } from "react";
-
-const defaultGameDuration = 30;
 
 export const GameDurationCounter: FC<{
   gameStatus: GameStatus;
   setGameStatus: (newGameStatus: GameStatus) => void;
   gameDuration: null | number;
 }> = ({ gameStatus, setGameStatus, gameDuration }) => {
-  const [remainingTime, setRemainingTime] = useState(
-    gameDuration || defaultGameDuration
-  );
+  const [remainingTime, setRemainingTime] = useState(gameDuration);
 
   useEffect(() => {
-    if (gameStatus !== "started") {
-      return;
-    }
-    if (remainingTime === 0) {
-      setGameStatus("finished");
+    if (gameStatus !== "started" || !remainingTime) {
       return;
     }
 
     const timeout = setTimeout(() => {
-      setRemainingTime((oldRemainingTime) => oldRemainingTime - 1);
+      setRemainingTime(
+        (oldRemainingTime) => oldRemainingTime && oldRemainingTime - 1
+      );
     }, 1000);
 
     return () => clearTimeout(timeout);
   }, [gameStatus, remainingTime, setGameStatus]);
+
+  useEffect(() => {
+    if (remainingTime === 0) {
+      setGameStatus("finished");
+      setRemainingTime(gameDuration);
+      return;
+    }
+  }, [remainingTime, gameDuration, setGameStatus]);
+
+  useEffect(() => {
+    if (gameDuration) {
+      setRemainingTime(gameDuration);
+    }
+  }, [gameDuration]);
 
   if (gameStatus !== "started") {
     return null;
