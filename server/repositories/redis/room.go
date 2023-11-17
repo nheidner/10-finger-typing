@@ -96,6 +96,12 @@ func (repo *RedisRepository) GetRoom(ctx context.Context, roomId uuid.UUID, user
 	}, nil
 }
 
+func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId uuid.UUID) (gameDurationSec int, err error) {
+	roomKey := getRoomKey(roomId)
+
+	return repo.redisClient.HGet(ctx, roomKey, roomGameDurationSecField).Int()
+}
+
 func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) error {
 	// add room
 	roomKey := getRoomKey(room.ID)

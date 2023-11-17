@@ -107,6 +107,7 @@ type GameCacheRepository interface {
 
 type RoomCacheRepository interface {
 	GetRoom(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*models.Room, error)
+	GetRoomGameDurationSec(ctx context.Context, roomId uuid.UUID) (gameDurationSec int, err error)
 	SetRoom(ctx context.Context, room models.Room) error
 	RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error)
 	RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error)

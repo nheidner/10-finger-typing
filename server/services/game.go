@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	gameDurationSeconds           = 10
 	waitForResultsDurationSeconds = 5
 	countdownDurationSeconds      = 3
 )
@@ -128,6 +127,15 @@ func (gs *GameService) UserFinishesGame(
 func (gs *GameService) AddUserToGame(roomId, userId uuid.UUID) error {
 	var ctx = context.Background()
 
+	// comment out
+	isCurrentGameUser, err := gs.cacheRepo.IsCurrentGameUser(ctx, roomId, userId)
+	if err != nil {
+		return err
+	}
+	if isCurrentGameUser {
+		return errors.New("game was already started")
+	}
+
 	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	if err != nil {
 		return err
@@ -157,6 +165,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		return nil
 	}
 
+	// comment out
 	gameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	if err != nil {
 		return err
@@ -182,8 +191,13 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 		return err
 	}
 
+	gameDurationSec, err := gs.cacheRepo.GetRoomGameDurationSec(ctx, roomId)
+	if err != nil {
+		return err
+	}
+
 	go func() {
-		time.Sleep(countdownDurationSeconds*time.Second + gameDurationSeconds*time.Second)
+		time.Sleep(countdownDurationSeconds*time.Second + time.Duration(gameDurationSec)*time.Second)
 		if err = gs.handleGameResults(roomId); err != nil {
 			log.Println("error handling game results", err)
 		}
