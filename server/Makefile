@@ -1,8 +1,8 @@
 seed:
-	go run scripts/seed/main.go
+	go run scripts/seed/seed.go
 
 clean:
-	go run scripts/clean/main.go
+	go run scripts/clean/clean.go
 
 build:
 	go build -o ./tmp/main .
