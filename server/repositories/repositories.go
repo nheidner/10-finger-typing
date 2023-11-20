@@ -3,9 +3,14 @@ package repositories
 import (
 	"10-typing/models"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
+)
+
+var (
+	errNotFound = errors.New("not found")
 )
 
 type Transaction interface {
