@@ -11,7 +11,7 @@ func NewCookie(name, value string) *http.Cookie {
 		Name:     name,
 		Value:    value,
 		HttpOnly: true,
-		MaxAge:   models.SessionDuration,
+		MaxAge:   models.SessionDurationSec,
 		Path:     "/",
 	}
 

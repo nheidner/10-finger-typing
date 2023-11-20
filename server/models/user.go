@@ -13,7 +13,6 @@ type User struct {
 	Email        string    `json:"email" gorm:"uniqueIndex;not null;type:varchar(255)" faker:"email"`
 	LastName     string    `json:"lastName" gorm:"type:varchar(255)" faker:"last_name"`
 	IsVerified   bool      `json:"isVerified" gorm:"default:false; not null" faker:"-"`
-	Sessions     []Session `json:"-" faker:"-"`
 	Scores       []Score   `json:"-" faker:"-"`
 	Rooms        []*Room   `json:"-" gorm:"many2many:user_rooms" faker:"-"`
 	RoomsAdmin   []Room    `json:"-" gorm:"foreignKey:AdminId" faker:"-"`

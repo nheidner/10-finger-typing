@@ -14,8 +14,9 @@ const (
 	userNotificationStreamMaxlen = 10
 )
 
+// users:[userid]:notifications
 func getUserNotificationStreamKey(userId uuid.UUID) string {
-	return "users:" + userId.String() + ":notifications"
+	return getUserKey(userId) + ":notifications"
 }
 
 func (repo *RedisRepository) PublishUserNotification(ctx context.Context, userId uuid.UUID, userNotification models.UserNotification) error {

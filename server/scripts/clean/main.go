@@ -11,6 +11,7 @@ import (
 func main() {
 	models.ConnectDatabase()
 
+	var ctx = context.Background()
 	cacheRepo := redis_repo.NewRedisRepository(models.RedisClient)
 	dbRepo := sql_repo.NewSQLRepository(models.DB)
 
@@ -20,7 +21,13 @@ func main() {
 		return
 	}
 
-	err = dbRepo.DeleteAllSessions()
+	err = cacheRepo.DeleteAllUsers(ctx)
+	if err != nil {
+		os.Exit(1)
+		return
+	}
+
+	err = cacheRepo.DeleteAllSessions(ctx)
 	if err != nil {
 		os.Exit(1)
 		return
@@ -37,8 +44,6 @@ func main() {
 		os.Exit(1)
 		return
 	}
-
-	var ctx = context.Background()
 
 	err = cacheRepo.DeleteTextIdsKey(ctx)
 	if err != nil {

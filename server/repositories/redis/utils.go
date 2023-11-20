@@ -113,3 +113,16 @@ func getStreamEntryTypeFromMap(values map[string]any) (models.StreamEntryType, e
 
 	return models.StreamEntryType(streamEntryTypeInt), nil
 }
+
+func deleteKeysByPattern(ctx context.Context, repo *RedisRepository, pattern string) error {
+	iter := repo.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+	for iter.Next(ctx) {
+		key := iter.Val()
+
+		repo.redisClient.Del(ctx, key)
+
+		return iter.Err()
+	}
+
+	return nil
+}

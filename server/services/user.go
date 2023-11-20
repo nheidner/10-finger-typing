@@ -5,6 +5,7 @@ import (
 	"10-typing/rand"
 	"10-typing/repositories"
 	"10-typing/utils"
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -18,11 +19,12 @@ const (
 
 type UserService struct {
 	dbRepo               repositories.DBRepository
+	cacheRepo            repositories.CacheRepository
 	sessionBytesPerToken int
 }
 
-func NewUserService(dbRepo repositories.DBRepository, sessionBytesPerToken int) *UserService {
-	return &UserService{dbRepo, sessionBytesPerToken}
+func NewUserService(dbRepo repositories.DBRepository, cacheRepo repositories.CacheRepository, sessionBytesPerToken int) *UserService {
+	return &UserService{dbRepo, cacheRepo, sessionBytesPerToken}
 }
 
 func (us *UserService) FindUsers(username, usernameSubstr string) ([]models.User, error) {
@@ -48,11 +50,11 @@ func (us *UserService) Create(email, username, firstName, lastName, password str
 		PasswordHash: hashedPassword,
 	}
 
-	return us.dbRepo.CreateUser(newUser)
+	return us.dbRepo.CreateUserAndCache(us.cacheRepo, newUser)
 }
 
 func (us *UserService) VerifyUser(userId uuid.UUID) error {
-	return us.dbRepo.VerifyUser(userId)
+	return us.dbRepo.VerifyUserAndCache(us.cacheRepo, userId)
 }
 
 func (us *UserService) Login(email, password string) (user *models.User, sessionToken string, err error) {
@@ -71,21 +73,18 @@ func (us *UserService) Login(email, password string) (user *models.User, session
 		return nil, "", errors.New("invalid password: " + err.Error())
 	}
 
-	// TODO: why?
-	user.Sessions = []models.Session{}
-
-	session, err := us.createSession(user.ID)
+	token, err := us.createSession(user.ID)
 	if err != nil {
 		return nil, "", err
 	}
 
-	return user, session.Token, nil
+	return user, token, nil
 }
 
 func (us *UserService) DeleteSession(token string) error {
 	tokenHash := utils.HashSessionToken(token)
 
-	return us.dbRepo.DeleteSessionByTokenHash(tokenHash)
+	return us.cacheRepo.DeleteSession(context.Background(), tokenHash)
 }
 
 func (us *UserService) hashedPassword(password string) (hashedPassword string, err error) {
@@ -98,20 +97,17 @@ func (us *UserService) hashedPassword(password string) (hashedPassword string, e
 	return string(hashedBytes), nil
 }
 
-func (us *UserService) createSession(userId uuid.UUID) (*models.Session, error) {
+func (us *UserService) createSession(userId uuid.UUID) (token string, err error) {
 	bytesPerToken := us.sessionBytesPerToken
 	if bytesPerToken < minBytesPerToken {
 		bytesPerToken = minBytesPerToken
 	}
-	token, err := rand.String(bytesPerToken)
+	token, err = rand.String(bytesPerToken)
 	if err != nil {
-		return nil, err
-	}
-	newSession := models.Session{
-		UserId:    userId,
-		Token:     token,
-		TokenHash: utils.HashSessionToken(token),
+		return "", err
 	}
 
-	return us.dbRepo.CreateSession(newSession)
+	tokenHash := utils.HashSessionToken(token)
+
+	return token, us.cacheRepo.SetSession(context.Background(), tokenHash, userId)
 }

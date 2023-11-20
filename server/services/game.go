@@ -5,7 +5,6 @@ import (
 	"10-typing/repositories"
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -250,8 +249,9 @@ func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
 	}
 
 	scores, err := gs.dbRepo.FindScores(uuid.Nil, gameId, "", []models.SortOption{{Column: "words_per_minute", Order: "desc"}})
-
-	fmt.Println("scores :>>", scores)
+	if err != nil {
+		return err
+	}
 
 	if err != nil {
 		return errors.New("error findind scores:" + err.Error())

@@ -47,7 +47,7 @@ func main() {
 	roomService := services.NewRoomService(dbRepo, cacheRepo, emailTransactionRepo)
 	scoreService := services.NewScoreService(dbRepo)
 	textService := services.NewTextService(dbRepo, cacheRepo, openAiRepo)
-	userService := services.NewUserService(dbRepo, 32)
+	userService := services.NewUserService(dbRepo, cacheRepo, 32)
 	userNoticationService := services.NewUserNotificationService(cacheRepo)
 
 	// Setup controllers
@@ -68,7 +68,7 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	authRequiredMiddleware := middlewares.AuthRequired(dbRepo)
+	authRequiredMiddleware := middlewares.AuthRequired(cacheRepo, dbRepo)
 	isRoommemberMiddleware := middlewares.IsRoomMember(cacheRepo)
 
 	// USERS

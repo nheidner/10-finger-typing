@@ -17,7 +17,6 @@ type DBRepository interface {
 	BeginTx() Transaction
 	RoomDBRepository
 	ScoreDBRepository
-	SessionDBRepository
 	TextDBRepository
 	TokenDBRepository
 	UserDBRepository
@@ -31,6 +30,8 @@ type CacheRepository interface {
 	RoomSubscriberCacheRepository
 	TextCacheRepository
 	UserNotificationCacheRepository
+	UserCacheRepository
+	SessionCacheRepository
 }
 
 type OpenAiRepository interface {
@@ -56,12 +57,6 @@ type ScoreDBRepository interface {
 	DeleteAllScores() error
 }
 
-type SessionDBRepository interface {
-	CreateSession(newSession models.Session) (*models.Session, error)
-	DeleteSessionByTokenHash(tokenHash string) error
-	DeleteAllSessions() error
-}
-
 type TextDBRepository interface {
 	FindNewTextForUser(
 		userId uuid.UUID, language string,
@@ -82,9 +77,8 @@ type UserDBRepository interface {
 	FindUserByEmail(email string) (*models.User, error)
 	FindUsers(username, usernameSubstr string) ([]models.User, error)
 	FindUserById(userId uuid.UUID) (*models.User, error)
-	FindUserByValidSessionTokenHash(tokenHash string) (*models.User, error)
-	CreateUser(newUser models.User) (*models.User, error)
-	VerifyUser(userId uuid.UUID) error
+	CreateUserAndCache(cacheRepo CacheRepository, newUser models.User) (*models.User, error)
+	VerifyUserAndCache(cacheRepo CacheRepository, userId uuid.UUID) error
 	DeleteAllUsers() error
 }
 
@@ -144,4 +138,20 @@ type TextCacheRepository interface {
 type UserNotificationCacheRepository interface {
 	PublishUserNotification(ctx context.Context, userId uuid.UUID, userNotification models.UserNotification) error
 	GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) chan models.StreamSubscriptionResult[*models.UserNotification]
+}
+
+type UserCacheRepository interface {
+	GetUserByEmailInCacheOrDB(ctx context.Context, dbRepo DBRepository, email string) (*models.User, error)
+	GetUserByIdInCacheOrDB(ctx context.Context, dbRepo DBRepository, userId uuid.UUID) (*models.User, error)
+	GetUserBySessionTokenHashInCacheOrDB(ctx context.Context, dbRepo DBRepository, tokenHash string) (*models.User, error)
+	UserExists(ctx context.Context, userId uuid.UUID) (bool, error)
+	SetUser(ctx context.Context, user models.User) error
+	VerifyUser(ctx context.Context, userId uuid.UUID) error
+	DeleteAllUsers(ctx context.Context) error
+}
+
+type SessionCacheRepository interface {
+	SetSession(ctx context.Context, tokenHash string, userId uuid.UUID) error
+	DeleteSession(ctx context.Context, tokenHash string) error
+	DeleteAllSessions(ctx context.Context) error
 }

@@ -27,7 +27,7 @@ func init() {
 	dbRepo := sql_repo.NewSQLRepository(models.DB)
 	openAiRepo := open_ai_repo.NewOpenAiRepository("")
 
-	userService = services.NewUserService(dbRepo, 32)
+	userService = services.NewUserService(dbRepo, cacheRepo, 32)
 	scoreService = services.NewScoreService(dbRepo)
 	textService = services.NewTextService(dbRepo, cacheRepo, openAiRepo)
 }
