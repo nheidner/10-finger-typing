@@ -26,7 +26,7 @@ func getRoomKey(roomId uuid.UUID) string {
 }
 
 func (repo *RedisRepository) GetRoom(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
-	const op errors.Op = "redis_repo.GetRoom"
+	const op errors.Op = "redis_repo.RedisRepository.GetRoom"
 	roomKey := getRoomKey(roomId)
 
 	roomData, err := repo.redisClient.HGetAll(ctx, roomKey).Result()
@@ -101,7 +101,7 @@ func (repo *RedisRepository) GetRoom(ctx context.Context, roomId uuid.UUID, user
 }
 
 func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId uuid.UUID) (gameDurationSec int, err error) {
-	const op errors.Op = "redis_repo.GetRoomGameDurationSec"
+	const op errors.Op = "redis_repo.RedisRepository.GetRoomGameDurationSec"
 	roomKey := getRoomKey(roomId)
 
 	gameDurationSec, err = repo.redisClient.HGet(ctx, roomKey, roomGameDurationSecField).Int()
@@ -116,7 +116,7 @@ func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId 
 }
 
 func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) error {
-	const op errors.Op = "redis_repo.SetRoom"
+	const op errors.Op = "redis_repo.RedisRepository.SetRoom"
 	// add room
 	roomKey := getRoomKey(room.ID)
 	roomValue := map[string]any{
@@ -158,7 +158,7 @@ func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) erro
 }
 
 func (repo *RedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
-	const op errors.Op = "redis_repo.RoomHasAdmin"
+	const op errors.Op = "redis_repo.RedisRepository.RoomHasAdmin"
 	roomKey := getRoomKey(roomId)
 
 	r, err := repo.redisClient.HGet(ctx, roomKey, roomAdminIdField).Result()
@@ -173,7 +173,7 @@ func (repo *RedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId u
 }
 
 func (repo *RedisRepository) RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error) {
-	const op errors.Op = "redis_repo.RoomHasSubscribers"
+	const op errors.Op = "redis_repo.RedisRepository.RoomHasSubscribers"
 
 	if len(userIds) == 0 {
 		err := fmt.Errorf("at least one user id must be specified")
@@ -205,7 +205,7 @@ func (repo *RedisRepository) RoomHasSubscribers(ctx context.Context, roomId uuid
 }
 
 func (repo *RedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID) (bool, error) {
-	const op errors.Op = "redis_repo.RoomExists"
+	const op errors.Op = "redis_repo.RedisRepository.RoomExists"
 	roomKey := getRoomKey(roomId)
 
 	r, err := repo.redisClient.Exists(ctx, roomKey).Result()
@@ -217,7 +217,7 @@ func (repo *RedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID) (
 }
 
 func (repo *RedisRepository) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
-	const op errors.Op = "redis_repo.DeleteRoom"
+	const op errors.Op = "redis_repo.RedisRepository.DeleteRoom"
 	roomKey := getRoomKey(roomId)
 	pattern := roomKey + "*"
 
@@ -229,7 +229,7 @@ func (repo *RedisRepository) DeleteRoom(ctx context.Context, roomId uuid.UUID) e
 }
 
 func (repo *RedisRepository) DeleteAllRooms(ctx context.Context) error {
-	const op errors.Op = "redis_repo.DeleteAllRooms"
+	const op errors.Op = "redis_repo.RedisRepository.DeleteAllRooms"
 	pattern := "rooms:*"
 
 	if err := deleteKeysByPattern(ctx, repo, pattern); err != nil {

@@ -21,7 +21,7 @@ func getUserNotificationStreamKey(userId uuid.UUID) string {
 }
 
 func (repo *RedisRepository) PublishUserNotification(ctx context.Context, userId uuid.UUID, userNotification models.UserNotification) error {
-	const op errors.Op = "redis_repo.PublishUserNotification"
+	const op errors.Op = "redis_repo.RedisRepository.PublishUserNotification"
 
 	userNotificationStreamKey := getUserNotificationStreamKey(userId)
 	userNotificationData, err := json.Marshal(userNotification)
@@ -43,7 +43,7 @@ func (repo *RedisRepository) PublishUserNotification(ctx context.Context, userId
 }
 
 func (repo *RedisRepository) GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) chan models.StreamSubscriptionResult[*models.UserNotification] {
-	const op errors.Op = "redis_repo.GetUserNotification"
+	const op errors.Op = "redis_repo.RedisRepository.GetUserNotification"
 	userNotificationStreamKey := getUserNotificationStreamKey(userId)
 
 	return getStreamEntry[*models.UserNotification](ctx, repo, userNotificationStreamKey, startId, func(values map[string]interface{}, entryId string) (*models.UserNotification, error) {

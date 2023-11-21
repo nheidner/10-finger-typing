@@ -13,7 +13,7 @@ const (
 )
 
 func (repo *RedisRepository) SetTextId(ctx context.Context, textIds ...uuid.UUID) error {
-	const op errors.Op = "redis_repo.SetTextId"
+	const op errors.Op = "redis_repo.RedisRepository.SetTextId"
 	textIdsStr := make([]any, 0, len(textIds))
 
 	for _, textId := range textIds {
@@ -28,7 +28,7 @@ func (repo *RedisRepository) SetTextId(ctx context.Context, textIds ...uuid.UUID
 }
 
 func (repo *RedisRepository) TextIdsKeyExists(ctx context.Context) (bool, error) {
-	const op errors.Op = "redis_repo.TextIdsKeyExists"
+	const op errors.Op = "redis_repo.RedisRepository.TextIdsKeyExists"
 
 	r, err := repo.redisClient.Exists(ctx, textIdsKey).Result()
 	if err != nil {
@@ -39,7 +39,7 @@ func (repo *RedisRepository) TextIdsKeyExists(ctx context.Context) (bool, error)
 }
 
 func (repo *RedisRepository) TextIdExists(ctx context.Context, textId uuid.UUID) (bool, error) {
-	const op errors.Op = "redis_repo.TextIdExists"
+	const op errors.Op = "redis_repo.RedisRepository.TextIdExists"
 
 	r, err := repo.redisClient.SMIsMember(ctx, textIdsKey, textId.String()).Result()
 	if err != nil {
@@ -50,7 +50,7 @@ func (repo *RedisRepository) TextIdExists(ctx context.Context, textId uuid.UUID)
 }
 
 func (repo *RedisRepository) DeleteTextIdsKey(ctx context.Context) error {
-	const op errors.Op = "redis_repo.DeleteTextIdsKey"
+	const op errors.Op = "redis_repo.RedisRepository.DeleteTextIdsKey"
 
 	if err := repo.redisClient.Del(ctx, textIdsKey).Err(); err != nil {
 		return errors.E(op, err)

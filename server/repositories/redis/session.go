@@ -15,7 +15,7 @@ func getSessionKey(tokenHash string) string {
 }
 
 func (repo *RedisRepository) SetSession(ctx context.Context, tokenHash string, userId uuid.UUID) error {
-	const op errors.Op = "redis_repo.SetSession"
+	const op errors.Op = "redis_repo.RedisRepository.SetSession"
 	sessionKey := getSessionKey(tokenHash)
 
 	if err := repo.redisClient.Set(ctx, sessionKey, userId.String(), models.SessionDurationSec*time.Second).Err(); err != nil {
@@ -26,7 +26,7 @@ func (repo *RedisRepository) SetSession(ctx context.Context, tokenHash string, u
 }
 
 func (repo *RedisRepository) DeleteSession(ctx context.Context, tokenHash string) error {
-	const op errors.Op = "redis_repo.DeleteSession"
+	const op errors.Op = "redis_repo.RedisRepository.DeleteSession"
 	sessionKey := getSessionKey(tokenHash)
 
 	if err := repo.redisClient.Del(ctx, sessionKey).Err(); err != nil {
@@ -37,7 +37,7 @@ func (repo *RedisRepository) DeleteSession(ctx context.Context, tokenHash string
 }
 
 func (repo *RedisRepository) DeleteAllSessions(ctx context.Context) error {
-	const op errors.Op = "redis_repo.DeleteAllSessions"
+	const op errors.Op = "redis_repo.RedisRepository.DeleteAllSessions"
 
 	if err := deleteKeysByPattern(ctx, repo, "sessions:*"); err != nil {
 		return errors.E(op, err)

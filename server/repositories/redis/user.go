@@ -30,7 +30,7 @@ func getUserEmailKey(email string) string {
 
 // if not found, queries db
 func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRepo repositories.DBRepository, email string) (*models.User, error) {
-	const op errors.Op = "repo.GetUserByEmailInCacheOrDB"
+	const op errors.Op = "redis_repo.RedisRepository.GetUserByEmailInCacheOrDB"
 	userEmailKey := getUserEmailKey(email)
 
 	userIdStr, err := repo.redisClient.Get(ctx, userEmailKey).Result()
@@ -53,7 +53,7 @@ func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRe
 
 // if not found, queries db
 func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo repositories.DBRepository, userId uuid.UUID) (*models.User, error) {
-	const op errors.Op = "repo.GetUserByIdInCacheOrDB"
+	const op errors.Op = "redis_repo.RedisRepository.GetUserByIdInCacheOrDB"
 	user, err := repo.getUser(ctx, userId)
 	switch {
 	case errors.Is(err, repositories.ErrNotFound):
@@ -82,7 +82,7 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 	dbRepo repositories.DBRepository,
 	tokenHash string,
 ) (*models.User, error) {
-	const op errors.Op = "repo.GetUserBySessionTokenHashInCacheOrDB"
+	const op errors.Op = "redis_repo.RedisRepository.GetUserBySessionTokenHashInCacheOrDB"
 
 	userId, err := repo.getUserIdBySessionTokenHash(ctx, tokenHash)
 	if err != nil {
@@ -112,7 +112,7 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 }
 
 func (repo *RedisRepository) UserExists(ctx context.Context, userId uuid.UUID) (bool, error) {
-	const op errors.Op = "repo.UserExists"
+	const op errors.Op = "redis_repo.RedisRepository.UserExists"
 	userKey := getUserKey(userId)
 
 	r, err := repo.redisClient.Exists(ctx, userKey).Result()
@@ -124,7 +124,7 @@ func (repo *RedisRepository) UserExists(ctx context.Context, userId uuid.UUID) (
 }
 
 func (repo *RedisRepository) SetUser(ctx context.Context, user models.User) error {
-	const op errors.Op = "repo.SetUser"
+	const op errors.Op = "redis_repo.RedisRepository.SetUser"
 	userEmailKey := getUserEmailKey(user.Email)
 
 	if err := repo.redisClient.Set(ctx, userEmailKey, user.ID.String(), 0).Err(); err != nil {
@@ -148,7 +148,7 @@ func (repo *RedisRepository) SetUser(ctx context.Context, user models.User) erro
 }
 
 func (repo *RedisRepository) VerifyUser(ctx context.Context, userId uuid.UUID) error {
-	const op errors.Op = "repo.VerifyUser"
+	const op errors.Op = "redis_repo.RedisRepository.VerifyUser"
 	userKey := getUserKey(userId)
 
 	if err := repo.redisClient.HSet(ctx, userKey, userIsVerifiedField, true).Err(); err != nil {
@@ -159,7 +159,7 @@ func (repo *RedisRepository) VerifyUser(ctx context.Context, userId uuid.UUID) e
 }
 
 func (repo *RedisRepository) DeleteAllUsers(ctx context.Context) error {
-	const op errors.Op = "repo.DeleteAllUsers"
+	const op errors.Op = "redis_repo.RedisRepository.DeleteAllUsers"
 
 	if err := deleteKeysByPattern(ctx, repo, "users:*"); err != nil {
 		return errors.E(op, err)
@@ -173,7 +173,7 @@ func (repo *RedisRepository) DeleteAllUsers(ctx context.Context) error {
 }
 
 func (repo *RedisRepository) getUserIdBySessionTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, error) {
-	const op errors.Op = "repo.getUserIdBySessionTokenHash"
+	const op errors.Op = "redis_repo.RedisRepository.getUserIdBySessionTokenHash"
 	sessionKey := getSessionKey(tokenHash)
 
 	userIdStr, err := repo.redisClient.Get(ctx, sessionKey).Result()
@@ -193,7 +193,7 @@ func (repo *RedisRepository) getUserIdBySessionTokenHash(ctx context.Context, to
 }
 
 func (repo *RedisRepository) getUser(ctx context.Context, userId uuid.UUID) (*models.User, error) {
-	const op errors.Op = "repo.getUser"
+	const op errors.Op = "redis_repo.RedisRepository.getUser"
 	userKey := getUserKey(userId)
 
 	r, err := repo.redisClient.HGetAll(ctx, userKey).Result()

@@ -25,7 +25,7 @@ func getRoomStreamKey(roomId uuid.UUID) string {
 }
 
 func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage models.PushMessage) error {
-	const op errors.Op = "redis_repo.PublishPushMessage"
+	const op errors.Op = "redis_repo.RedisRepository.PublishPushMessage"
 	roomStreamKey := getRoomStreamKey(roomId)
 
 	pushMessageData, err := json.Marshal(pushMessage)
@@ -47,7 +47,7 @@ func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid
 }
 
 func (repo *RedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error {
-	const op errors.Op = "redis_repo.PublishAction"
+	const op errors.Op = "redis_repo.RedisRepository.PublishAction"
 	roomStreamKey := getRoomStreamKey(roomId)
 
 	if err := repo.redisClient.XAdd(ctx, &redis.XAddArgs{
@@ -64,7 +64,7 @@ func (repo *RedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID
 }
 
 func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[[]byte] {
-	const op errors.Op = "redis_repo.GetPushMessages"
+	const op errors.Op = "redis_repo.RedisRepository.GetPushMessages"
 	roomStreamKey := getRoomStreamKey(roomId)
 
 	startId := ""
@@ -106,7 +106,7 @@ func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UU
 }
 
 func (repo *RedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[models.StreamActionType] {
-	const op errors.Op = "redis_repo.GetAction"
+	const op errors.Op = "redis_repo.RedisRepository.GetAction"
 	roomStreamKey := getRoomStreamKey(roomId)
 
 	startId := ""
