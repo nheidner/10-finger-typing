@@ -1,18 +1,21 @@
 package utils
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
-	"errors"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 func getUuidFromPath(c *gin.Context, segment string) (uuid.UUID, error) {
+	const op errors.Op = "utils.getUuidFromPath"
+
 	segmentValue := c.Param(segment)
 	uuidValue, err := uuid.Parse(segmentValue)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, errors.E(op, err)
 	}
 
 	return uuidValue, nil
@@ -35,14 +38,18 @@ func GetTextIdFromPath(c *gin.Context) (userId uuid.UUID, err error) {
 }
 
 func GetUserFromContext(c *gin.Context) (user *models.User, err error) {
+	const op errors.Op = "utils.GetUserFromContext"
+
 	userContext, userExists := c.Get("user")
 	if !userExists {
-		return nil, errors.New("no user in context")
+		err := fmt.Errorf("no user in context")
+		return nil, errors.E(op, err)
 	}
 
 	user, ok := userContext.(*models.User)
 	if !ok {
-		return nil, errors.New("value for user key is not of type User")
+		err := fmt.Errorf("underlying type of %#v is not %T", user, &models.User{})
+		return nil, errors.E(op, err)
 	}
 
 	return user, nil
