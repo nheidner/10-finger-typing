@@ -1,7 +1,9 @@
 package models
 
 import (
+	"10-typing/errors"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,12 +30,31 @@ const (
 	FinishedGameStatus
 )
 
-func (s *GameStatus) String() string {
-	return []string{"unstarted", "countdown", "started", "finished"}[*s]
+func (s *GameStatus) String() (string, error) {
+	const op errors.Op = "models.GameStatus.String"
+	fields := []string{"unstarted", "countdown", "started", "finished"}
+
+	if int(*s) >= len(fields) {
+		err := fmt.Errorf("invalid GameStatus")
+		return "", errors.E(op, err)
+	}
+
+	return fields[*s], nil
 }
 
 func (s *GameStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+	const op errors.Op = "models.GameStatus.MarshalJSON"
+	gameStatusStr, err := s.String()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	gameStatusJson, err := json.Marshal(gameStatusStr)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return gameStatusJson, nil
 }
 
 type CreateGameInput struct {

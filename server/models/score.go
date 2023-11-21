@@ -1,6 +1,7 @@
 package models
 
 import (
+	"10-typing/errors"
 	"database/sql/driver"
 	"encoding/json"
 	"time"
@@ -28,10 +29,22 @@ type Score struct {
 type ErrorsJSON map[string]int
 
 func (j ErrorsJSON) Value() (driver.Value, error) {
+	const op errors.Op = "models.ErrorsJSON.Value"
+
 	valueString, err := json.Marshal(j)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
 	return string(valueString), err
 }
 
 func (j *ErrorsJSON) Scan(value interface{}) error {
-	return json.Unmarshal(value.([]byte), &j)
+	const op errors.Op = "models.ErrorsJSON.Scan"
+
+	if err := json.Unmarshal(value.([]byte), &j); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
