@@ -1,41 +1,51 @@
 package middlewares
 
 import (
+	"10-typing/errors"
 	"10-typing/repositories"
 	"10-typing/utils"
-	"errors"
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 func IsCurrentGameUser(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+	const op errors.Op = "middlewares.IsCurrentGameUser"
+
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
-			log.Println("roomid parameter could not be parsed", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err := errors.E(op, http.StatusBadRequest, err)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		user, err := utils.GetUserFromContext(c)
 		if err != nil {
-			log.Println("user id could not be retrieved from the request context", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err := errors.E(op, http.StatusInternalServerError, err)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		isCurrentGameUser, err := cacheRepo.IsCurrentGameUser(c.Request.Context(), roomId, user.ID)
 		switch {
 		case err != nil:
-			log.Println(err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error"})
+			err := errors.E(op, http.StatusInternalServerError, err, user.Username)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		case !isCurrentGameUser:
-			err = errors.New("user:" + user.ID.String() + "is not current game user of room" + roomId.String())
-			log.Println(err.Error())
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			err := fmt.Errorf("user with id %s is not subscriber to current game of room with id %s", user.ID.String(), roomId.String())
+			err = errors.E(op, http.StatusBadRequest, err, user.Username)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
@@ -45,31 +55,41 @@ func IsCurrentGameUser(cacheRepo repositories.CacheRepository) func(c *gin.Conte
 
 // checks if gameid parameter identifies the current game that the roomid parameter identifies
 func IsCurrentGame(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+	const op errors.Op = "middlewares.IsCurrentGame"
+
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
-			log.Println("roomid parameter could not be parsed", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err = errors.E(op, http.StatusBadRequest, err)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		gameId, err := utils.GetGameIdFromPath(c)
 		if err != nil {
-			log.Println("gameid parameter could not be parsed", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err = errors.E(op, http.StatusBadRequest, err)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		isCurrentGame, err := cacheRepo.IsCurrentGame(c.Request.Context(), roomId, gameId)
 		switch {
 		case err != nil:
-			log.Println(err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error"})
+			err = errors.E(op, http.StatusInternalServerError, err)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		case !isCurrentGame:
-			err = errors.New("game:" + gameId.String() + "is not current game of room" + roomId.String())
-			log.Println(err.Error())
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			err := fmt.Errorf("game with id %s is not current game of room with id %s", gameId.String(), roomId.String())
+			err = errors.E(op, http.StatusBadRequest, err)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 

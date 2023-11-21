@@ -1,41 +1,53 @@
 package middlewares
 
 import (
+	"10-typing/errors"
 	"10-typing/repositories"
 	"10-typing/utils"
 	"context"
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 func IsRoomAdmin(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+	const op errors.Op = "middlewares.IsRoomAdmin"
+
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
-			log.Println("roomid parameter could not be parsed", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err = errors.E(op, err, http.StatusBadRequest)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		user, err := utils.GetUserFromContext(c)
 		if err != nil {
-			log.Println("authenticated user could not be read", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err = errors.E(op, err, http.StatusBadRequest)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		isAdmin, err := cacheRepo.RoomHasAdmin(context.Background(), roomId, user.ID)
 		if err != nil {
-			log.Println(err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+			err = errors.E(op, err, http.StatusInternalServerError)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		if !isAdmin {
-			log.Println("authenticated user is not the room admin", err)
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Bad request"})
+			err := fmt.Errorf("authenticated user %s is not the admint of room with id %s", user.Username, roomId.String())
+			err = errors.E(op, err, http.StatusForbidden, user.Username)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
@@ -44,31 +56,42 @@ func IsRoomAdmin(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
 }
 
 func IsRoomMember(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+	const op errors.Op = "middlewares.IsRoomMember"
+
 	return func(c *gin.Context) {
 		roomId, err := utils.GetRoomIdFromPath(c)
 		if err != nil {
-			log.Println("roomid parameter could not be parsed", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err = errors.E(op, err, http.StatusBadRequest)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		user, err := utils.GetUserFromContext(c)
 		if err != nil {
-			log.Println("authenticated user could not be read", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			err = errors.E(op, err, http.StatusBadRequest)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		isRoomMember, err := cacheRepo.RoomHasSubscribers(context.Background(), roomId, user.ID)
 		if err != nil {
-			log.Println(err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+			err = errors.E(op, err, http.StatusInternalServerError)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
 		if !isRoomMember {
-			log.Println("authenticated user is not a room member")
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Bad request"})
+			err := fmt.Errorf("authenticated user %s is not a member of room with id %s", user.Username, roomId.String())
+			err = errors.E(op, err, http.StatusForbidden)
+			c.Abort()
+			errors.WriteError(c, err)
+
 			return
 		}
 
