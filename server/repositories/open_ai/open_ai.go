@@ -1,6 +1,7 @@
 package open_ai_repo
 
 import (
+	"10-typing/errors"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -38,6 +39,7 @@ const chatCompletionUrl = "https://api.openai.com/v1/chat/completions"
 
 // GenerateTypingText sends a request to the OpenAI API and returns the generated text
 func (oar *OpenAiRepository) GenerateTypingText(language string, punctuation bool, specialCharacters, numbers int) (string, error) {
+	const op errors.Op = "open_ai_repo.OpenAiRepository.GenerateTypingText"
 	systemPrompt := "You return a text that will be used for practicing 10 finger typing. " +
 		"You will receive several input variables. The length of the text, if the text should include punctuation or" +
 		" not (if it includes punctuation then include punctuation and capital letters at the beginning of a new sentence, " +
@@ -47,32 +49,31 @@ func (oar *OpenAiRepository) GenerateTypingText(language string, punctuation boo
 
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
-		marshallingError := fmt.Errorf("error marshalling struct to JSON: %w", err)
-		return "", marshallingError
+		return "", errors.E(op, err)
 	}
 
 	req, err := oar.createRequest(jsonBody)
 	if err != nil {
-		return "", fmt.Errorf("error creating request to OpenAI: %w", err)
+		return "", errors.E(op, fmt.Errorf("error creating request to OpenAI: %w", err))
 	}
 
 	var client = &http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("error sending request to OpenAI: %w", err)
+		return "", errors.E(op, fmt.Errorf("error sending request to OpenAI: %w", err))
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error reading response body: %w", err)
+		return "", errors.E(op, fmt.Errorf("error reading response body: %w", err))
 	}
 
 	var response ChatCompletionResponse
 	err = json.Unmarshal(responseBody, &response)
 	if err != nil {
-		return "", fmt.Errorf("error unmarshalling response body: %w", err)
+		return "", errors.E(op, fmt.Errorf("error unmarshalling response body: %w", err))
 	}
 
 	return response.Choices[0].Message.Content, nil
@@ -89,9 +90,10 @@ func (oar *OpenAiRepository) createRequestBody(language, systemPrompt string, pu
 }
 
 func (oar *OpenAiRepository) createRequest(jsonBody []byte) (*http.Request, error) {
+	const op errors.Op = "open_ai_repo.OpenAiRepository.createRequest"
 	req, err := http.NewRequest("POST", chatCompletionUrl, bytes.NewReader(jsonBody))
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+oar.ApiKey)
