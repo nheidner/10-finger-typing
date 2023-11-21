@@ -50,7 +50,7 @@ func getStreamEntry[T []byte | models.StreamActionType | *models.UserNotificatio
 					continue
 				}
 				if err != nil {
-					sendErrorResult[T](ctx, out, errors.New(op, err))
+					sendErrorResult[T](ctx, out, errors.E(op, err))
 					return
 				}
 
@@ -64,7 +64,7 @@ func getStreamEntry[T []byte | models.StreamActionType | *models.UserNotificatio
 				case errors.Is(err, errIsIgnoredStreamEntry):
 					continue
 				case err != nil:
-					sendErrorResult[T](ctx, out, errors.New(op, err))
+					sendErrorResult[T](ctx, out, errors.E(op, err))
 					return
 				}
 
@@ -101,17 +101,17 @@ func getStreamEntryTypeFromMap(values map[string]any) (models.StreamEntryType, e
 	streamEntryTypeAny, ok := values[streamEntryTypeField]
 	if !ok {
 		err := fmt.Errorf("%s key not found in %s map", streamEntryTypeField, values)
-		return models.ActionStreamEntryType, errors.New(op, err)
+		return models.ActionStreamEntryType, errors.E(op, err)
 	}
 
 	streamEntryTypeStr, ok := streamEntryTypeAny.(string)
 	if !ok {
 		err := fmt.Errorf("streamEntryTypeAny's underlying value is not of type string")
-		return models.ActionStreamEntryType, errors.New(op, err)
+		return models.ActionStreamEntryType, errors.E(op, err)
 	}
 	streamEntryTypeInt, err := strconv.Atoi(streamEntryTypeStr)
 	if err != nil {
-		return models.ActionStreamEntryType, errors.New(op, err)
+		return models.ActionStreamEntryType, errors.E(op, err)
 	}
 
 	return models.StreamEntryType(streamEntryTypeInt), nil
@@ -127,7 +127,7 @@ func deleteKeysByPattern(ctx context.Context, repo *RedisRepository, pattern str
 		repo.redisClient.Del(ctx, key)
 
 		if err := iter.Err(); err != nil {
-			return errors.New(op)
+			return errors.E(op)
 		}
 	}
 

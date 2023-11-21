@@ -17,7 +17,7 @@ func AuthRequired(cacheRepo repositories.CacheRepository, dbRepo repositories.DB
 	return func(c *gin.Context) {
 		token, err := utils.ReadCookie(c.Request, models.CookieSession)
 		if err != nil {
-			err = errors.New(op, err, http.StatusUnauthorized, errors.Messages{"message": "Session cookie could not be read"})
+			err = errors.E(op, err, http.StatusUnauthorized, errors.Messages{"message": "Session cookie could not be read"})
 			c.Abort()
 			errors.WriteError(c, err)
 			return
@@ -26,7 +26,7 @@ func AuthRequired(cacheRepo repositories.CacheRepository, dbRepo repositories.DB
 		tokenHash := utils.HashSessionToken(token)
 		user, err := cacheRepo.GetUserBySessionTokenHashInCacheOrDB(context.Background(), dbRepo, tokenHash)
 		if err != nil {
-			err := errors.New(op, err, http.StatusUnauthorized, errors.Messages{"message": "User related to session cookie could not be found"})
+			err := errors.E(op, err, http.StatusUnauthorized, errors.Messages{"message": "User related to session cookie could not be found"})
 			c.Abort()
 			errors.WriteError(c, err)
 			return

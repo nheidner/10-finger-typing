@@ -35,17 +35,17 @@ func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRe
 
 	userIdStr, err := repo.redisClient.Get(ctx, userEmailKey).Result()
 	if err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	userId, err := uuid.Parse(userIdStr)
 	if err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	user, err := repo.GetUserByIdInCacheOrDB(ctx, dbRepo, userId)
 	if err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	return user, nil
@@ -59,18 +59,18 @@ func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo 
 	case errors.Is(err, repositories.ErrNotFound):
 		break
 	case err != nil:
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	case err == nil:
 		return user, nil
 	}
 
 	user, err = dbRepo.FindUserById(userId)
 	if err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	if err = repo.SetUser(ctx, *user); err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	return user, nil
@@ -86,7 +86,7 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 
 	userId, err := repo.getUserIdBySessionTokenHash(ctx, tokenHash)
 	if err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	user, err := repo.getUser(ctx, userId)
@@ -94,18 +94,18 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 	case errors.Is(err, repositories.ErrNotFound):
 		break
 	case err != nil:
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	case err == nil:
 		return user, nil
 	}
 
 	user, err = dbRepo.FindUserById(userId)
 	if err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	if err = repo.SetUser(ctx, *user); err != nil {
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	}
 
 	return user, nil
@@ -117,7 +117,7 @@ func (repo *RedisRepository) UserExists(ctx context.Context, userId uuid.UUID) (
 
 	r, err := repo.redisClient.Exists(ctx, userKey).Result()
 	if err != nil {
-		errors.New(op, err)
+		errors.E(op, err)
 	}
 
 	return r > 0, nil
@@ -128,7 +128,7 @@ func (repo *RedisRepository) SetUser(ctx context.Context, user models.User) erro
 	userEmailKey := getUserEmailKey(user.Email)
 
 	if err := repo.redisClient.Set(ctx, userEmailKey, user.ID.String(), 0).Err(); err != nil {
-		return errors.New(op, err)
+		return errors.E(op, err)
 	}
 
 	userKey := getUserKey(user.ID)
@@ -141,7 +141,7 @@ func (repo *RedisRepository) SetUser(ctx context.Context, user models.User) erro
 		userEmailField:        user.Email,
 		userIsVerifiedField:   user.IsVerified,
 	}).Err(); err != nil {
-		return errors.New(op, err)
+		return errors.E(op, err)
 	}
 
 	return nil
@@ -152,7 +152,7 @@ func (repo *RedisRepository) VerifyUser(ctx context.Context, userId uuid.UUID) e
 	userKey := getUserKey(userId)
 
 	if err := repo.redisClient.HSet(ctx, userKey, userIsVerifiedField, true).Err(); err != nil {
-		return errors.New(op, err)
+		return errors.E(op, err)
 	}
 
 	return nil
@@ -162,11 +162,11 @@ func (repo *RedisRepository) DeleteAllUsers(ctx context.Context) error {
 	const op errors.Op = "repo.DeleteAllUsers"
 
 	if err := deleteKeysByPattern(ctx, repo, "users:*"); err != nil {
-		return errors.New(op, err)
+		return errors.E(op, err)
 	}
 
 	if err := deleteKeysByPattern(ctx, repo, "user_emails:*"); err != nil {
-		return errors.New(op, err)
+		return errors.E(op, err)
 	}
 
 	return nil
@@ -179,14 +179,14 @@ func (repo *RedisRepository) getUserIdBySessionTokenHash(ctx context.Context, to
 	userIdStr, err := repo.redisClient.Get(ctx, sessionKey).Result()
 	switch {
 	case err == redis.Nil:
-		return uuid.Nil, errors.New(op, repositories.ErrNotFound)
+		return uuid.Nil, errors.E(op, repositories.ErrNotFound)
 	case err != nil:
-		return uuid.Nil, errors.New(op, err)
+		return uuid.Nil, errors.E(op, err)
 	}
 
 	userId, err := uuid.Parse(userIdStr)
 	if err != err {
-		return uuid.Nil, errors.New(op, err)
+		return uuid.Nil, errors.E(op, err)
 	}
 
 	return userId, nil
@@ -199,9 +199,9 @@ func (repo *RedisRepository) getUser(ctx context.Context, userId uuid.UUID) (*mo
 	r, err := repo.redisClient.HGetAll(ctx, userKey).Result()
 	switch {
 	case err != nil:
-		return nil, errors.New(op, err)
+		return nil, errors.E(op, err)
 	case len(r) == 0:
-		return nil, errors.New(op, repositories.ErrNotFound)
+		return nil, errors.E(op, repositories.ErrNotFound)
 	}
 
 	isVerifiedStr := r[userIsVerifiedField]

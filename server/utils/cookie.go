@@ -28,7 +28,7 @@ func ReadCookie(r *http.Request, name string) (string, error) {
 
 	cookie, err := r.Cookie(name)
 	if err != nil {
-		return "", errors.New(op, err)
+		return "", errors.E(op, err)
 	}
 
 	return cookie.Value, nil

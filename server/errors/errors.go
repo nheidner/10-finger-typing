@@ -24,7 +24,7 @@ type Error struct {
 	messages Messages
 }
 
-func New(op Op, details ...any) error {
+func E(op Op, details ...any) error {
 	where := ""
 	if os.Getenv("ENVIRONMENT") == "development" {
 		if _, file, line, ok := runtime.Caller(1); ok {
@@ -129,4 +129,8 @@ func Is(err, target error) bool {
 
 func As(err error, target any) bool {
 	return errors.As(err, target)
+}
+
+func New(text string) error {
+	return errors.New(text)
 }
