@@ -1,9 +1,10 @@
 package redis_repo
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"context"
-	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -24,6 +25,7 @@ func getStreamEntry[T []byte | models.StreamActionType | *models.UserNotificatio
 	processStreamEntry func(values map[string]interface{}, entryId string,
 	) (T, error),
 ) chan models.StreamSubscriptionResult[T] {
+	const op errors.Op = "redis_repo.getStreamEntry"
 	out := make(chan models.StreamSubscriptionResult[T])
 
 	go func() {
@@ -48,7 +50,7 @@ func getStreamEntry[T []byte | models.StreamActionType | *models.UserNotificatio
 					continue
 				}
 				if err != nil {
-					sendErrorResult[T](ctx, out, err)
+					sendErrorResult[T](ctx, out, errors.New(op, err))
 					return
 				}
 
@@ -56,14 +58,13 @@ func getStreamEntry[T []byte | models.StreamActionType | *models.UserNotificatio
 				values := r[0].Messages[0].Values
 
 				v, err := processStreamEntry(values, id)
-				if errors.Is(err, errReceivedStreamTerminationAction) {
+				switch {
+				case errors.Is(err, errReceivedStreamTerminationAction):
 					return
-				}
-				if errors.Is(err, errIsIgnoredStreamEntry) {
+				case errors.Is(err, errIsIgnoredStreamEntry):
 					continue
-				}
-				if err != nil {
-					sendErrorResult[T](ctx, out, err)
+				case err != nil:
+					sendErrorResult[T](ctx, out, errors.New(op, err))
 					return
 				}
 
@@ -95,33 +96,39 @@ func sendErrorResult[T []byte | models.StreamActionType | *models.UserNotificati
 }
 
 func getStreamEntryTypeFromMap(values map[string]any) (models.StreamEntryType, error) {
+	const op errors.Op = "redis_repo.getStreamEntryTypeFromMap"
+
 	streamEntryTypeAny, ok := values[streamEntryTypeField]
 	if !ok {
-		err := errors.New("no " + streamEntryTypeField + " field in stream entry")
-		return models.ActionStreamEntryType, err
+		err := fmt.Errorf("%s key not found in %s map", streamEntryTypeField, values)
+		return models.ActionStreamEntryType, errors.New(op, err)
 	}
 
 	streamEntryTypeStr, ok := streamEntryTypeAny.(string)
 	if !ok {
-		err := errors.New("streamEntryTypeAny is not of type string")
-		return models.ActionStreamEntryType, err
+		err := fmt.Errorf("streamEntryTypeAny's underlying value is not of type string")
+		return models.ActionStreamEntryType, errors.New(op, err)
 	}
 	streamEntryTypeInt, err := strconv.Atoi(streamEntryTypeStr)
 	if err != nil {
-		return models.ActionStreamEntryType, err
+		return models.ActionStreamEntryType, errors.New(op, err)
 	}
 
 	return models.StreamEntryType(streamEntryTypeInt), nil
 }
 
 func deleteKeysByPattern(ctx context.Context, repo *RedisRepository, pattern string) error {
+	const op errors.Op = "redis_repo.deleteKeysByPattern"
+
 	iter := repo.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
 	for iter.Next(ctx) {
 		key := iter.Val()
 
 		repo.redisClient.Del(ctx, key)
 
-		return iter.Err()
+		if err := iter.Err(); err != nil {
+			return errors.New(op)
+		}
 	}
 
 	return nil

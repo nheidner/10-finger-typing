@@ -1,31 +1,34 @@
 package middlewares
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/repositories"
 	"10-typing/utils"
 	"context"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 func AuthRequired(cacheRepo repositories.CacheRepository, dbRepo repositories.DBRepository) func(c *gin.Context) {
+	const op errors.Op = "middlewares.AuthRequired"
+
 	return func(c *gin.Context) {
 		token, err := utils.ReadCookie(c.Request, models.CookieSession)
 		if err != nil {
-			log.Println("Session cookie could not be read", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			err = errors.New(op, err, http.StatusUnauthorized, errors.Messages{"message": "Session cookie could not be read"})
+			c.Abort()
+			errors.WriteError(c, err)
 			return
 		}
 
 		tokenHash := utils.HashSessionToken(token)
 		user, err := cacheRepo.GetUserBySessionTokenHashInCacheOrDB(context.Background(), dbRepo, tokenHash)
-
-		if user == nil || err != nil {
-			log.Println("User related to session cookie could not be found", err)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		if err != nil {
+			err := errors.New(op, err, http.StatusUnauthorized, errors.Messages{"message": "User related to session cookie could not be found"})
+			c.Abort()
+			errors.WriteError(c, err)
 			return
 		}
 

@@ -1,8 +1,8 @@
 package utils
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
-	"fmt"
 	"net/http"
 )
 
@@ -24,9 +24,11 @@ func SetCookie(w http.ResponseWriter, name, value string) {
 }
 
 func ReadCookie(r *http.Request, name string) (string, error) {
+	const op errors.Op = "utils.ReadCookie"
+
 	cookie, err := r.Cookie(name)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", name, err)
+		return "", errors.New(op, err)
 	}
 
 	return cookie.Value, nil

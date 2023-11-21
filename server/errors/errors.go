@@ -1,9 +1,11 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
-	"runtime/debug"
+	"os"
+	"runtime"
 	"strings"
 )
 
@@ -18,14 +20,21 @@ type Error struct {
 	op       Op
 	status   int
 	username string
-	stack    string
+	where    string
 	messages Messages
 }
 
 func New(op Op, details ...any) error {
+	where := ""
+	if os.Getenv("ENVIRONMENT") == "development" {
+		if _, file, line, ok := runtime.Caller(1); ok {
+			where = fmt.Sprintf("%s:%d", file, line)
+		}
+	}
+
 	e := &Error{
 		op:       op,
-		stack:    string(debug.Stack()),
+		where:    where,
 		status:   http.StatusInternalServerError,
 		messages: Messages{},
 	}
@@ -33,6 +42,8 @@ func New(op Op, details ...any) error {
 	for _, detail := range details {
 		switch t := detail.(type) {
 		case *Error:
+			t.where = ""
+
 			for k, v := range t.Message() {
 				e.messages[k] = v
 			}
@@ -69,10 +80,12 @@ func (e *Error) Error() string {
 	}
 
 	if e.username != "" {
-		fmt.Fprintf(&b, "\n%s", e.username)
+		fmt.Fprintf(&b, "\nError occured for username: %s", e.username)
 	}
 
-	fmt.Fprintf(&b, "\n%s", e.stack)
+	if e.where != "" {
+		fmt.Fprintf(&b, "\nError occurred at: %s", e.where)
+	}
 
 	return b.String()
 }
@@ -108,4 +121,12 @@ func (e *Error) Status() int {
 
 func (e *Error) Unwrap() error {
 	return e.err
+}
+
+func Is(err, target error) bool {
+	return errors.Is(err, target)
+}
+
+func As(err error, target any) bool {
+	return errors.As(err, target)
 }

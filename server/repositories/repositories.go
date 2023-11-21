@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	errNotFound = errors.New("not found")
+	ErrNotFound = errors.New("not found")
 )
 
 type Transaction interface {
