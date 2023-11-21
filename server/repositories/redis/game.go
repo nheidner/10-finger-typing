@@ -1,7 +1,9 @@
 package redis_repo
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
+	"10-typing/repositories"
 	"context"
 	"fmt"
 	"strconv"
@@ -28,18 +30,19 @@ func getCurrentGameUserIdsKey(roomId uuid.UUID) string {
 
 // GET METHODS
 func (repo *RedisRepository) GetCurrentGameUserIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
+	const op errors.Op = "redis_repo.GetCurrentGameUserIds"
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
 	r, err := repo.redisClient.SMembers(ctx, currentGameUserIdsKey).Result()
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	gameUserIds := make([]uuid.UUID, 0, len(r))
 	for _, gameUserIdStr := range r {
 		gameUserId, err := uuid.Parse(gameUserIdStr)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		gameUserIds = append(gameUserIds, gameUserId)
@@ -49,52 +52,62 @@ func (repo *RedisRepository) GetCurrentGameUserIds(ctx context.Context, roomId u
 }
 
 func (repo *RedisRepository) GetCurrentGameUsersNumber(ctx context.Context, roomId uuid.UUID) (int, error) {
+	const op errors.Op = "redis_repo.GetCurrentGameUsersNumber"
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
 	r, err := repo.redisClient.SCard(ctx, currentGameUserIdsKey).Result()
 	if err != nil {
-		return 0, err
+		return 0, errors.E(op, err)
 	}
 
 	return int(r), nil
 }
 
 func (repo *RedisRepository) GetCurrentGameStatus(ctx context.Context, roomId uuid.UUID) (models.GameStatus, error) {
+	const op errors.Op = "redis_repo.GetCurrentGameStatus"
 	currentGameKey := getCurrentGameKey(roomId)
 
 	gameStatusInt, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameStatusField).Int()
 	switch {
 	case err == redis.Nil:
-		return models.UnstartedGameStatus, nil
+		return models.UnstartedGameStatus, errors.E(op, repositories.ErrNotFound)
 	case err != nil:
-		return models.UnstartedGameStatus, err
+		return models.UnstartedGameStatus, errors.E(op, err)
 	}
 
 	return models.GameStatus(gameStatusInt), nil
 }
 
 func (repo *RedisRepository) GetCurrentGameId(ctx context.Context, roomId uuid.UUID) (uuid.UUID, error) {
+	const op errors.Op = "redis_repo.GetCurrentGameId"
 	currentGameKey := getCurrentGameKey(roomId)
 
 	gameIdStr, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameIdField).Result()
-	if err != nil {
-		return uuid.Nil, err
+	switch {
+	case err == redis.Nil:
+		return uuid.Nil, errors.E(op, repositories.ErrNotFound)
+	case err != nil:
+		return uuid.Nil, errors.E(op, err)
 	}
 
 	gameId, err := uuid.Parse(gameIdStr)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, errors.E(op, err)
 	}
 
 	return gameId, nil
 }
 
 func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUID) (*models.Game, error) {
+	const op errors.Op = "redis_repo.GetCurrentGame"
 	currentGameKey := getCurrentGameKey(roomId)
 
 	r, err := repo.redisClient.HGetAll(ctx, currentGameKey).Result()
-	if err != nil {
+	switch {
+	case err != nil:
 		return nil, err
+	case len(r) == 0:
+		return nil, errors.E(op, repositories.ErrNotFound)
 	}
 
 	status := models.UnstartedGameStatus
@@ -102,7 +115,7 @@ func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUI
 	if ok {
 		statusInt, err := strconv.Atoi(statusStr)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		status = models.GameStatus(statusInt)
@@ -113,7 +126,7 @@ func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUI
 	if ok {
 		textId, err = uuid.Parse(textIdStr)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 	}
 
@@ -122,7 +135,7 @@ func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUI
 	if ok {
 		gameId, err = uuid.Parse(gameIdStr)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 	}
 
@@ -136,8 +149,10 @@ func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUI
 
 // SET METHODS
 func (repo *RedisRepository) SetNewCurrentGame(ctx context.Context, newGameId, textId, roomId uuid.UUID, userIds ...uuid.UUID) error {
+	const op errors.Op = "redis_repo.SetNewCurrentGame"
 	if len(userIds) == 0 {
-		return fmt.Errorf("at least one user id must be specified")
+		err := fmt.Errorf("at least one user id must be specified")
+		return errors.E(op, err)
 	}
 
 	currentGameKey := getCurrentGameKey(roomId)
@@ -150,7 +165,7 @@ func (repo *RedisRepository) SetNewCurrentGame(ctx context.Context, newGameId, t
 		currentGameStatusField: statusStr,
 	}
 	if err := repo.redisClient.HSet(ctx, currentGameKey, currentGameValue).Err(); err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
@@ -159,38 +174,58 @@ func (repo *RedisRepository) SetNewCurrentGame(ctx context.Context, newGameId, t
 		userIdStrs = append(userIdStrs, userId.String())
 	}
 	if err := repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userIdStrs...).Err(); err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	return nil
 }
 
 func (repo *RedisRepository) SetGameUser(ctx context.Context, roomId, userId uuid.UUID) error {
+	const op errors.Op = "redis_repo.SetGameUser"
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
-	return repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userId.String()).Err()
+	if err := repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userId.String()).Err(); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
 
 func (repo *RedisRepository) SetCurrentGameStatus(ctx context.Context, roomId uuid.UUID, gameStatus models.GameStatus) error {
+	const op errors.Op = "redis_repo.SetCurrentGameStatus"
 	currentGameKey := getCurrentGameKey(roomId)
 
-	return repo.redisClient.HSet(ctx, currentGameKey, currentGameStatusField, strconv.Itoa(int(gameStatus))).Err()
+	if err := repo.redisClient.HSet(ctx, currentGameKey, currentGameStatusField, strconv.Itoa(int(gameStatus))).Err(); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
 
 // IS.. METHODS
 func (repo *RedisRepository) IsCurrentGame(ctx context.Context, roomId, gameId uuid.UUID) (bool, error) {
+	const op errors.Op = "redis_repo.IsCurrentGame"
 	currentGameKey := getCurrentGameKey(roomId)
 
 	r, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameIdField).Result()
-	if err != nil {
-		return false, err
+	switch {
+	case err == redis.Nil:
+		return false, nil
+	case err != nil:
+		return false, errors.E(op, err)
 	}
 
 	return r == gameId.String(), nil
 }
 
-func (repo *RedisRepository) IsCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) (bool, error) {
+func (repo *RedisRepository) IsCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) (isCurrentGameUser bool, err error) {
+	const op errors.Op = "redis_repo.IsCurrentGameUser"
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
-	return repo.redisClient.SIsMember(ctx, currentGameUserIdsKey, userId.String()).Result()
+	isCurrentGameUser, err = repo.redisClient.SIsMember(ctx, currentGameUserIdsKey, userId.String()).Result()
+	if err != nil {
+		return false, errors.E(op, err)
+	}
+
+	return isCurrentGameUser, nil
 }

@@ -1,10 +1,11 @@
 package redis_repo
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -24,35 +25,48 @@ func getRoomStreamKey(roomId uuid.UUID) string {
 }
 
 func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage models.PushMessage) error {
+	const op errors.Op = "redis_repo.PublishPushMessage"
 	roomStreamKey := getRoomStreamKey(roomId)
+
 	pushMessageData, err := json.Marshal(pushMessage)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
-	return repo.redisClient.XAdd(ctx, &redis.XAddArgs{
+	if err := repo.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]interface{}{
 			streamEntryTypeField:    strconv.Itoa(int(models.PushMessageStreamEntryType)),
 			streamEntryMessageField: pushMessageData,
 		},
-	}).Err()
+	}).Err(); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
 
 func (repo *RedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error {
+	const op errors.Op = "redis_repo.PublishAction"
 	roomStreamKey := getRoomStreamKey(roomId)
 
-	return repo.redisClient.XAdd(ctx, &redis.XAddArgs{
+	if err := repo.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]string{
 			streamEntryTypeField:   strconv.Itoa(int(models.ActionStreamEntryType)),
 			streamEntryActionField: strconv.Itoa(int(action)),
 		},
-	}).Err()
+	}).Err(); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
 
 func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[[]byte] {
+	const op errors.Op = "redis_repo.GetPushMessages"
 	roomStreamKey := getRoomStreamKey(roomId)
+
 	startId := ""
 	if (startTime != time.Time{}) {
 		startId = strconv.FormatInt(startTime.UnixMilli(), 10)
@@ -61,36 +75,40 @@ func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UU
 	return getStreamEntry[[]byte](ctx, repo, roomStreamKey, startId, func(values map[string]interface{}, entryId string) ([]byte, error) {
 		streamEntryType, err := getStreamEntryTypeFromMap(values)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		switch streamEntryType {
 		case models.PushMessageStreamEntryType:
 			message, ok := values[streamEntryMessageField]
 			if !ok {
-				return nil, errors.New("no " + streamEntryMessageField + " field in stream entry")
+				err := fmt.Errorf("%s key not found in %s map", streamEntryMessageField, values)
+				return nil, errors.E(op, err)
 			}
 
 			messageStr, ok := message.(string)
 			if !ok {
-				return nil, errors.New("underlying type of " + streamEntryMessageField + " stream entry field is not string")
+				err := fmt.Errorf("underlying type of message is not string")
+				return nil, errors.E(op, err)
 			}
 
 			return []byte(messageStr), nil
 		case models.ActionStreamEntryType:
 			if values[streamEntryActionField] == strconv.Itoa(int(models.TerminateAction)) {
-				return nil, errReceivedStreamTerminationAction
+				return nil, errors.E(op, errReceivedStreamTerminationAction)
 			}
 
-			return nil, errIsIgnoredStreamEntry
+			return nil, errors.E(op, errIsIgnoredStreamEntry)
 		default:
-			return nil, errIsIgnoredStreamEntry
+			return nil, errors.E(op, errIsIgnoredStreamEntry)
 		}
 	})
 }
 
 func (repo *RedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[models.StreamActionType] {
+	const op errors.Op = "redis_repo.GetAction"
 	roomStreamKey := getRoomStreamKey(roomId)
+
 	startId := ""
 	if (startTime != time.Time{}) {
 		startId = strconv.FormatInt(startTime.UnixMilli(), 10)
@@ -99,33 +117,35 @@ func (repo *RedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, st
 	return getStreamEntry[models.StreamActionType](ctx, repo, roomStreamKey, startId, func(values map[string]interface{}, entryId string) (models.StreamActionType, error) {
 		streamEntryType, err := getStreamEntryTypeFromMap(values)
 		if err != nil {
-			return models.TerminateAction, err
+			return models.TerminateAction, errors.E(op, err)
 		}
 
 		switch streamEntryType {
 		case models.ActionStreamEntryType:
 			action, ok := values[streamEntryActionField]
 			if !ok {
-				return models.TerminateAction, errors.New("no " + streamEntryActionField + " field in stream entry")
+				err := fmt.Errorf("%s key not found in %s map", streamEntryActionField, values)
+				return models.TerminateAction, errors.E(op, err)
 			}
 
 			if action == strconv.Itoa(int(models.TerminateAction)) {
-				return models.TerminateAction, errReceivedStreamTerminationAction
+				return models.TerminateAction, errors.E(op, errReceivedStreamTerminationAction)
 			}
 
 			actionStr, ok := action.(string)
 			if !ok {
-				return models.TerminateAction, errors.New("underlying type of " + streamEntryActionField + " stream entry field is not string")
+				err := fmt.Errorf("underlying type of action is not string")
+				return models.TerminateAction, errors.E(op, err)
 			}
 
 			actionInt, err := strconv.Atoi(actionStr)
 			if err != nil {
-				return models.TerminateAction, errors.New("action cannot be converted to an integer: " + err.Error())
+				return models.TerminateAction, errors.E(op, err)
 			}
 
 			return models.StreamActionType(actionInt), nil
 		default:
-			return models.TerminateAction, errIsIgnoredStreamEntry
+			return models.TerminateAction, errors.E(op, errIsIgnoredStreamEntry)
 		}
 	})
 }

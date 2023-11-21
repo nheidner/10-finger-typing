@@ -1,10 +1,11 @@
 package redis_repo
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -20,38 +21,47 @@ func getUserNotificationStreamKey(userId uuid.UUID) string {
 }
 
 func (repo *RedisRepository) PublishUserNotification(ctx context.Context, userId uuid.UUID, userNotification models.UserNotification) error {
+	const op errors.Op = "redis_repo.PublishUserNotification"
+
 	userNotificationStreamKey := getUserNotificationStreamKey(userId)
 	userNotificationData, err := json.Marshal(userNotification)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
-	return repo.redisClient.XAdd(ctx, &redis.XAddArgs{
+	if err := repo.redisClient.XAdd(ctx, &redis.XAddArgs{
 		Stream: userNotificationStreamKey,
 		MaxLen: userNotificationStreamMaxlen,
 		Values: map[string]any{
 			streamEntryMessageField: userNotificationData,
 		},
-	}).Err()
+	}).Err(); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
 
 func (repo *RedisRepository) GetUserNotification(ctx context.Context, userId uuid.UUID, startId string) chan models.StreamSubscriptionResult[*models.UserNotification] {
+	const op errors.Op = "redis_repo.GetUserNotification"
 	userNotificationStreamKey := getUserNotificationStreamKey(userId)
 
 	return getStreamEntry[*models.UserNotification](ctx, repo, userNotificationStreamKey, startId, func(values map[string]interface{}, entryId string) (*models.UserNotification, error) {
 		message, ok := values[streamEntryMessageField]
 		if !ok {
-			return nil, errors.New("no " + streamEntryMessageField + " field in stream entry")
+			err := fmt.Errorf("%s key not found in %s map", streamEntryMessageField, values)
+			return nil, errors.E(op, err)
 		}
 
 		messageStr, ok := message.(string)
 		if !ok {
-			return nil, errors.New("underlying type of " + streamEntryMessageField + " stream entry field is not string")
+			err := fmt.Errorf("underlying type of message is not string")
+			return nil, errors.E(op, err)
 		}
 
 		var userNotification models.UserNotification
 		if err := json.Unmarshal([]byte(messageStr), &userNotification); err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		userNotification.Id = entryId
