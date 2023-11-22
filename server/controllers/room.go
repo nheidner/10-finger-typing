@@ -4,12 +4,17 @@ import (
 	"10-typing/errors"
 	"10-typing/services"
 	"10-typing/utils"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+type CreateRoomInput struct {
+	UserIds         []uuid.UUID `json:"userIds"`
+	Emails          []string    `json:"emails" binding:"dive,email"`
+	GameDurationSec int         `json:"gameDurationSec"`
+}
 
 type RoomController struct {
 	roomService *services.RoomService
@@ -20,61 +25,46 @@ func NewRoomController(roomService *services.RoomService) *RoomController {
 }
 
 func (rc *RoomController) LeaveRoom(c *gin.Context) {
+	const op errors.Op = "controllers.RoomController.LeaveRoom"
+
 	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
-		log.Println("Failed to process HTTP params:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		log.Println("Failed to process HTTP params:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	if err = rc.roomService.LeaveRoom(roomId, user.ID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
-		return
-	}
-	if err != nil {
-		log.Println("Failed to process HTTP params:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
-		return
-	}
-
-	if err = rc.roomService.LeaveRoom(roomId, user.ID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
+	if err = rc.roomService.LeaveRoom(c.Request.Context(), roomId, user.ID); err != nil {
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": "OK"})
 }
 
-type CreateRoomInput struct {
-	UserIds         []uuid.UUID `json:"userIds"`
-	Emails          []string    `json:"emails" binding:"dive,email"`
-	GameDurationSec int         `json:"gameDurationSec"`
-}
-
 func (rc *RoomController) CreateRoom(c *gin.Context) {
+	const op errors.Op = "controllers.RoomController.CreateRoom"
 	var input CreateRoomInput
 
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	room, err := rc.roomService.CreateRoom(input.UserIds, input.Emails, input.GameDurationSec, *user)
+	room, err := rc.roomService.CreateRoom(c.Request.Context(), input.UserIds, input.Emails, input.GameDurationSec, *user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -84,23 +74,23 @@ func (rc *RoomController) CreateRoom(c *gin.Context) {
 }
 
 func (rc *RoomController) ConnectToRoom(c *gin.Context) {
+	const op errors.Op = "controllers.RoomController.ConnectToRoom"
+
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		log.Println("Failed to process HTTP params:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
 	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
-		log.Println("Failed to process HTTP params:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to process HTTP params"})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
 	err = rc.roomService.RoomConnect(c.Request.Context(), c, roomId, user)
-	if err != nil && errors.Is(err, services.ErrCouldNotConnectToRoom) {
-		errors.WriteError(c, err)
+	if err != nil {
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 }

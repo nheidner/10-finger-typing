@@ -1,9 +1,9 @@
 package controllers
 
 import (
+	"10-typing/errors"
 	"10-typing/services"
 	"10-typing/utils"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,10 +18,11 @@ func NewTextController(textService *services.TextService) *TextController {
 }
 
 func (tc *TextController) FindNewTextForUser(c *gin.Context) {
-	userId, err := utils.GetUserIdFromPath(c)
+	const op errors.Op = "controllers.TextController.FindNewTextForUser"
 
+	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
@@ -35,11 +36,12 @@ func (tc *TextController) FindNewTextForUser(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
 	text, err := tc.textService.FindNewTextForUser(
+		c.Request.Context(),
 		userId,
 		query.Language,
 		query.Punctuation,
@@ -48,10 +50,8 @@ func (tc *TextController) FindNewTextForUser(c *gin.Context) {
 		query.NumbersGte,
 		query.NumbersLte,
 	)
-
 	if err != nil {
-		log.Println("err :>>", err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -59,15 +59,17 @@ func (tc *TextController) FindNewTextForUser(c *gin.Context) {
 }
 
 func (tc *TextController) FindTextById(c *gin.Context) {
+	const op errors.Op = "controllers.TextController.FindTextById"
+
 	textId, err := utils.GetTextIdFromPath(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	text, err := tc.textService.FindTextById(textId)
+	text, err := tc.textService.FindTextById(c.Request.Context(), textId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -75,6 +77,7 @@ func (tc *TextController) FindTextById(c *gin.Context) {
 }
 
 func (tc *TextController) CreateText(c *gin.Context) {
+	const op errors.Op = "controllers.TextController.CreateText"
 	var input struct {
 		Language          string `json:"language" binding:"required"`
 		Punctuation       bool   `json:"punctuation"`
@@ -83,13 +86,13 @@ func (tc *TextController) CreateText(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	text, err := tc.textService.Create(input.Language, "", input.Punctuation, input.SpecialCharacters, input.Numbers)
+	text, err := tc.textService.Create(c.Request.Context(), input.Language, "", input.Punctuation, input.SpecialCharacters, input.Numbers)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 

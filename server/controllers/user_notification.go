@@ -1,9 +1,10 @@
 package controllers
 
 import (
+	"10-typing/errors"
+	"10-typing/repositories"
 	"10-typing/services"
 	"10-typing/utils"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,28 +19,28 @@ func NewUserNotificationController(userNotificationService *services.UserNotific
 }
 
 func (uc *UserNotificationController) FindRealtimeUserNotification(c *gin.Context) {
-	user, err := utils.GetUserFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
+	const op errors.Op = "controllers.UserNotificationController.FindRealtimeUserNotification"
 	var query struct {
 		LastId string `form:"lastId"`
 	}
+
+	user, err := utils.GetUserFromContext(c)
+	if err != nil {
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		return
+	}
+
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
 	userNotification, err := uc.userNotificationService.FindRealtimeUserNotification(c.Request.Context(), user.ID, query.LastId)
 	switch {
-	case err != nil:
-		log.Println("error finding real time user notification:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	case userNotification == nil:
+	case errors.Is(err, repositories.ErrNotFound):
 		c.JSON(http.StatusOK, gin.H{"data": nil})
+	case err != nil:
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 

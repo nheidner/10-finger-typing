@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/services"
 	"10-typing/utils"
@@ -26,25 +27,26 @@ func NewUserController(userService *services.UserService) *UserController {
 }
 
 func (uc *UserController) FindUsers(c *gin.Context) {
+	const op errors.Op = "controllers.UserController.FindUsers"
 	var query struct {
 		Username    string `form:"username"`
 		UsernameSub string `form:"username_contains"`
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
 	authenticatedUser, err := utils.GetUserFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	users, err := uc.userService.FindUsers(query.Username, query.UsernameSub)
+	users, err := uc.userService.FindUsers(c.Request.Context(), query.Username, query.UsernameSub)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -54,15 +56,17 @@ func (uc *UserController) FindUsers(c *gin.Context) {
 }
 
 func (uc *UserController) FindUser(c *gin.Context) {
+	const op errors.Op = "controllers.UserController.FindUser"
+
 	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	user, err := uc.userService.FindUserById(userId)
+	user, err := uc.userService.FindUserById(c.Request.Context(), userId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -70,16 +74,17 @@ func (uc *UserController) FindUser(c *gin.Context) {
 }
 
 func (uc *UserController) CreateUser(c *gin.Context) {
+	const op errors.Op = "controllers.UserController.CreateUser"
 	var input CreateUserInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	user, err := uc.userService.Create(input.Email, input.Username, input.FirstName, input.LastName, input.Password)
+	user, err := uc.userService.Create(c.Request.Context(), input.Email, input.Username, input.FirstName, input.LastName, input.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -87,19 +92,20 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 }
 
 func (uc *UserController) Login(c *gin.Context) {
+	const op errors.Op = "controllers.UserController.Login"
 	var input struct {
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	user, sessionToken, err := uc.userService.Login(input.Email, input.Password)
+	user, sessionToken, err := uc.userService.Login(c.Request.Context(), input.Email, input.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -108,15 +114,17 @@ func (uc *UserController) Login(c *gin.Context) {
 }
 
 func (uc *UserController) Logout(c *gin.Context) {
+	const op errors.Op = "controllers.UserController.Logout"
+
 	token, err := utils.ReadCookie(c.Request, models.CookieSession)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
 		return
 	}
 
-	err = uc.userService.DeleteSession(token)
+	err = uc.userService.DeleteSession(c.Request.Context(), token)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.E(op, err))
 		return
 	}
 
@@ -125,7 +133,13 @@ func (uc *UserController) Logout(c *gin.Context) {
 }
 
 func (uc *UserController) CurrentUser(c *gin.Context) {
-	user, _ := utils.GetUserFromContext(c)
+	const op errors.Op = "controllers.UserController.CurrentUser"
+
+	user, err := utils.GetUserFromContext(c)
+	if err != nil {
+		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"data": user})
 }
