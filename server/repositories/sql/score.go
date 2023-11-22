@@ -1,20 +1,15 @@
 package sql_repo
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
-	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 )
 
-type ScoreDBRepository interface {
-	FindScores(userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error)
-	CreateScore(score models.Score) (*models.Score, error)
-	DeleteAllScores() error
-}
-
 func (repo *SQLRepository) FindScores(userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error) {
+	const op errors.Op = "sql_repo.SQLRepository.FindScores"
 	var scores []models.Score
 
 	findScoresDbQuery := repo.db
@@ -39,20 +34,21 @@ func (repo *SQLRepository) FindScores(userId, gameId uuid.UUID, username string,
 	findScoresDbQuery.Find(&scores)
 
 	if findScoresDbQuery.Error != nil {
-		return nil, findScoresDbQuery.Error
+		return nil, errors.E(op, findScoresDbQuery.Error)
 	}
 
 	return scores, nil
 }
 
 func (repo *SQLRepository) CreateScore(score models.Score) (*models.Score, error) {
+	const op errors.Op = "sql_repo.SQLRepository.CreateScore"
 	omittedFiels := []string{"WordsPerMinute", "Accuracy"}
 
 	if score.GameId == uuid.Nil {
 		omittedFiels = append(omittedFiels, "GameId")
 	}
 
-	createResult := repo.db.
+	if err := repo.db.
 		Omit(omittedFiels...).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
@@ -64,18 +60,19 @@ func (repo *SQLRepository) CreateScore(score models.Score) (*models.Score, error
 				{Name: "number_errors"},
 				{Name: "errors"},
 			}}).
-		Create(&score)
-
-	if createResult.Error != nil {
-		return nil, createResult.Error
-	}
-	if createResult.RowsAffected == 0 {
-		return nil, errors.New("no rows affected")
+		Create(&score).Error; err != nil {
+		return nil, errors.E(op, err)
 	}
 
 	return &score, nil
 }
 
 func (repo *SQLRepository) DeleteAllScores() error {
-	return repo.db.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error
+	const op errors.Op = "sql_repo.SQLRepository.DeleteAllScores"
+
+	if err := repo.db.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error; err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }

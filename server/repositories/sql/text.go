@@ -1,8 +1,9 @@
 package sql_repo
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
-	"errors"
+	"10-typing/repositories"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -14,6 +15,8 @@ func (repo *SQLRepository) FindNewTextForUser(
 	punctuation bool,
 	specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
 ) (*models.Text, error) {
+	const op errors.Op = "sql_repo.SQLRepository.FindNewTextForUser"
+
 	result := repo.db.
 		Joins("LEFT JOIN scores s1 ON texts.id = s1.text_id").
 		Joins("LEFT JOIN scores s2 ON s1.text_id = s2.text_id AND s2.user_id = ?", userId).
@@ -39,48 +42,63 @@ func (repo *SQLRepository) FindNewTextForUser(
 
 	result.First(&text)
 
-	if result.Error != nil {
-		return nil, errors.New("error querying text: " + result.Error.Error())
-	}
-
-	if result.Error == gorm.ErrRecordNotFound {
-		return nil, nil
+	switch {
+	case errors.Is(result.Error, gorm.ErrRecordNotFound):
+		return nil, errors.E(op, repositories.ErrNotFound)
+	case result.Error != nil:
+		return nil, errors.E(op, result.Error)
 	}
 
 	return &text, nil
 }
 
 func (repo *SQLRepository) FindAllTextIds() ([]uuid.UUID, error) {
+	const op errors.Op = "sql_repo.SQLRepository.FindAllTextIds"
 	var textIds []uuid.UUID
 
-	if err := repo.db.Model(&models.Text{}).Pluck("id", &textIds).Error; err != nil {
-		return nil, err
+	result := repo.db.Model(&models.Text{}).Pluck("id", &textIds)
+
+	if result.Error != nil {
+		return nil, errors.E(op, result.Error)
 	}
 
 	return textIds, nil
 }
 
 func (repo *SQLRepository) FindTextById(textId uuid.UUID) (*models.Text, error) {
+	const op errors.Op = "sql_repo.SQLRepository.FindTextById"
 	var text = models.Text{
 		ID: textId,
 	}
 
-	if err := repo.db.Find(&text).Error; err != nil {
-		return nil, err
+	if err := repo.db.First(&text).Error; err != nil {
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			return nil, errors.E(op, repositories.ErrNotFound)
+		default:
+			return nil, errors.E(op, err)
+		}
 	}
 
 	return &text, nil
 }
 
 func (repo *SQLRepository) CreateText(text models.Text) (*models.Text, error) {
-	createResult := repo.db.Create(&text)
-	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
-		return nil, createResult.Error
+	const op errors.Op = "sql_repo.SQLRepository.CreateText"
+
+	if err := repo.db.Create(&text).Error; err != nil {
+		return nil, errors.E(op, err)
 	}
 
 	return &text, nil
 }
 
 func (repo *SQLRepository) DeleteAllTexts() error {
-	return repo.db.Exec("TRUNCATE texts RESTART IDENTITY CASCADE").Error
+	const op errors.Op = "sql_repo.SQLRepository.DeleteAllTexts"
+
+	if err := repo.db.Exec("TRUNCATE texts RESTART IDENTITY CASCADE").Error; err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
