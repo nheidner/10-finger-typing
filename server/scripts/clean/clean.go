@@ -18,54 +18,54 @@ func main() {
 
 	err := dbRepo.DeleteAllUsers()
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 		return
 	}
 
 	err = cacheRepo.DeleteAllUsers(ctx)
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 		return
 	}
 
 	err = cacheRepo.DeleteAllSessions(ctx)
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 		return
 	}
 
 	err = dbRepo.DeleteAllScores()
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 		return
 	}
 
 	err = dbRepo.DeleteAllTexts()
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 		return
 	}
 
 	err = cacheRepo.DeleteTextIdsKey(ctx)
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 	}
 
 	err = dbRepo.DeleteAllRooms()
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 	}
 
 	err = cacheRepo.DeleteAllRooms(ctx)
 	if err != nil {
-		log.Println(err)
+		log.Print(err)
 		os.Exit(1)
 	}
 }
