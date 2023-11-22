@@ -40,6 +40,6 @@ func (us *UserNotificationService) FindRealtimeUserNotification(ctx context.Cont
 
 		return userNotificationResult.Value, nil
 	case <-t.C:
-		return nil, nil
+		return nil, errors.E(op, repositories.ErrNotFound)
 	}
 }

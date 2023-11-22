@@ -15,8 +15,6 @@ import (
 	"nhooyr.io/websocket"
 )
 
-var ErrCouldNotConnectToRoom = errors.New("couldn't connect to room")
-
 type RoomService struct {
 	dbRepo               repositories.DBRepository
 	cacheRepo            repositories.CacheRepository
@@ -185,10 +183,8 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 	room, err := rs.cacheRepo.GetRoomInCacheOrDb(ctx, rs.dbRepo, roomId)
 	switch {
 	case errors.Is(err, repositories.ErrNotFound):
-		err := fmt.Errorf("%w %w", ErrCouldNotConnectToRoom, err)
 		return errors.E(op, err, http.StatusNotFound)
 	case err != nil:
-		err := fmt.Errorf("%w %w", ErrCouldNotConnectToRoom, err)
 		return errors.E(op, err, http.StatusInternalServerError)
 	}
 
@@ -196,7 +192,6 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 		OriginPatterns: []string{"*"},
 	})
 	if err != nil {
-		err := fmt.Errorf("%w %w", ErrCouldNotConnectToRoom, err)
 		return errors.E(op, err, http.StatusBadRequest)
 	}
 
@@ -256,7 +251,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 
 	err = <-errCh
 
-	return err
+	return nil
 }
 
 func (rs *RoomService) createRoomWithSubscribers(ctx context.Context, userIds []uuid.UUID, emails []string, adminId uuid.UUID, gameDurationSec int) (*models.Room, error) {

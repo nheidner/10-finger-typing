@@ -4,6 +4,7 @@ import (
 	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/repositories"
+	"context"
 
 	"github.com/google/uuid"
 )
@@ -17,6 +18,7 @@ func NewScoreService(dbRepo repositories.DBRepository) *ScoreService {
 }
 
 func (ss *ScoreService) Create(
+	ctx context.Context,
 	gameId, userId, textId uuid.UUID,
 	wordsTyped int,
 	timeElapsed float64,
@@ -48,6 +50,7 @@ func (ss *ScoreService) Create(
 }
 
 func (ss *ScoreService) FindScores(
+	ctx context.Context,
 	userId, gameId uuid.UUID,
 	username string,
 	sortOptions []models.SortOption,

@@ -35,20 +35,21 @@ func (gs *GameService) SetNewCurrentGame(ctx context.Context, userId, roomId, te
 
 	// validate
 	textExists, err := gs.cacheRepo.TextIdExists(ctx, textId)
-	if err != nil {
+	switch {
+	case err != nil:
 		return uuid.Nil, errors.E(op, err)
-	}
-	if !textExists {
+	case !textExists:
 		err := fmt.Errorf("text does not exist")
 		return uuid.Nil, errors.E(op, err, http.StatusBadRequest)
 	}
 
 	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
-	if err != nil {
+	switch {
+	case errors.Is(err, repositories.ErrNotFound):
+		break
+	case err != nil:
 		return uuid.Nil, errors.E(op, err)
-	}
-	roomHasActiveGame := currentGameStatus == models.StartedGameStatus
-	if roomHasActiveGame {
+	case currentGameStatus == models.StartedGameStatus:
 		err := fmt.Errorf("room has active game")
 		return uuid.Nil, errors.E(op, err, http.StatusBadRequest)
 	}
