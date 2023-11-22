@@ -1,11 +1,13 @@
 package services
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/repositories"
 	"context"
-	"errors"
+	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,35 +30,37 @@ func NewGameService(
 	return &GameService{dbRepo, cacheRepo}
 }
 
-func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
-	var ctx = context.Background()
+func (gs *GameService) SetNewCurrentGame(ctx context.Context, userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
+	const op errors.Op = "services.GameService.SetNewCurrentGame"
 
 	// validate
 	textExists, err := gs.cacheRepo.TextIdExists(ctx, textId)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, errors.E(op, err)
 	}
 	if !textExists {
-		return uuid.Nil, errors.New("text does not exist")
+		err := fmt.Errorf("text does not exist")
+		return uuid.Nil, errors.E(op, err, http.StatusBadRequest)
 	}
 
 	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, errors.E(op, err)
 	}
 	roomHasActiveGame := currentGameStatus == models.StartedGameStatus
 	if roomHasActiveGame {
-		return uuid.Nil, errors.New("room has active game at the moment")
+		err := fmt.Errorf("room has active game")
+		return uuid.Nil, errors.E(op, err, http.StatusBadRequest)
 	}
 
 	var gameId = uuid.New()
 
 	if err := gs.cacheRepo.SetNewCurrentGame(ctx, gameId, textId, roomId, userId); err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, errors.E(op, err)
 	}
 
 	if err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.UnstartedGameStatus); err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, errors.E(op, err)
 	}
 
 	// TODO: send new_game message
@@ -65,6 +69,7 @@ func (gs *GameService) SetNewCurrentGame(userId, roomId, textId uuid.UUID) (uuid
 }
 
 func (gs *GameService) UserFinishesGame(
+	ctx context.Context,
 	roomId,
 	userId,
 	textId uuid.UUID,
@@ -72,24 +77,22 @@ func (gs *GameService) UserFinishesGame(
 	timeElapsed float64,
 	errorsJSON models.ErrorsJSON,
 ) error {
-	var ctx = context.Background()
+	const op errors.Op = "services.GameService.UserFinishesGame"
 
 	// check if game status is not already finished
 	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	switch {
 	case err != nil:
-		log.Println("error setting current game status: ", err)
-		return err
+		return errors.E(op, err)
 	case currentGameStatus != models.StartedGameStatus:
-		log.Println("game has not the correct status: ", err)
-		return errors.New("game has not the correct status")
+		err := fmt.Errorf("game has not the correct status")
+		return errors.E(op, err, http.StatusBadRequest)
 	}
 
 	// get game id
 	gameId, err := gs.cacheRepo.GetCurrentGameId(ctx, roomId)
 	if err != nil {
-		log.Println("error when getting current game id from redis: ", err)
-		return err
+		return errors.E(op, err)
 	}
 
 	numberErrors := 0
@@ -109,55 +112,54 @@ func (gs *GameService) UserFinishesGame(
 
 	_, err = gs.dbRepo.CreateScore(newScore)
 	if err != nil {
-		log.Println("error when creating a new score: ", err)
-		return err
+		return errors.E(op, err)
 	}
 
 	// post action on stream
 	err = gs.cacheRepo.PublishAction(ctx, roomId, models.GameUserScoreAction)
 	if err != nil {
-		log.Println("error when publishing the game user score action: ", err)
-		return err
+		return errors.E(op, err)
 	}
 
 	return nil
 }
 
-func (gs *GameService) AddUserToGame(roomId, userId uuid.UUID) error {
-	var ctx = context.Background()
+func (gs *GameService) AddUserToGame(ctx context.Context, roomId, userId uuid.UUID) error {
+	const op errors.Op = "services.GameService.AddUserToGame"
 
 	// comment out
 	isCurrentGameUser, err := gs.cacheRepo.IsCurrentGameUser(ctx, roomId, userId)
-	if err != nil {
-		return err
-	}
-	if isCurrentGameUser {
-		return errors.New("game was already started")
+	switch {
+	case err != nil:
+		return errors.E(op, err)
+	case isCurrentGameUser:
+		err := fmt.Errorf("user already joined game")
+		return errors.E(op, err, http.StatusBadRequest)
 	}
 
 	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
-	if err != nil {
-		return err
-	}
-	if currentGameStatus > models.CountdownGameStatus {
-		// log.Println("game is not in unstarted state", err)
-		return err
+	switch {
+	case err != nil:
+		return errors.E(op, err)
+	case currentGameStatus > models.CountdownGameStatus:
+		err := fmt.Errorf("game was already started")
+		return errors.E(op, err, http.StatusBadRequest)
 	}
 
 	err = gs.cacheRepo.SetGameUser(ctx, roomId, userId)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	return nil
 }
 
-func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
-	var ctx = context.Background()
+func (gs *GameService) InitiateGameIfReady(ctx context.Context, roomId uuid.UUID) error {
+	const op errors.Op = "services.GameService.InitiateGameIfReady"
 
 	numberGameUsers, err := gs.cacheRepo.GetCurrentGameUsersNumber(ctx, roomId)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	if numberGameUsers != 2 {
@@ -167,7 +169,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 	// comment out
 	gameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	if gameStatus != models.UnstartedGameStatus {
@@ -177,7 +179,7 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 	// start countdown
 	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.CountdownGameStatus)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	countdownPushMessage := models.PushMessage{
@@ -187,84 +189,87 @@ func (gs *GameService) InitiateGameIfReady(roomId uuid.UUID) error {
 
 	err = gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	gameDurationSec, err := gs.cacheRepo.GetRoomGameDurationSec(ctx, roomId)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
-	go func() {
-		time.Sleep(countdownDurationSeconds * time.Second)
-
-		// after blocking for countdown duration, set game status to "started"
-		err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus)
-		if err != nil {
-			log.Println("error setting game status to finished:", err.Error())
-			return
-		}
-
-		time.Sleep(time.Duration(gameDurationSec) * time.Second)
-
-		if err = gs.handleGameResults(roomId); err != nil {
-			log.Println("error handling game results", err)
-		}
-	}()
+	go gs.handleGameDuration(context.Background(), gameDurationSec, roomId)
 
 	return nil
 }
 
-func (gs *GameService) handleGameResults(roomId uuid.UUID) error {
-	var ctx = context.Background()
+func (gs *GameService) handleGameDuration(ctx context.Context, gameDurationSec int, roomId uuid.UUID) {
+	const op errors.Op = "services.GameService.handleGameDuration"
+
+	time.Sleep(countdownDurationSeconds * time.Second)
+
+	// after blocking for countdown duration, set game status to "started"
+	err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus)
+	if err != nil {
+		log.Print(errors.E(op, err))
+		return
+	}
+
+	time.Sleep(time.Duration(gameDurationSec) * time.Second)
+
+	if err = gs.handleGameResults(ctx, roomId); err != nil {
+		log.Print(errors.E(op, err))
+	}
+}
+
+func (gs *GameService) handleGameResults(ctx context.Context, roomId uuid.UUID) error {
+	const op errors.Op = "services.GameService.handleGameResults"
 
 	numberGameUsers, err := gs.cacheRepo.GetCurrentGameUsersNumber(ctx, roomId)
 	if err != nil {
-		return errors.New("error getting current game users:" + err.Error())
+		return errors.E(op, err)
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	allResultsReceivedCh := gs.getAllResultsReceived(ctx, numberGameUsers, roomId)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	allResultsReceivedCh := gs.getAllResultsReceived(cancelCtx, numberGameUsers, roomId)
 
 	timer := time.NewTimer(waitForResultsDurationSeconds * time.Second)
 
 	select {
 	case <-timer.C:
-		cancel()
 	case <-allResultsReceivedCh:
 		timer.Stop()
-		cancel()
 	}
-
-	ctx = context.Background()
+	cancel()
 
 	// set game status to finished
 	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
 	if err != nil {
-		return errors.New("error setting game status to finished:" + err.Error())
+		return errors.E(op, err)
 	}
 
 	gameId, err := gs.cacheRepo.GetCurrentGameId(ctx, roomId)
 	if err != nil {
-		return errors.New("error when getting current game id from redis: " + err.Error())
+		return errors.E(op, err)
 	}
 
 	scores, err := gs.dbRepo.FindScores(uuid.Nil, gameId, "", []models.SortOption{{Column: "words_per_minute", Order: "desc"}})
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
-	if err != nil {
-		return errors.New("error findind scores:" + err.Error())
-	}
 	scorePushMessage := models.PushMessage{
 		Type:    models.GameScores,
 		Payload: scores,
 	}
 
-	return gs.cacheRepo.PublishPushMessage(ctx, roomId, scorePushMessage)
+	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, scorePushMessage); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
 
 func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber int, roomId uuid.UUID) <-chan struct{} {
+	const op errors.Op = "services.GameService.getAllResultsReceived"
 	allReceived := make(chan struct{})
 
 	go func() {
@@ -282,7 +287,7 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 					return
 				}
 				if actionResult.Error != nil {
-					log.Println("error from action result channel: ", actionResult.Error)
+					log.Print(errors.E(op, actionResult.Error))
 					return
 				}
 				if actionResult.Value == models.GameUserScoreAction {

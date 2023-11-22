@@ -9,15 +9,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func (repo *SQLRepository) FindRoomByUser(roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
+func (repo *SQLRepository) FindRoomWithUsers(roomId uuid.UUID) (*models.Room, error) {
 	const op errors.Op = "sql_repo.SQLRepository.FindRoomByUser"
 
-	var room models.Room
-	if err := repo.db.
-		Joins("INNER JOIN user_rooms ur ON ur.room_id = rooms.id").
-		Where("rooms.id = ?", roomId).
-		Where("ur.user_id = ?", userId).
-		First(&room).Error; err != nil {
+	var room = models.Room{
+		ID: roomId,
+	}
+	if err := repo.db.First(&room).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			return nil, errors.E(op, repositories.ErrNotFound)

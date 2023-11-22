@@ -50,7 +50,7 @@ type EmailTransactionRepository interface {
 }
 
 type RoomDBRepository interface {
-	FindRoomByUser(roomId uuid.UUID, userId uuid.UUID) (*models.Room, error)
+	FindRoomWithUsers(roomId uuid.UUID) (*models.Room, error)
 	FindRoom(roomId uuid.UUID) (*models.Room, error)
 	CreateRoom(newRoom models.Room) (*models.Room, error)
 	SoftDeleteRoom(roomId uuid.UUID) error
@@ -71,8 +71,7 @@ type TextDBRepository interface {
 	) (*models.Text, error)
 	FindAllTextIds() ([]uuid.UUID, error)
 	FindTextById(textId uuid.UUID) (*models.Text, error)
-	CreateText(text models.Text) (*models.Text, error)
-	DeleteAllTexts() error
+	CreateTextAndCache(ctx context.Context, cacheRepo CacheRepository, text models.Text) (*models.Text, error)
 }
 
 type TokenDBRepository interface {
@@ -106,7 +105,7 @@ type GameCacheRepository interface {
 }
 
 type RoomCacheRepository interface {
-	GetRoom(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*models.Room, error)
+	GetRoomInCacheOrDb(ctx context.Context, dbRepo DBRepository, roomId uuid.UUID) (*models.Room, error)
 	GetRoomGameDurationSec(ctx context.Context, roomId uuid.UUID) (gameDurationSec int, err error)
 	SetRoom(ctx context.Context, room models.Room) error
 	RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error)

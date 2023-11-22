@@ -1,17 +1,21 @@
 package services
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/repositories"
 	"context"
-	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"nhooyr.io/websocket"
 )
+
+var ErrCouldNotConnectToRoom = errors.New("couldn't connect to room")
 
 type RoomService struct {
 	dbRepo               repositories.DBRepository
@@ -31,44 +35,26 @@ func NewRoomService(
 	}
 }
 
-func (rs *RoomService) Find(roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
-	var ctx = context.Background()
+func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emails []string, gameDurationSec int, authenticatedUser models.User) (*models.Room, error) {
+	const op errors.Op = "services.RoomService.CreateRoom"
 
-	room, err := rs.cacheRepo.GetRoom(ctx, roomId, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	if room == nil {
-		room, err = rs.dbRepo.FindRoomByUser(roomId, userId)
-		if err != nil {
-			return nil, err
-		}
-
-		if err = rs.cacheRepo.SetRoom(ctx, *room); err != nil {
-			// no error should be returned
-			log.Println(err)
-		}
-	}
-
-	return room, nil
-}
-
-func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, gameDurationSec int, authenticatedUser models.User) (*models.Room, error) {
 	// validate
 	if (len(userIds) == 0) && (len(emails) == 0) {
-		return nil, fmt.Errorf("you cannot create a room just for yourself")
+		err := fmt.Errorf("you cannot create a room just for yourself")
+		return nil, errors.E(op, err, http.StatusBadRequest)
 	}
 
 	for _, userId := range userIds {
 		if userId == authenticatedUser.ID {
-			return nil, fmt.Errorf("you cannot create a room for yourself with yourself")
+			err := fmt.Errorf("you cannot create a room for yourself with yourself")
+			return nil, errors.E(op, err, http.StatusBadRequest)
 		}
 	}
 
 	for _, email := range emails {
 		if email == authenticatedUser.Email {
-			return nil, fmt.Errorf("you cannot create a room for yourself with yourself")
+			err := fmt.Errorf("you cannot create a room for yourself with yourself")
+			return nil, errors.E(op, err, http.StatusBadRequest)
 		}
 	}
 
@@ -80,9 +66,10 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, gameDura
 	var allEmails []string
 
 	for _, email := range emails {
-		user, err := rs.dbRepo.FindUserByEmail(email)
+
+		user, err := rs.cacheRepo.GetUserByEmailInCacheOrDB(ctx, rs.dbRepo, email)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err, http.StatusInternalServerError)
 		}
 
 		if user == nil {
@@ -94,21 +81,21 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, gameDura
 	}
 
 	// create room
-	room, err := rs.createRoomWithSubscribers(userIds, allEmails, authenticatedUser.ID, gameDurationSec)
+	room, err := rs.createRoomWithSubscribers(ctx, userIds, allEmails, authenticatedUser.ID, gameDurationSec)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// create tokens and send invites to non registered users
 	for _, email := range emails {
 		token, err := rs.dbRepo.CreateToken(room.ID)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		err = rs.emailTransactionRepo.InviteNewUserToRoom(email, token.ID)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 	}
 
@@ -120,7 +107,7 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, gameDura
 
 		err = rs.emailTransactionRepo.InviteUserToRoom(roomSubscriber.Email, roomSubscriber.Username)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 	}
 
@@ -137,8 +124,8 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, gameDura
 			},
 		}
 
-		if err = rs.cacheRepo.PublishUserNotification(context.Background(), roomSubscriber.ID, userNotification); err != nil {
-			return nil, err
+		if err = rs.cacheRepo.PublishUserNotification(ctx, roomSubscriber.ID, userNotification); err != nil {
+			return nil, errors.E(op, err, http.StatusInternalServerError)
 		}
 	}
 
@@ -146,39 +133,42 @@ func (rs *RoomService) CreateRoom(userIds []uuid.UUID, emails []string, gameDura
 }
 
 func (rs *RoomService) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
+	const op errors.Op = "services.RoomService.DeleteRoom"
+
 	if err := rs.dbRepo.SoftDeleteRoom(roomId); err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
-	return rs.cacheRepo.DeleteRoom(ctx, roomId)
+	if err := rs.cacheRepo.DeleteRoom(ctx, roomId); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }
 
-func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
-	var ctx = context.Background()
+func (rs *RoomService) LeaveRoom(ctx context.Context, roomId, userId uuid.UUID) error {
+	const op errors.Op = "services.RoomService.LeaveRoom"
 
 	isAdmin, err := rs.cacheRepo.RoomHasAdmin(ctx, roomId, userId)
 	if err != nil {
-		return err
+		return errors.E(op, err)
 	}
 
 	if isAdmin {
 		// first need to send terminate action message so that all websocket that remained connected, disconnect
 		if err := rs.cacheRepo.PublishAction(ctx, roomId, models.TerminateAction); err != nil {
-			log.Println("terminate action failed:", err)
-			return err
+			return errors.E(op, err)
 		}
 
 		if err := rs.DeleteRoom(ctx, roomId); err != nil {
-			log.Println("failed to remove room subscriber:", err)
-			return err
+			return errors.E(op, err)
 		}
 
 		return nil
 	}
 
 	if err = rs.cacheRepo.DeleteRoomSubscriber(ctx, roomId, userId); err != nil {
-		log.Println("failed to remove room subscriber:", err)
-		return err
+		return errors.E(op, err)
 	}
 
 	return nil
@@ -189,10 +179,30 @@ func (rs *RoomService) LeaveRoom(roomId, userId uuid.UUID) error {
 // gets initial_state data and sends it as message to client.
 //
 // subscribes to room redis stream and sends messages to client.
-func (rs *RoomService) RoomConnect(ctx context.Context, userId uuid.UUID, room *models.Room, conn *websocket.Conn) error {
+func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId uuid.UUID, user *models.User) error {
+	const op errors.Op = "services.RoomService.RoomConnect"
+
+	room, err := rs.cacheRepo.GetRoomInCacheOrDb(ctx, rs.dbRepo, roomId)
+	switch {
+	case errors.Is(err, repositories.ErrNotFound):
+		err := fmt.Errorf("%w %w", ErrCouldNotConnectToRoom, err)
+		return errors.E(op, err, http.StatusNotFound)
+	case err != nil:
+		err := fmt.Errorf("%w %w", ErrCouldNotConnectToRoom, err)
+		return errors.E(op, err, http.StatusInternalServerError)
+	}
+
+	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
+		OriginPatterns: []string{"*"},
+	})
+	if err != nil {
+		err := fmt.Errorf("%w %w", ErrCouldNotConnectToRoom, err)
+		return errors.E(op, err, http.StatusBadRequest)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	roomSubscription := newRoomSubscription(conn, room.ID, userId, rs.cacheRepo)
+	roomSubscription := newRoomSubscription(conn, room.ID, user.ID, rs.cacheRepo)
 	defer roomSubscription.close(ctx)
 
 	timeStamp := time.Now()
@@ -200,21 +210,20 @@ func (rs *RoomService) RoomConnect(ctx context.Context, userId uuid.UUID, room *
 
 	go func() {
 		err := roomSubscription.handleMessages(ctx)
-		if err != nil {
-			err = errors.New("error handling messages " + err.Error())
-			log.Println(err)
-			select {
-			case errCh <- err:
-			default:
-			}
+		log.Print(errors.E(op, err))
+
+		select {
+		case errCh <- err:
+		default:
 		}
 	}()
 
 	go func() {
 		err := roomSubscription.handleRoomSubscriberStatus(ctx)
+
 		if err != nil {
-			err = errors.New("error room subscriber status " + err.Error())
-			log.Println(err)
+			log.Print(errors.E(op, err))
+
 			select {
 			case errCh <- err:
 			default:
@@ -224,9 +233,10 @@ func (rs *RoomService) RoomConnect(ctx context.Context, userId uuid.UUID, room *
 
 	go func() {
 		err := roomSubscription.sendInitialState(ctx, *room)
+
 		if err != nil {
-			err = errors.New("error sending initial state " + err.Error())
-			log.Println(err)
+			log.Print(errors.E(op, err))
+
 			select {
 			case errCh <- err:
 			default:
@@ -236,22 +246,22 @@ func (rs *RoomService) RoomConnect(ctx context.Context, userId uuid.UUID, room *
 
 	go func() {
 		err := roomSubscription.subscribe(ctx, timeStamp)
-		if err != nil {
-			err = errors.New("error subscribing " + err.Error())
-			log.Println(err)
-			select {
-			case errCh <- err:
-			default:
-			}
+		log.Print(errors.E(op, err))
+
+		select {
+		case errCh <- err:
+		default:
 		}
 	}()
 
-	err := <-errCh
+	err = <-errCh
 
 	return err
 }
 
-func (rs *RoomService) createRoomWithSubscribers(userIds []uuid.UUID, emails []string, adminId uuid.UUID, gameDurationSec int) (*models.Room, error) {
+func (rs *RoomService) createRoomWithSubscribers(ctx context.Context, userIds []uuid.UUID, emails []string, adminId uuid.UUID, gameDurationSec int) (*models.Room, error) {
+	const op errors.Op = "services.RoomService.createRoomWithSubscribers"
+
 	newRoom := models.Room{
 		AdminId: adminId,
 	}
@@ -261,23 +271,23 @@ func (rs *RoomService) createRoomWithSubscribers(userIds []uuid.UUID, emails []s
 
 	createdRoom, err := rs.dbRepo.CreateRoom(newRoom)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
 	// room subscribers
 	for _, userId := range userIds {
 		if err := rs.dbRepo.CreateUserRoom(userId, createdRoom.ID); err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 	}
 
 	createdRoom, err = rs.dbRepo.FindRoom(createdRoom.ID)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
-	if err := rs.cacheRepo.SetRoom(context.Background(), *createdRoom); err != nil {
-		return nil, err
+	if err := rs.cacheRepo.SetRoom(ctx, *createdRoom); err != nil {
+		return nil, errors.E(op, err)
 	}
 
 	return createdRoom, nil

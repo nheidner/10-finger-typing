@@ -4,6 +4,7 @@ import (
 	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/repositories"
+	"context"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -83,11 +84,33 @@ func (repo *SQLRepository) FindTextById(textId uuid.UUID) (*models.Text, error) 
 	return &text, nil
 }
 
-func (repo *SQLRepository) CreateText(text models.Text) (*models.Text, error) {
+func (repo *SQLRepository) CreateTextAndCache(ctx context.Context, cacheRepo repositories.CacheRepository, text models.Text) (*models.Text, error) {
 	const op errors.Op = "sql_repo.SQLRepository.CreateText"
 
 	if err := repo.db.Create(&text).Error; err != nil {
 		return nil, errors.E(op, err)
+	}
+
+	// create text in redis and additionally: if no text ids key exists, query all text ids from DB and write them to text ids key
+	allTextsAreInRedis, err := cacheRepo.TextIdsKeyExists(ctx)
+	switch {
+	case err != nil:
+		return nil, errors.E(op, err)
+	case !allTextsAreInRedis:
+		allTextIds, err := repo.FindAllTextIds()
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		allTextIds = append(allTextIds, text.ID)
+
+		if err = cacheRepo.SetTextId(ctx, allTextIds...); err != nil {
+			return nil, errors.E(op, err)
+		}
+	default:
+		if err = cacheRepo.SetTextId(ctx, text.ID); err != nil {
+			return nil, errors.E(op, err)
+		}
 	}
 
 	return &text, nil

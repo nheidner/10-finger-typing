@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"10-typing/errors"
 	"10-typing/services"
 	"10-typing/utils"
 	"log"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"nhooyr.io/websocket"
 )
 
 type RoomController struct {
@@ -98,24 +98,9 @@ func (rc *RoomController) ConnectToRoom(c *gin.Context) {
 		return
 	}
 
-	room, err := rc.roomService.Find(roomId, user.ID)
-	if err != nil {
-		log.Println("no room found:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no room found"})
+	err = rc.roomService.RoomConnect(c.Request.Context(), c, roomId, user)
+	if err != nil && errors.Is(err, services.ErrCouldNotConnectToRoom) {
+		errors.WriteError(c, err)
 		return
-	}
-
-	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
-		OriginPatterns: []string{"*"},
-	})
-	if err != nil {
-		log.Println("Failed to accept websocket connection:", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to accept websocket connection"})
-		return
-	}
-
-	err = rc.roomService.RoomConnect(c.Request.Context(), user.ID, room, conn)
-	if err != nil {
-		log.Println(err)
 	}
 }

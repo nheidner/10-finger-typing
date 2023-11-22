@@ -1,6 +1,7 @@
 package services
 
 import (
+	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/repositories"
 	"context"
@@ -19,11 +20,14 @@ func NewTextService(dbRepo repositories.DBRepository, cacheRepo repositories.Cac
 }
 
 func (ts *TextService) FindNewTextForUser(
+	ctx context.Context,
 	userId uuid.UUID, language string,
 	punctuation bool,
 	specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
 ) (*models.Text, error) {
-	return ts.dbRepo.FindNewTextForUser(
+	const op errors.Op = "services.TextService.FindNewTextForUser"
+
+	text, err := ts.dbRepo.FindNewTextForUser(
 		userId,
 		language,
 		punctuation,
@@ -32,21 +36,36 @@ func (ts *TextService) FindNewTextForUser(
 		numbersGte,
 		numbersLte,
 	)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return text, nil
 }
 
-func (ts *TextService) FindTextById(textId uuid.UUID) (*models.Text, error) {
-	return ts.dbRepo.FindTextById(textId)
+func (ts *TextService) FindTextById(ctx context.Context, textId uuid.UUID) (*models.Text, error) {
+	const op errors.Op = "services.TextService.FindTextById"
+
+	text, err := ts.dbRepo.FindTextById(textId)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return text, nil
 }
 
 func (ts *TextService) Create(
+	ctx context.Context,
 	language, text string,
 	punctuation bool,
 	specialCharacters, numbers int,
 ) (*models.Text, error) {
+	const op errors.Op = "services.TextService.FindNewTextForUser"
+
 	if text == "" {
 		gptText, err := ts.openAiRepo.GenerateTypingText(language, punctuation, specialCharacters, numbers)
 		if err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		text = gptText
@@ -60,41 +79,10 @@ func (ts *TextService) Create(
 		Numbers:           numbers,
 	}
 
-	var ctx = context.Background()
-
-	createdText, err := ts.dbRepo.CreateText(newText)
+	createdText, err := ts.dbRepo.CreateTextAndCache(ctx, ts.cacheRepo, newText)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 
-	// create text in redis and additionally: if no text ids key exists, query all text ids from DB and write them to text ids key
-	allTextsAreInRedis, err := ts.cacheRepo.TextIdsKeyExists(ctx)
-	switch {
-	case err != nil:
-		return nil, err
-	case !allTextsAreInRedis:
-		allTextIds, err := ts.dbRepo.FindAllTextIds()
-		if err != nil {
-			return nil, err
-		}
-
-		allTextIds = append(allTextIds, createdText.ID)
-
-		err = ts.cacheRepo.SetTextId(ctx, allTextIds...)
-
-		return createdText, err
-	default:
-		err = ts.cacheRepo.SetTextId(ctx, createdText.ID)
-
-		return createdText, err
-	}
-}
-
-func (ts *TextService) DeleteAll() error {
-	err := ts.cacheRepo.DeleteTextIdsKey(context.Background())
-	if err != nil {
-		return err
-	}
-
-	return ts.dbRepo.DeleteAllTexts()
+	return createdText, nil
 }

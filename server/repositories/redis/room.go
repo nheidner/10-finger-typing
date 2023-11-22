@@ -7,6 +7,7 @@ import (
 	"10-typing/utils"
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -25,79 +26,26 @@ func getRoomKey(roomId uuid.UUID) string {
 	return "rooms:" + roomId.String()
 }
 
-func (repo *RedisRepository) GetRoom(ctx context.Context, roomId uuid.UUID, userId uuid.UUID) (*models.Room, error) {
-	const op errors.Op = "redis_repo.RedisRepository.GetRoom"
-	roomKey := getRoomKey(roomId)
+func (repo *RedisRepository) GetRoomInCacheOrDb(ctx context.Context, dbRepo repositories.DBRepository, roomId uuid.UUID) (*models.Room, error) {
+	const op errors.Op = "services.RoomService.GetRoomInCacheOrDb"
 
-	roomData, err := repo.redisClient.HGetAll(ctx, roomKey).Result()
+	room, err := repo.getRoom(ctx, roomId)
 	switch {
+	case err != nil && errors.Is(err, repositories.ErrNotFound):
+		room, err = dbRepo.FindRoomWithUsers(roomId)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		if err = repo.SetRoom(ctx, *room); err != nil {
+			// no error should be returned
+			log.Print(errors.E(op, err))
+		}
 	case err != nil:
-		return nil, err
-	case len(roomData) == 0:
-		return nil, errors.E(op, repositories.ErrNotFound)
-	}
-
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
-	roomSubscriberIds, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
-	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	userIdStr := userId.String()
-	if !utils.SliceContains[string](roomSubscriberIds, userIdStr) {
-		err := fmt.Errorf("user with user id %s is not subscribed to room with room id %s", userIdStr, roomId.String())
-		return nil, errors.E(op, err)
-	}
-
-	roomSubscribers := make([]models.RoomSubscriber, 0, len(roomSubscriberIds))
-	for _, roomSubscriberIdStr := range roomSubscriberIds {
-		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-
-		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
-
-		roomSubscriber, err := repo.redisClient.HGetAll(ctx, roomSubscriberKey).Result()
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-
-		username := roomSubscriber[roomSubscriberUsernameField]
-
-		subscriber := models.RoomSubscriber{
-			UserId:   roomSubscriberId,
-			Username: username,
-		}
-
-		roomSubscribers = append(roomSubscribers, subscriber)
-	}
-
-	createdAt, err := utils.StringToTime(roomData[roomCreatedAtField])
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	updatedAt, err := utils.StringToTime(roomData[roomUpdatedAtField])
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	adminId, err := uuid.Parse(roomData[roomAdminIdField])
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	gameDurationSec, err := strconv.Atoi(roomData[roomGameDurationSecField])
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	return &models.Room{
-		ID:              roomId,
-		AdminId:         adminId,
-		CreatedAt:       createdAt,
-		UpdatedAt:       updatedAt,
-		Subscribers:     roomSubscribers,
-		GameDurationSec: gameDurationSec,
-	}, nil
+	return room, nil
 }
 
 func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId uuid.UUID) (gameDurationSec int, err error) {
@@ -237,4 +185,73 @@ func (repo *RedisRepository) DeleteAllRooms(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (repo *RedisRepository) getRoom(ctx context.Context, roomId uuid.UUID) (*models.Room, error) {
+	const op errors.Op = "redis_repo.RedisRepository.getRoom"
+	roomKey := getRoomKey(roomId)
+
+	roomData, err := repo.redisClient.HGetAll(ctx, roomKey).Result()
+	switch {
+	case err != nil:
+		return nil, err
+	case len(roomData) == 0:
+		return nil, errors.E(op, repositories.ErrNotFound)
+	}
+
+	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
+	roomSubscriberIds, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	roomSubscribers := make([]models.RoomSubscriber, 0, len(roomSubscriberIds))
+	for _, roomSubscriberIdStr := range roomSubscriberIds {
+		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
+
+		roomSubscriber, err := repo.redisClient.HGetAll(ctx, roomSubscriberKey).Result()
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		username := roomSubscriber[roomSubscriberUsernameField]
+
+		subscriber := models.RoomSubscriber{
+			UserId:   roomSubscriberId,
+			Username: username,
+		}
+
+		roomSubscribers = append(roomSubscribers, subscriber)
+	}
+
+	createdAt, err := utils.StringToTime(roomData[roomCreatedAtField])
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	updatedAt, err := utils.StringToTime(roomData[roomUpdatedAtField])
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	adminId, err := uuid.Parse(roomData[roomAdminIdField])
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	gameDurationSec, err := strconv.Atoi(roomData[roomGameDurationSecField])
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return &models.Room{
+		ID:              roomId,
+		AdminId:         adminId,
+		CreatedAt:       createdAt,
+		UpdatedAt:       updatedAt,
+		Subscribers:     roomSubscribers,
+		GameDurationSec: gameDurationSec,
+	}, nil
 }

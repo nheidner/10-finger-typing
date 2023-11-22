@@ -35,7 +35,7 @@ func IsRoomAdmin(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
 
 		isAdmin, err := cacheRepo.RoomHasAdmin(context.Background(), roomId, user.ID)
 		if err != nil {
-			err = errors.E(op, err, http.StatusInternalServerError)
+			err = errors.E(op, err, http.StatusInternalServerError, user.Username)
 			c.Abort()
 			errors.WriteError(c, err)
 
@@ -77,9 +77,9 @@ func IsRoomMember(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
 			return
 		}
 
-		isRoomMember, err := cacheRepo.RoomHasSubscribers(context.Background(), roomId, user.ID)
+		isRoomMember, err := cacheRepo.RoomHasSubscribers(c.Request.Context(), roomId, user.ID)
 		if err != nil {
-			err = errors.E(op, err, http.StatusInternalServerError)
+			err = errors.E(op, err, http.StatusInternalServerError, user.Username)
 			c.Abort()
 			errors.WriteError(c, err)
 
@@ -88,7 +88,7 @@ func IsRoomMember(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
 
 		if !isRoomMember {
 			err := fmt.Errorf("authenticated user %s is not a member of room with id %s", user.Username, roomId.String())
-			err = errors.E(op, err, http.StatusForbidden)
+			err = errors.E(op, err, http.StatusForbidden, user.Username)
 			c.Abort()
 			errors.WriteError(c, err)
 
