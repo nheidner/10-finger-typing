@@ -14,10 +14,11 @@ type TextService struct {
 	dbRepo     common.DBRepository
 	cacheRepo  common.CacheRepository
 	openAiRepo common.OpenAiRepository
+	logger     common.Logger
 }
 
-func NewTextService(dbRepo common.DBRepository, cacheRepo common.CacheRepository, openAiRepo common.OpenAiRepository) *TextService {
-	return &TextService{dbRepo, cacheRepo, openAiRepo}
+func NewTextService(dbRepo common.DBRepository, cacheRepo common.CacheRepository, openAiRepo common.OpenAiRepository, logger common.Logger) *TextService {
+	return &TextService{dbRepo, cacheRepo, openAiRepo, logger}
 }
 
 func (ts *TextService) FindNewTextForUser(

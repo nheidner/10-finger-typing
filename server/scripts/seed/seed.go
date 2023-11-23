@@ -7,14 +7,17 @@ import (
 	redis_repo "10-typing/repositories/redis"
 	sql_repo "10-typing/repositories/sql"
 	"10-typing/services"
+	"10-typing/zerologger"
 	"context"
 	"log"
 	"math/rand"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -28,9 +31,12 @@ func init() {
 	dbRepo := sql_repo.NewSQLRepository(models.DB)
 	openAiRepo := open_ai_repo.NewOpenAiRepository("")
 
-	userService = services.NewUserService(dbRepo, cacheRepo, 32)
-	scoreService = services.NewScoreService(dbRepo)
-	textService = services.NewTextService(dbRepo, cacheRepo, openAiRepo)
+	zl := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).With().Timestamp().Logger()
+	logger := zerologger.New(zl)
+
+	userService = services.NewUserService(dbRepo, cacheRepo, logger, 32)
+	scoreService = services.NewScoreService(dbRepo, logger)
+	textService = services.NewTextService(dbRepo, cacheRepo, openAiRepo, logger)
 }
 
 func main() {

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/services"
 	"10-typing/utils"
@@ -11,10 +12,11 @@ import (
 
 type TextController struct {
 	textService *services.TextService
+	logger      common.Logger
 }
 
-func NewTextController(textService *services.TextService) *TextController {
-	return &TextController{textService}
+func NewTextController(textService *services.TextService, logger common.Logger) *TextController {
+	return &TextController{textService, logger}
 }
 
 func (tc *TextController) FindNewTextForUser(c *gin.Context) {
@@ -22,7 +24,7 @@ func (tc *TextController) FindNewTextForUser(c *gin.Context) {
 
 	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), tc.logger)
 		return
 	}
 
@@ -36,7 +38,7 @@ func (tc *TextController) FindNewTextForUser(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), tc.logger)
 		return
 	}
 
@@ -51,7 +53,7 @@ func (tc *TextController) FindNewTextForUser(c *gin.Context) {
 		query.NumbersLte,
 	)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), tc.logger)
 		return
 	}
 
@@ -63,13 +65,13 @@ func (tc *TextController) FindTextById(c *gin.Context) {
 
 	textId, err := utils.GetTextIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), tc.logger)
 		return
 	}
 
 	text, err := tc.textService.FindTextById(c.Request.Context(), textId)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), tc.logger)
 		return
 	}
 
@@ -86,13 +88,13 @@ func (tc *TextController) CreateText(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), tc.logger)
 		return
 	}
 
 	text, err := tc.textService.Create(c.Request.Context(), input.Language, "", input.Punctuation, input.SpecialCharacters, input.Numbers)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), tc.logger)
 		return
 	}
 

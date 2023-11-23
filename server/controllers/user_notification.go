@@ -12,10 +12,11 @@ import (
 
 type UserNotificationController struct {
 	userNotificationService *services.UserNotificationService
+	logger                  common.Logger
 }
 
-func NewUserNotificationController(userNotificationService *services.UserNotificationService) *UserNotificationController {
-	return &UserNotificationController{userNotificationService}
+func NewUserNotificationController(userNotificationService *services.UserNotificationService, logger common.Logger) *UserNotificationController {
+	return &UserNotificationController{userNotificationService, logger}
 }
 
 func (uc *UserNotificationController) FindRealtimeUserNotification(c *gin.Context) {
@@ -26,12 +27,12 @@ func (uc *UserNotificationController) FindRealtimeUserNotification(c *gin.Contex
 
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
@@ -40,7 +41,7 @@ func (uc *UserNotificationController) FindRealtimeUserNotification(c *gin.Contex
 	case errors.Is(err, common.ErrNotFound):
 		c.JSON(http.StatusOK, gin.H{"data": nil})
 	case err != nil:
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), uc.logger)
 		return
 	}
 

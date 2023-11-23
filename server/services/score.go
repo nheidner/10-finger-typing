@@ -11,10 +11,11 @@ import (
 
 type ScoreService struct {
 	dbRepo common.DBRepository
+	logger common.Logger
 }
 
-func NewScoreService(dbRepo common.DBRepository) *ScoreService {
-	return &ScoreService{dbRepo}
+func NewScoreService(dbRepo common.DBRepository, logger common.Logger) *ScoreService {
+	return &ScoreService{dbRepo, logger}
 }
 
 func (ss *ScoreService) Create(

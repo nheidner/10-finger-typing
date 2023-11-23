@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/services"
@@ -31,10 +32,11 @@ type FindScoresQuery struct {
 
 type ScoreController struct {
 	scoreService *services.ScoreService
+	logger       common.Logger
 }
 
-func NewScoreController(scoreService *services.ScoreService) *ScoreController {
-	return &ScoreController{scoreService}
+func NewScoreController(scoreService *services.ScoreService, logger common.Logger) *ScoreController {
+	return &ScoreController{scoreService, logger}
 }
 
 func (sc *ScoreController) CreateScore(c *gin.Context) {
@@ -42,19 +44,19 @@ func (sc *ScoreController) CreateScore(c *gin.Context) {
 	var input CreateScoreInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), sc.logger)
 		return
 	}
 
 	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), sc.logger)
 		return
 	}
 
 	score, err := sc.scoreService.Create(c.Request.Context(), uuid.Nil, userId, input.TextId, input.WordsTyped, input.TimeElapsed, input.Errors)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), sc.logger)
 		return
 	}
 
@@ -67,24 +69,24 @@ func (sc *ScoreController) FindScoresByUser(c *gin.Context) {
 
 	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), sc.logger)
 		return
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), sc.logger)
 		return
 	}
 
 	sortOptions, err := models.BindSortByQuery(c, FindScoresSortOption{})
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), sc.logger)
 		return
 	}
 
 	scores, err := sc.scoreService.FindScores(c.Request.Context(), userId, uuid.Nil, query.Username, sortOptions)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), sc.logger)
 		return
 	}
 
@@ -96,19 +98,19 @@ func (sc *ScoreController) FindScores(c *gin.Context) {
 	var query FindScoresQuery
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), sc.logger)
 		return
 	}
 
 	sortOptions, err := models.BindSortByQuery(c, FindScoresSortOption{})
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), sc.logger)
 		return
 	}
 
 	scores, err := sc.scoreService.FindScores(c.Request.Context(), query.UserId, query.GameId, query.Username, sortOptions)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), sc.logger)
 		return
 	}
 

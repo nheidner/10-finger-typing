@@ -14,10 +14,11 @@ const maxRequestDurationSecs = 20
 
 type UserNotificationService struct {
 	cacheRepo common.CacheRepository
+	logger    common.Logger
 }
 
-func NewUserNotificationService(cacheRepo common.CacheRepository) *UserNotificationService {
-	return &UserNotificationService{cacheRepo}
+func NewUserNotificationService(cacheRepo common.CacheRepository, logger common.Logger) *UserNotificationService {
+	return &UserNotificationService{cacheRepo, logger}
 }
 
 func (us *UserNotificationService) FindRealtimeUserNotification(ctx context.Context, userId uuid.UUID, lastId string) (*models.UserNotification, error) {

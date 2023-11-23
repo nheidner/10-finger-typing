@@ -22,11 +22,12 @@ const (
 type UserService struct {
 	dbRepo               common.DBRepository
 	cacheRepo            common.CacheRepository
+	logger               common.Logger
 	sessionBytesPerToken int
 }
 
-func NewUserService(dbRepo common.DBRepository, cacheRepo common.CacheRepository, sessionBytesPerToken int) *UserService {
-	return &UserService{dbRepo, cacheRepo, sessionBytesPerToken}
+func NewUserService(dbRepo common.DBRepository, cacheRepo common.CacheRepository, logger common.Logger, sessionBytesPerToken int) *UserService {
+	return &UserService{dbRepo, cacheRepo, logger, sessionBytesPerToken}
 }
 
 func (us *UserService) FindUsers(ctx context.Context, username, usernameSubstr string) ([]models.User, error) {

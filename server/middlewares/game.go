@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func IsCurrentGameUser(cacheRepo common.CacheRepository) func(c *gin.Context) {
+func IsCurrentGameUser(cacheRepo common.CacheRepository, logger common.Logger) gin.HandlerFunc {
 	const op errors.Op = "middlewares.IsCurrentGameUser"
 
 	return func(c *gin.Context) {
@@ -18,7 +18,7 @@ func IsCurrentGameUser(cacheRepo common.CacheRepository) func(c *gin.Context) {
 		if err != nil {
 			err := errors.E(op, http.StatusBadRequest, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -27,7 +27,7 @@ func IsCurrentGameUser(cacheRepo common.CacheRepository) func(c *gin.Context) {
 		if err != nil {
 			err := errors.E(op, http.StatusInternalServerError, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -37,14 +37,14 @@ func IsCurrentGameUser(cacheRepo common.CacheRepository) func(c *gin.Context) {
 		case err != nil:
 			err := errors.E(op, http.StatusInternalServerError, err, user.Username)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		case !isCurrentGameUser:
 			err := fmt.Errorf("user with id %s is not subscriber to current game of room with id %s", user.ID.String(), roomId.String())
 			err = errors.E(op, http.StatusBadRequest, err, user.Username)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -54,7 +54,7 @@ func IsCurrentGameUser(cacheRepo common.CacheRepository) func(c *gin.Context) {
 }
 
 // checks if gameid parameter identifies the current game that the roomid parameter identifies
-func IsCurrentGame(cacheRepo common.CacheRepository) func(c *gin.Context) {
+func IsCurrentGame(cacheRepo common.CacheRepository, logger common.Logger) gin.HandlerFunc {
 	const op errors.Op = "middlewares.IsCurrentGame"
 
 	return func(c *gin.Context) {
@@ -62,7 +62,7 @@ func IsCurrentGame(cacheRepo common.CacheRepository) func(c *gin.Context) {
 		if err != nil {
 			err = errors.E(op, http.StatusBadRequest, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -71,7 +71,7 @@ func IsCurrentGame(cacheRepo common.CacheRepository) func(c *gin.Context) {
 		if err != nil {
 			err = errors.E(op, http.StatusBadRequest, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -81,14 +81,14 @@ func IsCurrentGame(cacheRepo common.CacheRepository) func(c *gin.Context) {
 		case err != nil:
 			err = errors.E(op, http.StatusInternalServerError, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		case !isCurrentGame:
 			err := fmt.Errorf("game with id %s is not current game of room with id %s", gameId.String(), roomId.String())
 			err = errors.E(op, http.StatusBadRequest, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}

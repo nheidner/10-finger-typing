@@ -7,7 +7,7 @@ import (
 
 	"context"
 	"fmt"
-	"log"
+
 	"net/http"
 	"time"
 
@@ -20,17 +20,20 @@ type RoomService struct {
 	dbRepo               common.DBRepository
 	cacheRepo            common.CacheRepository
 	emailTransactionRepo common.EmailTransactionRepository
+	logger               common.Logger
 }
 
 func NewRoomService(
 	dbRepo common.DBRepository,
 	cacheRepo common.CacheRepository,
 	emailTransactionRepo common.EmailTransactionRepository,
+	logger common.Logger,
 ) *RoomService {
 	return &RoomService{
 		dbRepo,
 		cacheRepo,
 		emailTransactionRepo,
+		logger,
 	}
 }
 
@@ -198,7 +201,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	roomSubscription := newRoomSubscription(conn, room.ID, user.ID, rs.cacheRepo)
+	roomSubscription := newRoomSubscription(conn, room.ID, user.ID, rs.cacheRepo, rs.logger)
 	defer roomSubscription.close(ctx)
 
 	timeStamp := time.Now()
@@ -206,7 +209,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 
 	go func() {
 		err := roomSubscription.handleMessages(ctx)
-		log.Print(errors.E(op, err))
+		rs.logger.Error(errors.E(op, err))
 
 		select {
 		case errCh <- err:
@@ -218,7 +221,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 		err := roomSubscription.handleRoomSubscriberStatus(ctx)
 
 		if err != nil {
-			log.Print(errors.E(op, err))
+			rs.logger.Error(errors.E(op, err))
 
 			select {
 			case errCh <- err:
@@ -231,7 +234,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 		err := roomSubscription.sendInitialState(ctx, *room)
 
 		if err != nil {
-			log.Print(errors.E(op, err))
+			rs.logger.Error(errors.E(op, err))
 
 			select {
 			case errCh <- err:
@@ -242,7 +245,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 
 	go func() {
 		err := roomSubscription.subscribe(ctx, timeStamp)
-		log.Print(errors.E(op, err))
+		rs.logger.Error(errors.E(op, err))
 
 		select {
 		case errCh <- err:

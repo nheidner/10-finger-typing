@@ -7,6 +7,7 @@ import (
 	open_ai_repo "10-typing/repositories/open_ai"
 	redis_repo "10-typing/repositories/redis"
 	sql_repo "10-typing/repositories/sql"
+	"10-typing/zerologger"
 	"fmt"
 	"runtime"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
 )
 
 func main() {
@@ -30,7 +32,9 @@ func main() {
 
 	fmt.Println("GOMAXPROCS: >>", runtime.GOMAXPROCS(0))
 
-	router := gin.Default()
+	// Zerolog configuration
+	zl := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).With().Timestamp().Logger()
+	logger := zerologger.New(zl)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("typingerrors", models.TypingErrors)
@@ -43,41 +47,46 @@ func main() {
 	openAiRepo := open_ai_repo.NewOpenAiRepository(os.Getenv("OPENAI_API_KEY"))
 
 	// Setup services
-	gameService := services.NewGameService(dbRepo, cacheRepo)
-	roomService := services.NewRoomService(dbRepo, cacheRepo, emailTransactionRepo)
-	scoreService := services.NewScoreService(dbRepo)
-	textService := services.NewTextService(dbRepo, cacheRepo, openAiRepo)
-	userService := services.NewUserService(dbRepo, cacheRepo, 32)
-	userNoticationService := services.NewUserNotificationService(cacheRepo)
+	gameService := services.NewGameService(dbRepo, cacheRepo, logger)
+	roomService := services.NewRoomService(dbRepo, cacheRepo, emailTransactionRepo, logger)
+	scoreService := services.NewScoreService(dbRepo, logger)
+	textService := services.NewTextService(dbRepo, cacheRepo, openAiRepo, logger)
+	userService := services.NewUserService(dbRepo, cacheRepo, logger, 32)
+	userNoticationService := services.NewUserNotificationService(cacheRepo, logger)
 
 	// Setup controllers
-	gameController := controllers.NewGameController(gameService)
-	roomController := controllers.NewRoomController(roomService)
-	scoreController := controllers.NewScoreController(scoreService)
-	textController := controllers.NewTextController(textService)
-	userController := controllers.NewUserController(userService)
-	userNoticationController := controllers.NewUserNotificationController(userNoticationService)
+	gameController := controllers.NewGameController(gameService, logger)
+	roomController := controllers.NewRoomController(roomService, logger)
+	scoreController := controllers.NewScoreController(scoreService, logger)
+	textController := controllers.NewTextController(textService, logger)
+	userController := controllers.NewUserController(userService, logger)
+	userNoticationController := controllers.NewUserNotificationController(userNoticationService, logger)
 
-	api := router.Group("/api")
-
-	api.Use(cors.New(cors.Config{
+	cors := cors.New(cors.Config{
 		// todo AllowOrigins based on production or development environment
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
-	}))
+	})
 
-	authRequiredMiddleware := middlewares.AuthRequired(cacheRepo, dbRepo)
-	isRoommemberMiddleware := middlewares.IsRoomMember(cacheRepo)
+	router := gin.New()
+	router.Use(middlewares.GinZerologLogger(logger), gin.Recovery(), cors)
+	api := router.Group("/api")
+
+	authRequiredMiddleware := middlewares.AuthRequired(cacheRepo, dbRepo, logger)
+	isRoommemberMiddleware := middlewares.IsRoomMember(cacheRepo, logger)
+	isRoomAdminMiddleware := middlewares.IsRoomAdmin(cacheRepo, logger)
+	isCurrentGameUserMiddleware := middlewares.IsCurrentGameUser(cacheRepo, logger)
+	userIdUrlParamMatchesAuthorizedUserMiddleware := middlewares.UserIdUrlParamMatchesAuthorizedUser(logger)
 
 	// USERS
 	api.GET("/users", authRequiredMiddleware, userController.FindUsers)
 	api.GET("/users/:userid", authRequiredMiddleware, userController.FindUser)
 	api.GET("/users/:userid/scores", authRequiredMiddleware, scoreController.FindScoresByUser)
-	api.POST("/users/:userid/scores", authRequiredMiddleware, middlewares.UserIdUrlParamMatchesAuthorizedUser(), scoreController.CreateScore)
+	api.POST("/users/:userid/scores", authRequiredMiddleware, userIdUrlParamMatchesAuthorizedUserMiddleware, scoreController.CreateScore)
 	// why use the userId here -> without a user id the middleware function UserIdUrlParamMatchesAuthorizedUser would be unnecessary
-	api.GET("/users/:userid/text", authRequiredMiddleware, middlewares.UserIdUrlParamMatchesAuthorizedUser(), textController.FindNewTextForUser)
+	api.GET("/users/:userid/text", authRequiredMiddleware, userIdUrlParamMatchesAuthorizedUserMiddleware, textController.FindNewTextForUser)
 	api.POST("/users", userController.CreateUser)
 
 	// USER
@@ -99,12 +108,12 @@ func main() {
 	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, isRoommemberMiddleware, roomController.ConnectToRoom)
 	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
 	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, isRoommemberMiddleware, roomController.LeaveRoom)
-	api.POST("/rooms/:roomid/games", authRequiredMiddleware, middlewares.IsRoomAdmin(cacheRepo), gameController.CreateGame)
+	api.POST("/rooms/:roomid/games", authRequiredMiddleware, isRoomAdminMiddleware, gameController.CreateGame)
 	api.POST("/rooms/:roomid/start-game", authRequiredMiddleware, isRoommemberMiddleware, gameController.StartGame)
 	api.POST("/rooms/:roomid/current-game/score",
 		authRequiredMiddleware,
 		isRoommemberMiddleware,
-		middlewares.IsCurrentGameUser(cacheRepo),
+		isCurrentGameUserMiddleware,
 		gameController.FinishGame,
 	)
 

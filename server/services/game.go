@@ -6,7 +6,7 @@ import (
 	"10-typing/models"
 	"context"
 	"fmt"
-	"log"
+
 	"net/http"
 	"time"
 
@@ -21,13 +21,15 @@ const (
 type GameService struct {
 	dbRepo    common.DBRepository
 	cacheRepo common.CacheRepository
+	logger    common.Logger
 }
 
 func NewGameService(
 	dbRepo common.DBRepository,
 	cacheRepo common.CacheRepository,
+	logger common.Logger,
 ) *GameService {
-	return &GameService{dbRepo, cacheRepo}
+	return &GameService{dbRepo, cacheRepo, logger}
 }
 
 func (gs *GameService) SetNewCurrentGame(ctx context.Context, userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
@@ -211,14 +213,14 @@ func (gs *GameService) handleGameDuration(ctx context.Context, gameDurationSec i
 	// after blocking for countdown duration, set game status to "started"
 	err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus)
 	if err != nil {
-		log.Print(errors.E(op, err))
+		gs.logger.Error(errors.E(op, err))
 		return
 	}
 
 	time.Sleep(time.Duration(gameDurationSec) * time.Second)
 
 	if err = gs.handleGameResults(ctx, roomId); err != nil {
-		log.Print(errors.E(op, err))
+		gs.logger.Error(errors.E(op, err))
 	}
 }
 
@@ -288,7 +290,7 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 					return
 				}
 				if actionResult.Error != nil {
-					log.Print(errors.E(op, actionResult.Error))
+					gs.logger.Error(errors.E(op, actionResult.Error))
 					return
 				}
 				if actionResult.Value == models.GameUserScoreAction {

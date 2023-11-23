@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/services"
@@ -20,10 +21,11 @@ type CreateUserInput struct {
 
 type UserController struct {
 	userService *services.UserService
+	logger      common.Logger
 }
 
-func NewUserController(userService *services.UserService) *UserController {
-	return &UserController{userService}
+func NewUserController(userService *services.UserService, logger common.Logger) *UserController {
+	return &UserController{userService, logger}
 }
 
 func (uc *UserController) FindUsers(c *gin.Context) {
@@ -34,19 +36,19 @@ func (uc *UserController) FindUsers(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindQuery(&query); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
 	authenticatedUser, err := utils.GetUserFromContext(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
 	users, err := uc.userService.FindUsers(c.Request.Context(), query.Username, query.UsernameSub)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), uc.logger)
 		return
 	}
 
@@ -60,13 +62,13 @@ func (uc *UserController) FindUser(c *gin.Context) {
 
 	userId, err := utils.GetUserIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
 	user, err := uc.userService.FindUserById(c.Request.Context(), userId)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), uc.logger)
 		return
 	}
 
@@ -78,13 +80,13 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 	var input CreateUserInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
 	user, err := uc.userService.Create(c.Request.Context(), input.Email, input.Username, input.FirstName, input.LastName, input.Password)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), uc.logger)
 		return
 	}
 
@@ -99,13 +101,13 @@ func (uc *UserController) Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
 	user, sessionToken, err := uc.userService.Login(c.Request.Context(), input.Email, input.Password)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), uc.logger)
 		return
 	}
 
@@ -118,13 +120,13 @@ func (uc *UserController) Logout(c *gin.Context) {
 
 	token, err := utils.ReadCookie(c.Request, models.CookieSession)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 
 	err = uc.userService.DeleteSession(c.Request.Context(), token)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), uc.logger)
 		return
 	}
 
@@ -137,7 +139,7 @@ func (uc *UserController) CurrentUser(c *gin.Context) {
 
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), uc.logger)
 		return
 	}
 

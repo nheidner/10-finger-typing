@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthRequired(cacheRepo common.CacheRepository, dbRepo common.DBRepository) func(c *gin.Context) {
+func AuthRequired(cacheRepo common.CacheRepository, dbRepo common.DBRepository, logger common.Logger) gin.HandlerFunc {
 	const op errors.Op = "middlewares.AuthRequired"
 
 	return func(c *gin.Context) {
@@ -20,7 +20,7 @@ func AuthRequired(cacheRepo common.CacheRepository, dbRepo common.DBRepository) 
 		if err != nil {
 			err = errors.E(op, err, http.StatusUnauthorized)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -30,7 +30,7 @@ func AuthRequired(cacheRepo common.CacheRepository, dbRepo common.DBRepository) 
 		if err != nil {
 			err := errors.E(op, err, http.StatusUnauthorized)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -43,7 +43,7 @@ func AuthRequired(cacheRepo common.CacheRepository, dbRepo common.DBRepository) 
 
 // checks if the authenticated user corresponds to the "userid" url parameter
 // this middleware function must be used after AuthRequired
-func UserIdUrlParamMatchesAuthorizedUser() func(c *gin.Context) {
+func UserIdUrlParamMatchesAuthorizedUser(logger common.Logger) gin.HandlerFunc {
 	const op errors.Op = "middlewares.UserIdUrlParamMatchesAuthorizedUser"
 
 	return func(c *gin.Context) {
@@ -51,7 +51,7 @@ func UserIdUrlParamMatchesAuthorizedUser() func(c *gin.Context) {
 		if err != nil {
 			err = errors.E(op, http.StatusInternalServerError, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -60,7 +60,7 @@ func UserIdUrlParamMatchesAuthorizedUser() func(c *gin.Context) {
 		if err != nil {
 			err = errors.E(op, http.StatusBadRequest, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}
@@ -69,7 +69,7 @@ func UserIdUrlParamMatchesAuthorizedUser() func(c *gin.Context) {
 			err := fmt.Errorf("user id from extracted from path (%s) is different than user id extracted from authenticated user (%s)", userId.String(), user.ID.String())
 			err = errors.E(op, http.StatusUnauthorized, err)
 			c.Abort()
-			errors.WriteError(c, err)
+			utils.WriteError(c, err, logger)
 
 			return
 		}

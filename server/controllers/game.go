@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/services"
@@ -12,10 +13,11 @@ import (
 
 type GameController struct {
 	gameService *services.GameService
+	logger      common.Logger
 }
 
-func NewGameController(gameService *services.GameService) *GameController {
-	return &GameController{gameService}
+func NewGameController(gameService *services.GameService, logger common.Logger) *GameController {
+	return &GameController{gameService, logger}
 }
 
 func (gc *GameController) CreateGame(c *gin.Context) {
@@ -24,24 +26,24 @@ func (gc *GameController) CreateGame(c *gin.Context) {
 
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	gameId, err := gc.gameService.SetNewCurrentGame(c.Request.Context(), user.ID, roomId, input.TextId)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), gc.logger)
 		return
 	}
 
@@ -56,23 +58,23 @@ func (gc *GameController) StartGame(c *gin.Context) {
 
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	if err = gc.gameService.AddUserToGame(ctx, roomId, user.ID); err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), gc.logger)
 		return
 	}
 
 	if err = gc.gameService.InitiateGameIfReady(ctx, roomId); err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), gc.logger)
 		return
 	}
 
@@ -84,24 +86,24 @@ func (gc *GameController) FinishGame(c *gin.Context) {
 	var input CreateScoreInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	user, err := utils.GetUserFromContext(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	roomId, err := utils.GetRoomIdFromPath(c)
 	if err != nil {
-		errors.WriteError(c, errors.E(op, err, http.StatusBadRequest))
+		utils.WriteError(c, errors.E(op, err, http.StatusBadRequest), gc.logger)
 		return
 	}
 
 	if err = gc.gameService.UserFinishesGame(c.Request.Context(), roomId, user.ID, input.TextId, input.WordsTyped, input.TimeElapsed, input.Errors); err != nil {
-		errors.WriteError(c, errors.E(op, err))
+		utils.WriteError(c, errors.E(op, err), gc.logger)
 		return
 	}
 

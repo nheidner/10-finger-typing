@@ -7,7 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+
 	"time"
 
 	"github.com/google/uuid"
@@ -26,11 +26,13 @@ type roomSubscription struct {
 	userId       uuid.UUID
 	conn         *websocket.Conn
 	cacheRepo    common.CacheRepository
+	logger       common.Logger
 }
 
 func newRoomSubscription(
 	conn *websocket.Conn, roomId, userId uuid.UUID,
 	cacheRepo common.CacheRepository,
+	logger common.Logger,
 ) *roomSubscription {
 	roomSubscriptionConnectionId := uuid.New()
 
@@ -40,6 +42,7 @@ func newRoomSubscription(
 		userId:       userId,
 		conn:         conn,
 		cacheRepo:    cacheRepo,
+		logger:       logger,
 	}
 }
 
@@ -84,7 +87,7 @@ func (rs *roomSubscription) handleMessages(ctx context.Context) error {
 		if messageType == websocket.MessageText {
 			var msg map[string]any
 			if err := json.Unmarshal(message, &msg); err != nil {
-				log.Print(errors.E(op, err))
+				rs.logger.Error(errors.E(op, err))
 
 				continue
 			}
@@ -95,7 +98,7 @@ func (rs *roomSubscription) handleMessages(ctx context.Context) error {
 				response := map[string]any{"type": "pong"}
 				responseBytes, err := json.Marshal(response)
 				if err != nil {
-					log.Print(errors.E(op, err))
+					rs.logger.Error(errors.E(op, err))
 
 					continue
 				}
@@ -118,7 +121,7 @@ func (rs *roomSubscription) handleRoomSubscriberStatus(ctx context.Context) erro
 	}
 
 	if roomSubscriberStatusHasBeenUpdated {
-		go observeRoomSubscriberStatus(context.Background(), rs.cacheRepo, rs.roomId, rs.userId)
+		go observeRoomSubscriberStatus(context.Background(), rs.cacheRepo, rs.roomId, rs.userId, rs.logger)
 
 		return rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
 			Type:    models.UserJoined,
@@ -194,7 +197,7 @@ func (rs *roomSubscription) writeTimeout(ctx context.Context, timeout time.Durat
 	return nil
 }
 
-func observeRoomSubscriberStatus(ctx context.Context, cacheRepo common.CacheRepository, roomId, userId uuid.UUID) {
+func observeRoomSubscriberStatus(ctx context.Context, cacheRepo common.CacheRepository, roomId, userId uuid.UUID, logger common.Logger) {
 	const op errors.Op = "services.observeRoomSubscriberStatus"
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -212,41 +215,41 @@ func observeRoomSubscriberStatus(ctx context.Context, cacheRepo common.CacheRepo
 		case pushMessageResult, ok := <-pushMessageResultCh:
 			if !ok {
 				err := fmt.Errorf("error getting push messages")
-				log.Print(errors.E(op, err))
+				logger.Error(errors.E(op, err))
 				return
 			}
 			if !ok {
 				err := fmt.Errorf("pushMessageResultCh closed")
-				log.Print(errors.E(op, err))
+				logger.Error(errors.E(op, err))
 				return
 			}
 			if pushMessageResult.Error != nil {
-				log.Print(errors.E(op, pushMessageResult.Error))
+				logger.Error(errors.E(op, pushMessageResult.Error))
 				return
 			}
 
 			var message models.PushMessage
 			if err := json.Unmarshal(pushMessageResult.Value, &message); err != nil {
-				log.Print(errors.E(op, err))
+				logger.Error(errors.E(op, err))
 				return
 			}
 			messagePayloadStr, ok := message.Payload.(string)
 			if !ok {
 				err := fmt.Errorf("payload is not a string")
-				log.Print(errors.E(op, err))
+				logger.Error(errors.E(op, err))
 				return
 			}
 			if message.Type == models.UserLeft && messagePayloadStr == userId.String() {
-				log.Println("stop roomSubscriber checker after receiving user_left message")
+				logger.Info("stop roomSubscriber checker after receiving user_left message")
 				return
 			}
 		case <-ctx.Done():
-			log.Print(errors.E(op, ctx.Err()))
+			logger.Error(errors.E(op, ctx.Err()))
 			return
 		case <-t.C:
 			numberRoomSubscriberConns, roomSubscriberStatusHasBeenUpdated, err := cacheRepo.GetRoomSubscriberStatus(ctx, roomId, userId)
 			if err != nil {
-				log.Print(errors.E(op, err))
+				logger.Error(errors.E(op, err))
 				return
 			}
 
@@ -256,19 +259,19 @@ func observeRoomSubscriberStatus(ctx context.Context, cacheRepo common.CacheRepo
 					Payload: userId,
 				}
 				if err = cacheRepo.PublishPushMessage(ctx, roomId, userLeavePushMessage); err != nil {
-					log.Print(errors.E(op, err))
+					logger.Error(errors.E(op, err))
 				}
 
-				log.Println("stop roomSubscriber checker roomSubscriberStatusHasBeenUpdated")
+				logger.Info("stop roomSubscriber checker roomSubscriberStatusHasBeenUpdated")
 				return
 			}
 
 			if numberRoomSubscriberConns == 0 {
-				log.Println("stop roomSubscriber checker numberRoomSubscriberConns == 0")
+				logger.Info("stop roomSubscriber checker numberRoomSubscriberConns == 0")
 				return
 			}
 		case <-maxT.C:
-			log.Println("max time to update roomSubscriberStatus reached")
+			logger.Info("max time to update roomSubscriberStatus reached")
 			return
 		}
 	}
