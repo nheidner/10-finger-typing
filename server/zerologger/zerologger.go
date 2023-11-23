@@ -3,6 +3,7 @@ package zerologger
 import (
 	"10-typing/common"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -12,7 +13,9 @@ type Zerologger struct {
 	logger zerolog.Logger
 }
 
-func New(logger zerolog.Logger) common.Logger {
+func New(writer io.Writer) common.Logger {
+	logger := zerolog.New(writer).With().Timestamp().Logger()
+
 	return &Zerologger{logger}
 }
 

@@ -8,7 +8,6 @@ import (
 	redis_repo "10-typing/repositories/redis"
 	sql_repo "10-typing/repositories/sql"
 	"10-typing/zerologger"
-	"fmt"
 	"runtime"
 
 	"10-typing/models"
@@ -30,11 +29,21 @@ func main() {
 		panic("Error loading .env file")
 	}
 
-	fmt.Println("GOMAXPROCS: >>", runtime.GOMAXPROCS(0))
-
 	// Zerolog configuration
-	zl := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).With().Timestamp().Logger()
-	logger := zerologger.New(zl)
+	logFile, err := os.Create("logfile.log")
+	if err != nil {
+		panic("Error creating logfile.log: >> " + err.Error())
+	}
+	defer logFile.Close()
+
+	consoleWriter := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+	multi := zerolog.MultiLevelWriter(consoleWriter, logFile)
+	logger := zerologger.New(multi)
+
+	logger.Info("GOMAXPROCS: >>", runtime.GOMAXPROCS(0))
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("typingerrors", models.TypingErrors)
