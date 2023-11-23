@@ -1,9 +1,10 @@
 package sql_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
+
 	"context"
 
 	"github.com/google/uuid"
@@ -45,7 +46,7 @@ func (repo *SQLRepository) FindNewTextForUser(
 
 	switch {
 	case errors.Is(result.Error, gorm.ErrRecordNotFound):
-		return nil, errors.E(op, repositories.ErrNotFound)
+		return nil, errors.E(op, common.ErrNotFound)
 	case result.Error != nil:
 		return nil, errors.E(op, result.Error)
 	}
@@ -75,7 +76,7 @@ func (repo *SQLRepository) FindTextById(textId uuid.UUID) (*models.Text, error) 
 	if err := repo.db.First(&text).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
-			return nil, errors.E(op, repositories.ErrNotFound)
+			return nil, errors.E(op, common.ErrNotFound)
 		default:
 			return nil, errors.E(op, err)
 		}
@@ -84,7 +85,7 @@ func (repo *SQLRepository) FindTextById(textId uuid.UUID) (*models.Text, error) 
 	return &text, nil
 }
 
-func (repo *SQLRepository) CreateTextAndCache(ctx context.Context, cacheRepo repositories.CacheRepository, text models.Text) (*models.Text, error) {
+func (repo *SQLRepository) CreateTextAndCache(ctx context.Context, cacheRepo common.CacheRepository, text models.Text) (*models.Text, error) {
 	const op errors.Op = "sql_repo.SQLRepository.CreateText"
 
 	if err := repo.db.Create(&text).Error; err != nil {

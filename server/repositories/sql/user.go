@@ -1,9 +1,9 @@
 package sql_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 
 	"github.com/google/uuid"
@@ -17,7 +17,7 @@ func (repo *SQLRepository) FindUserByEmail(email string) (*models.User, error) {
 	if err := repo.db.Where("email = ?", email).First(&user).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
-			return nil, errors.E(op, repositories.ErrNotFound)
+			return nil, errors.E(op, common.ErrNotFound)
 		default:
 			return nil, errors.E(op, err)
 		}
@@ -57,7 +57,7 @@ func (repo *SQLRepository) FindUserById(userId uuid.UUID) (*models.User, error) 
 	if err := repo.db.First(&user).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
-			return nil, errors.E(op, repositories.ErrNotFound)
+			return nil, errors.E(op, common.ErrNotFound)
 		default:
 			return nil, errors.E(op, err)
 		}
@@ -66,7 +66,7 @@ func (repo *SQLRepository) FindUserById(userId uuid.UUID) (*models.User, error) 
 	return &user, nil
 }
 
-func (repo *SQLRepository) CreateUserAndCache(cacheRepo repositories.CacheRepository, newUser models.User) (*models.User, error) {
+func (repo *SQLRepository) CreateUserAndCache(cacheRepo common.CacheRepository, newUser models.User) (*models.User, error) {
 	const op errors.Op = "sql_repo.SQLRepository.CreateUserAndCache"
 	var ctx = context.Background()
 
@@ -82,7 +82,7 @@ func (repo *SQLRepository) CreateUserAndCache(cacheRepo repositories.CacheReposi
 	return createdUser, nil
 }
 
-func (repo *SQLRepository) VerifyUserAndCache(cacheRepo repositories.CacheRepository, userId uuid.UUID) error {
+func (repo *SQLRepository) VerifyUserAndCache(cacheRepo common.CacheRepository, userId uuid.UUID) error {
 	const op errors.Op = "sql_repo.SQLRepository.VerifyUserAndCache"
 	var ctx = context.Background()
 

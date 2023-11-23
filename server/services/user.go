@@ -1,10 +1,10 @@
 package services
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"10-typing/rand"
-	"10-typing/repositories"
 	"10-typing/utils"
 	"context"
 	"fmt"
@@ -20,12 +20,12 @@ const (
 )
 
 type UserService struct {
-	dbRepo               repositories.DBRepository
-	cacheRepo            repositories.CacheRepository
+	dbRepo               common.DBRepository
+	cacheRepo            common.CacheRepository
 	sessionBytesPerToken int
 }
 
-func NewUserService(dbRepo repositories.DBRepository, cacheRepo repositories.CacheRepository, sessionBytesPerToken int) *UserService {
+func NewUserService(dbRepo common.DBRepository, cacheRepo common.CacheRepository, sessionBytesPerToken int) *UserService {
 	return &UserService{dbRepo, cacheRepo, sessionBytesPerToken}
 }
 
@@ -91,7 +91,7 @@ func (us *UserService) Login(ctx context.Context, email, password string) (user 
 
 	user, err = us.dbRepo.FindUserByEmail(email)
 	switch {
-	case errors.Is(err, repositories.ErrNotFound):
+	case errors.Is(err, common.ErrNotFound):
 		return nil, "", errors.E(op, err, http.StatusBadRequest)
 	case err != nil:
 		return nil, "", errors.E(op, err)

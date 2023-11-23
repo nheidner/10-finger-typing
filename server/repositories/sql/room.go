@@ -1,9 +1,9 @@
 package sql_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -18,7 +18,7 @@ func (repo *SQLRepository) FindRoomWithUsers(roomId uuid.UUID) (*models.Room, er
 	if err := repo.db.First(&room).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
-			return nil, errors.E(op, repositories.ErrNotFound)
+			return nil, errors.E(op, common.ErrNotFound)
 		default:
 			return nil, errors.E(op, err)
 		}
@@ -41,7 +41,7 @@ func (repo *SQLRepository) FindRoom(roomId uuid.UUID) (*models.Room, error) {
 	if err := repo.db.Preload("Users").First(&room).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
-			return nil, errors.E(op, repositories.ErrNotFound)
+			return nil, errors.E(op, common.ErrNotFound)
 		default:
 			return nil, errors.E(op, err)
 		}

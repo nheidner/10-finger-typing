@@ -1,7 +1,7 @@
 package sql_repo
 
 import (
-	"10-typing/repositories"
+	"10-typing/common"
 
 	"gorm.io/gorm"
 )
@@ -26,7 +26,7 @@ func NewSQLRepository(db *gorm.DB) *SQLRepository {
 	return &SQLRepository{db}
 }
 
-func (sr *SQLRepository) BeginTx() repositories.Transaction {
+func (sr *SQLRepository) BeginTx() common.Transaction {
 	tx := sr.db.Begin()
 	return &SQLTransaction{tx}
 }

@@ -1,9 +1,9 @@
 package services
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 	"time"
 
@@ -13,10 +13,10 @@ import (
 const maxRequestDurationSecs = 20
 
 type UserNotificationService struct {
-	cacheRepo repositories.CacheRepository
+	cacheRepo common.CacheRepository
 }
 
-func NewUserNotificationService(cacheRepo repositories.CacheRepository) *UserNotificationService {
+func NewUserNotificationService(cacheRepo common.CacheRepository) *UserNotificationService {
 	return &UserNotificationService{cacheRepo}
 }
 
@@ -40,6 +40,6 @@ func (us *UserNotificationService) FindRealtimeUserNotification(ctx context.Cont
 
 		return userNotificationResult.Value, nil
 	case <-t.C:
-		return nil, errors.E(op, repositories.ErrNotFound)
+		return nil, errors.E(op, common.ErrNotFound)
 	}
 }

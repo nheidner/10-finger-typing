@@ -1,9 +1,9 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 	"fmt"
 	"strconv"
@@ -70,7 +70,7 @@ func (repo *RedisRepository) GetCurrentGameStatus(ctx context.Context, roomId uu
 	gameStatusInt, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameStatusField).Int()
 	switch {
 	case err == redis.Nil:
-		return models.UnstartedGameStatus, errors.E(op, repositories.ErrNotFound)
+		return models.UnstartedGameStatus, errors.E(op, common.ErrNotFound)
 	case err != nil:
 		return models.UnstartedGameStatus, errors.E(op, err)
 	}
@@ -85,7 +85,7 @@ func (repo *RedisRepository) GetCurrentGameId(ctx context.Context, roomId uuid.U
 	gameIdStr, err := repo.redisClient.HGet(ctx, currentGameKey, currentGameIdField).Result()
 	switch {
 	case err == redis.Nil:
-		return uuid.Nil, errors.E(op, repositories.ErrNotFound)
+		return uuid.Nil, errors.E(op, common.ErrNotFound)
 	case err != nil:
 		return uuid.Nil, errors.E(op, err)
 	}
@@ -107,7 +107,7 @@ func (repo *RedisRepository) GetCurrentGame(ctx context.Context, roomId uuid.UUI
 	case err != nil:
 		return nil, err
 	case len(r) == 0:
-		return nil, errors.E(op, repositories.ErrNotFound)
+		return nil, errors.E(op, common.ErrNotFound)
 	}
 
 	status := models.UnstartedGameStatus

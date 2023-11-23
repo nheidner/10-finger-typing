@@ -1,8 +1,8 @@
 package controllers
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
-	"10-typing/repositories"
 	"10-typing/services"
 	"10-typing/utils"
 	"net/http"
@@ -37,7 +37,7 @@ func (uc *UserNotificationController) FindRealtimeUserNotification(c *gin.Contex
 
 	userNotification, err := uc.userNotificationService.FindRealtimeUserNotification(c.Request.Context(), user.ID, query.LastId)
 	switch {
-	case errors.Is(err, repositories.ErrNotFound):
+	case errors.Is(err, common.ErrNotFound):
 		c.JSON(http.StatusOK, gin.H{"data": nil})
 	case err != nil:
 		errors.WriteError(c, errors.E(op, err))

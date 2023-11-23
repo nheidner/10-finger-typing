@@ -1,9 +1,9 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 	"strconv"
 	"time"
@@ -65,7 +65,7 @@ func (repo *RedisRepository) GetRoomSubscriberGameStatus(ctx context.Context, ro
 	status, err := repo.redisClient.HGet(ctx, roomSubscriberKey, roomSubscriberGameStatusField).Int()
 	switch {
 	case err == redis.Nil:
-		return models.UnstartedSubscriberGameStatus, errors.E(op, repositories.ErrNotFound)
+		return models.UnstartedSubscriberGameStatus, errors.E(op, common.ErrNotFound)
 	case err != nil:
 		return models.UnstartedSubscriberGameStatus, err
 	}
@@ -211,7 +211,7 @@ func (repo *RedisRepository) getRoomSubscriberStatus(ctx context.Context, roomId
 	status, err := repo.redisClient.HGet(ctx, roomSubscriberKey, roomSubscriberStatusField).Int()
 	switch {
 	case err == redis.Nil:
-		return models.InactiveSubscriberStatus, errors.E(op, repositories.ErrNotFound)
+		return models.InactiveSubscriberStatus, errors.E(op, common.ErrNotFound)
 	case err != nil:
 		return models.InactiveSubscriberStatus, errors.E(op, err)
 	}

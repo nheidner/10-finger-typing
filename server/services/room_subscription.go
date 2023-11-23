@@ -1,9 +1,9 @@
 package services
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,12 +25,12 @@ type roomSubscription struct {
 	roomId       uuid.UUID
 	userId       uuid.UUID
 	conn         *websocket.Conn
-	cacheRepo    repositories.CacheRepository
+	cacheRepo    common.CacheRepository
 }
 
 func newRoomSubscription(
 	conn *websocket.Conn, roomId, userId uuid.UUID,
-	cacheRepo repositories.CacheRepository,
+	cacheRepo common.CacheRepository,
 ) *roomSubscription {
 	roomSubscriptionConnectionId := uuid.New()
 
@@ -194,7 +194,7 @@ func (rs *roomSubscription) writeTimeout(ctx context.Context, timeout time.Durat
 	return nil
 }
 
-func observeRoomSubscriberStatus(ctx context.Context, cacheRepo repositories.CacheRepository, roomId, userId uuid.UUID) {
+func observeRoomSubscriberStatus(ctx context.Context, cacheRepo common.CacheRepository, roomId, userId uuid.UUID) {
 	const op errors.Op = "services.observeRoomSubscriberStatus"
 
 	ctx, cancel := context.WithCancel(ctx)

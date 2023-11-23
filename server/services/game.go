@@ -1,9 +1,9 @@
 package services
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 	"fmt"
 	"log"
@@ -19,13 +19,13 @@ const (
 )
 
 type GameService struct {
-	dbRepo    repositories.DBRepository
-	cacheRepo repositories.CacheRepository
+	dbRepo    common.DBRepository
+	cacheRepo common.CacheRepository
 }
 
 func NewGameService(
-	dbRepo repositories.DBRepository,
-	cacheRepo repositories.CacheRepository,
+	dbRepo common.DBRepository,
+	cacheRepo common.CacheRepository,
 ) *GameService {
 	return &GameService{dbRepo, cacheRepo}
 }
@@ -45,7 +45,7 @@ func (gs *GameService) SetNewCurrentGame(ctx context.Context, userId, roomId, te
 
 	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	switch {
-	case errors.Is(err, repositories.ErrNotFound):
+	case errors.Is(err, common.ErrNotFound):
 		break
 	case err != nil:
 		return uuid.Nil, errors.E(op, err)

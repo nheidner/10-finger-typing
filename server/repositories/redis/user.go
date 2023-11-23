@@ -1,9 +1,9 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 
 	"github.com/google/uuid"
@@ -29,7 +29,7 @@ func getUserEmailKey(email string) string {
 }
 
 // if not found, queries db
-func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRepo repositories.DBRepository, email string) (*models.User, error) {
+func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRepo common.DBRepository, email string) (*models.User, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetUserByEmailInCacheOrDB"
 	userEmailKey := getUserEmailKey(email)
 
@@ -52,11 +52,11 @@ func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRe
 }
 
 // if not found, queries db
-func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo repositories.DBRepository, userId uuid.UUID) (*models.User, error) {
+func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo common.DBRepository, userId uuid.UUID) (*models.User, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetUserByIdInCacheOrDB"
 	user, err := repo.getUser(ctx, userId)
 	switch {
-	case errors.Is(err, repositories.ErrNotFound):
+	case errors.Is(err, common.ErrNotFound):
 		break
 	case err != nil:
 		return nil, errors.E(op, err)
@@ -79,7 +79,7 @@ func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo 
 // read: read first in cache, if not exists, read from db and write to cache (in case, keys got evicted)
 func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 	ctx context.Context,
-	dbRepo repositories.DBRepository,
+	dbRepo common.DBRepository,
 	tokenHash string,
 ) (*models.User, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetUserBySessionTokenHashInCacheOrDB"
@@ -91,7 +91,7 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 
 	user, err := repo.getUser(ctx, userId)
 	switch {
-	case errors.Is(err, repositories.ErrNotFound):
+	case errors.Is(err, common.ErrNotFound):
 		break
 	case err != nil:
 		return nil, errors.E(op, err)
@@ -179,7 +179,7 @@ func (repo *RedisRepository) getUserIdBySessionTokenHash(ctx context.Context, to
 	userIdStr, err := repo.redisClient.Get(ctx, sessionKey).Result()
 	switch {
 	case err == redis.Nil:
-		return uuid.Nil, errors.E(op, repositories.ErrNotFound)
+		return uuid.Nil, errors.E(op, common.ErrNotFound)
 	case err != nil:
 		return uuid.Nil, errors.E(op, err)
 	}
@@ -201,7 +201,7 @@ func (repo *RedisRepository) getUser(ctx context.Context, userId uuid.UUID) (*mo
 	case err != nil:
 		return nil, errors.E(op, err)
 	case len(r) == 0:
-		return nil, errors.E(op, repositories.ErrNotFound)
+		return nil, errors.E(op, common.ErrNotFound)
 	}
 
 	isVerifiedStr := r[userIsVerifiedField]

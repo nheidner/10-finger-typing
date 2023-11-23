@@ -1,9 +1,10 @@
 package services
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
+
 	"context"
 	"fmt"
 	"log"
@@ -16,15 +17,15 @@ import (
 )
 
 type RoomService struct {
-	dbRepo               repositories.DBRepository
-	cacheRepo            repositories.CacheRepository
-	emailTransactionRepo repositories.EmailTransactionRepository
+	dbRepo               common.DBRepository
+	cacheRepo            common.CacheRepository
+	emailTransactionRepo common.EmailTransactionRepository
 }
 
 func NewRoomService(
-	dbRepo repositories.DBRepository,
-	cacheRepo repositories.CacheRepository,
-	emailTransactionRepo repositories.EmailTransactionRepository,
+	dbRepo common.DBRepository,
+	cacheRepo common.CacheRepository,
+	emailTransactionRepo common.EmailTransactionRepository,
 ) *RoomService {
 	return &RoomService{
 		dbRepo,
@@ -182,7 +183,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 
 	room, err := rs.cacheRepo.GetRoomInCacheOrDb(ctx, rs.dbRepo, roomId)
 	switch {
-	case errors.Is(err, repositories.ErrNotFound):
+	case errors.Is(err, common.ErrNotFound):
 		return errors.E(op, err, http.StatusNotFound)
 	case err != nil:
 		return errors.E(op, err, http.StatusInternalServerError)

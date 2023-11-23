@@ -1,8 +1,8 @@
 package middlewares
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
-	"10-typing/repositories"
 	"10-typing/utils"
 	"fmt"
 	"net/http"
@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func IsCurrentGameUser(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+func IsCurrentGameUser(cacheRepo common.CacheRepository) func(c *gin.Context) {
 	const op errors.Op = "middlewares.IsCurrentGameUser"
 
 	return func(c *gin.Context) {
@@ -54,7 +54,7 @@ func IsCurrentGameUser(cacheRepo repositories.CacheRepository) func(c *gin.Conte
 }
 
 // checks if gameid parameter identifies the current game that the roomid parameter identifies
-func IsCurrentGame(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+func IsCurrentGame(cacheRepo common.CacheRepository) func(c *gin.Context) {
 	const op errors.Op = "middlewares.IsCurrentGame"
 
 	return func(c *gin.Context) {

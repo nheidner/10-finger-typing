@@ -1,19 +1,19 @@
 package services
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"context"
 
 	"github.com/google/uuid"
 )
 
 type ScoreService struct {
-	dbRepo repositories.DBRepository
+	dbRepo common.DBRepository
 }
 
-func NewScoreService(dbRepo repositories.DBRepository) *ScoreService {
+func NewScoreService(dbRepo common.DBRepository) *ScoreService {
 	return &ScoreService{dbRepo}
 }
 

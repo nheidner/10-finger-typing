@@ -1,21 +1,22 @@
 package services
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
+
 	"context"
 
 	"github.com/google/uuid"
 )
 
 type TextService struct {
-	dbRepo     repositories.DBRepository
-	cacheRepo  repositories.CacheRepository
-	openAiRepo repositories.OpenAiRepository
+	dbRepo     common.DBRepository
+	cacheRepo  common.CacheRepository
+	openAiRepo common.OpenAiRepository
 }
 
-func NewTextService(dbRepo repositories.DBRepository, cacheRepo repositories.CacheRepository, openAiRepo repositories.OpenAiRepository) *TextService {
+func NewTextService(dbRepo common.DBRepository, cacheRepo common.CacheRepository, openAiRepo common.OpenAiRepository) *TextService {
 	return &TextService{dbRepo, cacheRepo, openAiRepo}
 }
 

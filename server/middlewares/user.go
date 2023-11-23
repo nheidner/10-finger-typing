@@ -1,9 +1,9 @@
 package middlewares
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
 	"10-typing/utils"
 	"context"
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthRequired(cacheRepo repositories.CacheRepository, dbRepo repositories.DBRepository) func(c *gin.Context) {
+func AuthRequired(cacheRepo common.CacheRepository, dbRepo common.DBRepository) func(c *gin.Context) {
 	const op errors.Op = "middlewares.AuthRequired"
 
 	return func(c *gin.Context) {

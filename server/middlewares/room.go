@@ -1,8 +1,8 @@
 package middlewares
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
-	"10-typing/repositories"
 	"10-typing/utils"
 	"context"
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func IsRoomAdmin(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+func IsRoomAdmin(cacheRepo common.CacheRepository) func(c *gin.Context) {
 	const op errors.Op = "middlewares.IsRoomAdmin"
 
 	return func(c *gin.Context) {
@@ -55,7 +55,7 @@ func IsRoomAdmin(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
 	}
 }
 
-func IsRoomMember(cacheRepo repositories.CacheRepository) func(c *gin.Context) {
+func IsRoomMember(cacheRepo common.CacheRepository) func(c *gin.Context) {
 	const op errors.Op = "middlewares.IsRoomMember"
 
 	return func(c *gin.Context) {

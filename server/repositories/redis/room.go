@@ -1,9 +1,10 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
-	"10-typing/repositories"
+
 	"10-typing/utils"
 	"context"
 	"fmt"
@@ -26,12 +27,12 @@ func getRoomKey(roomId uuid.UUID) string {
 	return "rooms:" + roomId.String()
 }
 
-func (repo *RedisRepository) GetRoomInCacheOrDb(ctx context.Context, dbRepo repositories.DBRepository, roomId uuid.UUID) (*models.Room, error) {
+func (repo *RedisRepository) GetRoomInCacheOrDb(ctx context.Context, dbRepo common.DBRepository, roomId uuid.UUID) (*models.Room, error) {
 	const op errors.Op = "services.RoomService.GetRoomInCacheOrDb"
 
 	room, err := repo.getRoom(ctx, roomId)
 	switch {
-	case err != nil && errors.Is(err, repositories.ErrNotFound):
+	case err != nil && errors.Is(err, common.ErrNotFound):
 		room, err = dbRepo.FindRoomWithUsers(roomId)
 		if err != nil {
 			return nil, errors.E(op, err)
@@ -55,7 +56,7 @@ func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId 
 	gameDurationSec, err = repo.redisClient.HGet(ctx, roomKey, roomGameDurationSecField).Int()
 	switch {
 	case err == redis.Nil:
-		return 0, errors.E(op, repositories.ErrNotFound)
+		return 0, errors.E(op, common.ErrNotFound)
 	case err != nil:
 		return 0, errors.E(op, err)
 	}
@@ -112,7 +113,7 @@ func (repo *RedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId u
 	r, err := repo.redisClient.HGet(ctx, roomKey, roomAdminIdField).Result()
 	switch {
 	case err == redis.Nil:
-		return false, errors.E(op, repositories.ErrNotFound)
+		return false, errors.E(op, common.ErrNotFound)
 	case err != nil:
 		return false, err
 	}
@@ -196,7 +197,7 @@ func (repo *RedisRepository) getRoom(ctx context.Context, roomId uuid.UUID) (*mo
 	case err != nil:
 		return nil, err
 	case len(roomData) == 0:
-		return nil, errors.E(op, repositories.ErrNotFound)
+		return nil, errors.E(op, common.ErrNotFound)
 	}
 
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
