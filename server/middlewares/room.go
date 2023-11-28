@@ -43,7 +43,7 @@ func IsRoomAdmin(cacheRepo common.CacheRepository, logger common.Logger) gin.Han
 		}
 
 		if !isAdmin {
-			err := fmt.Errorf("authenticated user %s is not the admint of room with id %s", user.Username, roomId.String())
+			err := fmt.Errorf("authenticated user %s is not the admin of room with id %s", user.Username, roomId.String())
 			err = errors.E(op, err, http.StatusForbidden, user.Username)
 			c.Abort()
 			utils.WriteError(c, err, logger)

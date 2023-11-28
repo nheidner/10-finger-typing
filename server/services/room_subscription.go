@@ -123,10 +123,12 @@ func (rs *roomSubscription) handleRoomSubscriberStatus(ctx context.Context) erro
 	if roomSubscriberStatusHasBeenUpdated {
 		go observeRoomSubscriberStatus(context.Background(), rs.cacheRepo, rs.roomId, rs.userId, rs.logger)
 
-		return rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
+		if err := rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
 			Type:    models.UserJoined,
 			Payload: rs.userId,
-		})
+		}); err != nil {
+			return errors.E(op, err)
+		}
 	}
 
 	return nil

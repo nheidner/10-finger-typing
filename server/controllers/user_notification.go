@@ -40,6 +40,7 @@ func (uc *UserNotificationController) FindRealtimeUserNotification(c *gin.Contex
 	switch {
 	case errors.Is(err, common.ErrNotFound):
 		c.JSON(http.StatusOK, gin.H{"data": nil})
+		return
 	case err != nil:
 		utils.WriteError(c, errors.E(op, err), uc.logger)
 		return

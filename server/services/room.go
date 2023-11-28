@@ -253,7 +253,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 		}
 	}()
 
-	err = <-errCh
+	<-errCh
 
 	return nil
 }
