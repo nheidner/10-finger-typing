@@ -66,7 +66,17 @@ func (gs *GameService) SetNewCurrentGame(ctx context.Context, userId, roomId, te
 		return uuid.Nil, errors.E(op, err)
 	}
 
-	// TODO: send new_game message
+	newGame, err := gs.cacheRepo.GetCurrentGame(ctx, roomId)
+	if err != nil {
+		return uuid.Nil, errors.E(op, err)
+	}
+
+	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, models.PushMessage{
+		Type:    models.NewGame,
+		Payload: newGame,
+	}); err != nil {
+		return uuid.Nil, errors.E(op, err)
+	}
 
 	return gameId, nil
 }

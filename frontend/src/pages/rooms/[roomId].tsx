@@ -1,10 +1,11 @@
 import { CountDown } from "@/modules/room/components/Countdown";
+import { CreateNewGameButton } from "@/modules/room/components/CreateGameButton";
 import { GameDurationCounter } from "@/modules/room/components/GameDurationCounter";
 import { RoomSubscriberList } from "@/modules/room/components/RoomSubscriberList";
 import { StartGameButton } from "@/modules/room/components/StartGameButton";
 import { useConnectToRoom } from "@/modules/room/hooks/use_connect_to_room";
 import { Content } from "@/modules/train/components/Content";
-import { GameStatus, Score } from "@/types";
+import { GameStatus } from "@/types";
 import { createScore, getTextById } from "@/utils/queries";
 import {
   DehydratedState,
@@ -33,14 +34,14 @@ const RoomPage: NextPage<{
     }
   );
 
-  const { mutate } = useMutation({
+  const { mutate: createGameScore } = useMutation({
     mutationKey: ["create game score", roomId, game?.id],
     mutationFn: createScore,
   });
 
   useEffect(() => {
     if (gameStatus === "finished" && game?.textId && gameDuration && game.id) {
-      mutate({
+      createGameScore({
         roomId: roomId,
         body: {
           textId: game.textId,
@@ -51,7 +52,14 @@ const RoomPage: NextPage<{
         },
       });
     }
-  }, [gameStatus, game?.textId, mutate, roomId, gameDuration, game?.id]);
+  }, [
+    gameStatus,
+    game?.textId,
+    createGameScore,
+    roomId,
+    gameDuration,
+    game?.id,
+  ]);
 
   return (
     <>
@@ -60,13 +68,20 @@ const RoomPage: NextPage<{
         gameStatus={gameStatus}
         setGameStatus={setGameStatus}
       />
-      <section className="flex gap-2 items-center">
-        <RoomSubscriberList roomSubscribers={roomSubscribers} />
-        <StartGameButton gameStatus={gameStatus} roomId={roomId} />
-        <GameDurationCounter
+      <section className="flex justify-between items-center">
+        <div className="flex gap-2 items-center">
+          <RoomSubscriberList roomSubscribers={roomSubscribers} />
+          <StartGameButton gameStatus={gameStatus} roomId={roomId} />
+          <GameDurationCounter
+            gameStatus={gameStatus}
+            setGameStatus={setGameStatus}
+            gameDuration={gameDuration}
+          />
+        </div>
+        <CreateNewGameButton
           gameStatus={gameStatus}
-          setGameStatus={setGameStatus}
-          gameDuration={gameDuration}
+          roomId={roomId}
+          textId={game?.textId}
         />
       </section>
       <Content
