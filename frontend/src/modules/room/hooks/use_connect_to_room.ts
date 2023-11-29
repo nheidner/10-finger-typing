@@ -4,10 +4,11 @@ import {
   CountdownStartPayload,
   InitialStatePayload,
   Message,
+  NewGamePayload,
   UserJoinedPayload,
   UserLeftPayload,
 } from "../types";
-import { Game, GameStatus, RoomSubscriber } from "@/types";
+import { Game, GameStatus, Room, RoomSubscriber } from "@/types";
 
 const notReceivePongReason = "did not receive pong";
 const apiUrl = getWsUrl();
@@ -21,7 +22,10 @@ export const useConnectToRoom = (
   const [countDownDuration, setCountDownDuration] = useState<null | number>(
     null
   );
-  const [gameDuration, setGameDuration] = useState<null | number>(null);
+  const [roomSettings, setRoomSettings] = useState<Pick<
+    Room,
+    "adminId" | "gameDurationSec"
+  > | null>(null);
 
   const websocketRef = useRef<WebSocket | null>(null);
 
@@ -87,7 +91,10 @@ export const useConnectToRoom = (
 
             setGame(payload.currentGame);
             setRoomSubscribers(payload.roomSubscribers);
-            setGameDuration(payload.gameDurationSec);
+            setRoomSettings({
+              adminId: payload.adminId,
+              gameDurationSec: payload.gameDurationSec,
+            });
             break;
           }
           case "user_joined": {
@@ -105,6 +112,13 @@ export const useConnectToRoom = (
                 };
               })
             );
+            break;
+          }
+          case "new_game": {
+            const payload = message.payload as NewGamePayload;
+
+            setGame(payload);
+            setGameStatus("unstarted");
             break;
           }
           case "user_left": {
@@ -192,5 +206,5 @@ export const useConnectToRoom = (
     };
   }, [roomId, setGameStatus]);
 
-  return { roomSubscribers, game, countDownDuration, gameDuration };
+  return { roomSubscribers, game, countDownDuration, roomSettings };
 };

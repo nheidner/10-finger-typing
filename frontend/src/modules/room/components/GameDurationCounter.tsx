@@ -4,7 +4,7 @@ import { FC, useEffect, useState } from "react";
 export const GameDurationCounter: FC<{
   gameStatus: GameStatus;
   setGameStatus: (newGameStatus: GameStatus) => void;
-  gameDuration: null | number;
+  gameDuration?: number;
 }> = ({ gameStatus, setGameStatus, gameDuration }) => {
   const [remainingTime, setRemainingTime] = useState(gameDuration);
 

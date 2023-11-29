@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { startGame as startGameQuery } from "@/utils/queries";
 import { GameStatus } from "@/types";
 
@@ -13,6 +13,12 @@ export const StartGameButton: FC<{
     mutationFn: () => startGameQuery(roomId),
     mutationKey: ["start game"],
   });
+
+  useEffect(() => {
+    if (gameStatus === "unstarted") {
+      setUserMarkedGameStart(false);
+    }
+  }, [gameStatus]);
 
   const handleStartGame = () => {
     setUserMarkedGameStart(true);

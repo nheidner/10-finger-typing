@@ -1,12 +1,16 @@
 import { CountDown } from "@/modules/room/components/Countdown";
-import { CreateNewGameButton } from "@/modules/room/components/CreateGameButton";
 import { GameDurationCounter } from "@/modules/room/components/GameDurationCounter";
 import { RoomSubscriberList } from "@/modules/room/components/RoomSubscriberList";
+import { SelectNewText } from "@/modules/room/components/SelectNewText";
 import { StartGameButton } from "@/modules/room/components/StartGameButton";
 import { useConnectToRoom } from "@/modules/room/hooks/use_connect_to_room";
 import { Content } from "@/modules/train/components/Content";
 import { GameStatus } from "@/types";
-import { createScore, getTextById } from "@/utils/queries";
+import {
+  createScore,
+  getAuthenticatedUser,
+  getTextById,
+} from "@/utils/queries";
 import {
   DehydratedState,
   QueryClient,
@@ -23,7 +27,7 @@ const RoomPage: NextPage<{
 }> = ({ roomId }) => {
   const [gameStatus, setGameStatus] = useState<GameStatus>("unstarted");
 
-  const { roomSubscribers, game, countDownDuration, gameDuration } =
+  const { roomSubscribers, game, countDownDuration, roomSettings } =
     useConnectToRoom(roomId, setGameStatus);
 
   const { data: textData, isLoading: textIsLoading } = useQuery(
@@ -34,19 +38,30 @@ const RoomPage: NextPage<{
     }
   );
 
+  const { data: authenticatedUserData } = useQuery({
+    queryKey: ["authenticatedUser"],
+    queryFn: getAuthenticatedUser,
+    retry: false,
+  });
+
   const { mutate: createGameScore } = useMutation({
     mutationKey: ["create game score", roomId, game?.id],
     mutationFn: createScore,
   });
 
   useEffect(() => {
-    if (gameStatus === "finished" && game?.textId && gameDuration && game.id) {
+    if (
+      gameStatus === "finished" &&
+      game?.textId &&
+      roomSettings?.gameDurationSec &&
+      game.id
+    ) {
       createGameScore({
         roomId: roomId,
         body: {
           textId: game.textId,
           gameId: game.id,
-          timeElapsed: gameDuration,
+          timeElapsed: roomSettings.gameDurationSec,
           errors: { a: 5, b: 3, c: 1 },
           wordsTyped: 40,
         },
@@ -57,9 +72,11 @@ const RoomPage: NextPage<{
     game?.textId,
     createGameScore,
     roomId,
-    gameDuration,
+    roomSettings?.gameDurationSec,
     game?.id,
   ]);
+
+  const isAdmin = roomSettings?.adminId === authenticatedUserData?.id;
 
   return (
     <>
@@ -75,15 +92,13 @@ const RoomPage: NextPage<{
           <GameDurationCounter
             gameStatus={gameStatus}
             setGameStatus={setGameStatus}
-            gameDuration={gameDuration}
+            gameDuration={roomSettings?.gameDurationSec}
           />
         </div>
-        <CreateNewGameButton
-          gameStatus={gameStatus}
-          roomId={roomId}
-          textId={game?.textId}
-        />
       </section>
+      {isAdmin ? (
+        <SelectNewText roomId={roomId} gameStatus={gameStatus} />
+      ) : null}
       <Content
         isActive={gameStatus === "started"}
         isLoading={textIsLoading}

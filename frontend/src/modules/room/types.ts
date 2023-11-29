@@ -1,12 +1,10 @@
-import { Room, User } from "@/types";
+import { Game, Room, User } from "@/types";
 
 export type InitialStatePayload = Room;
-
 export type UserJoinedPayload = string;
-
 export type UserLeftPayload = string;
-
 export type CountdownStartPayload = number;
+export type NewGamePayload = Game;
 
 export type Message = {
   user: User;
@@ -15,10 +13,12 @@ export type Message = {
     | "user_left"
     | "initial_state"
     | "countdown_start"
-    | "pong";
+    | "pong"
+    | "new_game";
   payload:
     | UserJoinedPayload
     | InitialStatePayload
     | UserLeftPayload
-    | CountdownStartPayload;
+    | CountdownStartPayload
+    | NewGamePayload;
 };
