@@ -84,7 +84,7 @@ func main() {
 	api := router.Group("/api")
 
 	authRequiredMiddleware := middlewares.AuthRequired(cacheRepo, dbRepo, logger)
-	isRoommemberMiddleware := middlewares.IsRoomMember(cacheRepo, logger)
+	isRoomMemberMiddleware := middlewares.IsRoomMember(cacheRepo, logger)
 	isRoomAdminMiddleware := middlewares.IsRoomAdmin(cacheRepo, logger)
 	isCurrentGameUserMiddleware := middlewares.IsCurrentGameUser(cacheRepo, logger)
 	userIdUrlParamMatchesAuthorizedUserMiddleware := middlewares.UserIdUrlParamMatchesAuthorizedUser(logger)
@@ -114,14 +114,16 @@ func main() {
 	api.GET("/texts/:textid", authRequiredMiddleware, textController.FindTextById)
 
 	// ROOMS
-	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, isRoommemberMiddleware, roomController.ConnectToRoom)
+	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, isRoomMemberMiddleware, roomController.ConnectToRoom)
+	// TODO: get new text for room
+	api.GET("/rooms/:roomid/text", authRequiredMiddleware, isRoomAdminMiddleware)
 	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
-	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, isRoommemberMiddleware, roomController.LeaveRoom)
+	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, isRoomMemberMiddleware, roomController.LeaveRoom)
 	api.POST("/rooms/:roomid/game", authRequiredMiddleware, isRoomAdminMiddleware, gameController.CreateNewCurrentGame)
-	api.POST("/rooms/:roomid/start-game", authRequiredMiddleware, isRoommemberMiddleware, gameController.StartGame)
+	api.POST("/rooms/:roomid/start-game", authRequiredMiddleware, isRoomMemberMiddleware, gameController.StartGame)
 	api.POST("/rooms/:roomid/current-game/score",
 		authRequiredMiddleware,
-		isRoommemberMiddleware,
+		isRoomMemberMiddleware,
 		isCurrentGameUserMiddleware,
 		gameController.FinishGame,
 	)
