@@ -32,7 +32,7 @@ export const createGame = async ({
   roomId: string;
   body: NewGameBodyParams;
 }) => {
-  return fetchApi<{ id: string }>(`/rooms/${roomId}/games`, {
+  return fetchApi<{ id: string }>(`/rooms/${roomId}/game`, {
     method: "POST",
     body: JSON.stringify(body),
   });

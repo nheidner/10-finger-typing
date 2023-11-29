@@ -4,6 +4,7 @@ import (
 	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
+	"net/http"
 
 	"context"
 
@@ -38,7 +39,10 @@ func (ts *TextService) FindNewTextForUser(
 		numbersGte,
 		numbersLte,
 	)
-	if err != nil {
+	switch {
+	case errors.Is(err, common.ErrNotFound):
+		return nil, errors.E(op, err, http.StatusNotFound)
+	case err != nil:
 		return nil, errors.E(op, err)
 	}
 
@@ -62,7 +66,7 @@ func (ts *TextService) Create(
 	punctuation bool,
 	specialCharacters, numbers int,
 ) (*models.Text, error) {
-	const op errors.Op = "services.TextService.FindNewTextForUser"
+	const op errors.Op = "services.TextService.Create"
 
 	if text == "" {
 		gptText, err := ts.openAiRepo.GenerateTypingText(language, punctuation, specialCharacters, numbers)

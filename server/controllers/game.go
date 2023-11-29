@@ -20,7 +20,7 @@ func NewGameController(gameService *services.GameService, logger common.Logger) 
 	return &GameController{gameService, logger}
 }
 
-func (gc *GameController) CreateGame(c *gin.Context) {
+func (gc *GameController) CreateNewCurrentGame(c *gin.Context) {
 	const op errors.Op = "controllers.GameController.CreateGame"
 	var input models.CreateGameInput
 

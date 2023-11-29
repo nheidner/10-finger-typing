@@ -117,7 +117,7 @@ func main() {
 	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, isRoommemberMiddleware, roomController.ConnectToRoom)
 	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
 	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, isRoommemberMiddleware, roomController.LeaveRoom)
-	api.POST("/rooms/:roomid/games", authRequiredMiddleware, isRoomAdminMiddleware, gameController.CreateGame)
+	api.POST("/rooms/:roomid/game", authRequiredMiddleware, isRoomAdminMiddleware, gameController.CreateNewCurrentGame)
 	api.POST("/rooms/:roomid/start-game", authRequiredMiddleware, isRoommemberMiddleware, gameController.StartGame)
 	api.POST("/rooms/:roomid/current-game/score",
 		authRequiredMiddleware,
