@@ -168,20 +168,21 @@ func (repo *RedisRepository) SetNewCurrentGame(ctx context.Context, newGameId, t
 		return errors.E(op, err)
 	}
 
-	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
-	userIdStrs := make([]interface{}, 0, len(userIds))
-	for _, userId := range userIds {
-		userIdStrs = append(userIdStrs, userId.String())
-	}
-	if err := repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userIdStrs...).Err(); err != nil {
-		return errors.E(op, err)
-	}
+	// TODO: isnt that wrong
+	// currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
+	// userIdStrs := make([]interface{}, 0, len(userIds))
+	// for _, userId := range userIds {
+	// 	userIdStrs = append(userIdStrs, userId.String())
+	// }
+	// if err := repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userIdStrs...).Err(); err != nil {
+	// 	return errors.E(op, err)
+	// }
 
 	return nil
 }
 
-func (repo *RedisRepository) SetGameUser(ctx context.Context, roomId, userId uuid.UUID) error {
-	const op errors.Op = "redis_repo.RedisRepository.SetGameUser"
+func (repo *RedisRepository) SetCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) error {
+	const op errors.Op = "redis_repo.RedisRepository.SetCurrentGameUser"
 	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
 
 	if err := repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userId.String()).Err(); err != nil {
@@ -196,6 +197,17 @@ func (repo *RedisRepository) SetCurrentGameStatus(ctx context.Context, roomId uu
 	currentGameKey := getCurrentGameKey(roomId)
 
 	if err := repo.redisClient.HSet(ctx, currentGameKey, currentGameStatusField, strconv.Itoa(int(gameStatus))).Err(); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
+}
+
+func (repo *RedisRepository) DeleteAllCurrentGameUsers(ctx context.Context, roomId uuid.UUID) error {
+	const op errors.Op = "redis_repo.RedisRepository.DeleteAllCurrentGameUsers"
+	currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
+
+	if err := repo.redisClient.Del(ctx, currentGameUserIdsKey).Err(); err != nil {
 		return errors.E(op, err)
 	}
 

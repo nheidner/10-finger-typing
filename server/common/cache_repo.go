@@ -26,8 +26,9 @@ type GameCacheRepository interface {
 	GetCurrentGameId(ctx context.Context, roomId uuid.UUID) (uuid.UUID, error)
 	GetCurrentGame(ctx context.Context, roomId uuid.UUID) (*models.Game, error)
 	SetNewCurrentGame(ctx context.Context, newGameId, textId, roomId uuid.UUID, userIds ...uuid.UUID) error
-	SetGameUser(ctx context.Context, roomId, userId uuid.UUID) error
+	SetCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) error
 	SetCurrentGameStatus(ctx context.Context, roomId uuid.UUID, gameStatus models.GameStatus) error
+	DeleteAllCurrentGameUsers(ctx context.Context, roomId uuid.UUID) error
 	IsCurrentGame(ctx context.Context, roomId, gameId uuid.UUID) (bool, error)
 	IsCurrentGameUser(ctx context.Context, roomId, userId uuid.UUID) (bool, error)
 }

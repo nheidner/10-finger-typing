@@ -32,7 +32,7 @@ func NewGameService(
 	return &GameService{dbRepo, cacheRepo, logger}
 }
 
-func (gs *GameService) SetNewCurrentGame(ctx context.Context, userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
+func (gs *GameService) CreateNewCurrentGame(ctx context.Context, userId, roomId, textId uuid.UUID) (uuid.UUID, error) {
 	const op errors.Op = "services.GameService.SetNewCurrentGame"
 
 	// validate
@@ -159,7 +159,7 @@ func (gs *GameService) AddUserToGame(ctx context.Context, roomId, userId uuid.UU
 		return errors.E(op, err, http.StatusBadRequest)
 	}
 
-	err = gs.cacheRepo.SetGameUser(ctx, roomId, userId)
+	err = gs.cacheRepo.SetCurrentGameUser(ctx, roomId, userId)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -210,12 +210,24 @@ func (gs *GameService) InitiateGameIfReady(ctx context.Context, roomId uuid.UUID
 		return errors.E(op, err)
 	}
 
-	go gs.handleGameDuration(context.Background(), gameDurationSec, roomId)
+	go func() {
+		ctx := context.Background()
+		defer gs.cleanupGame(ctx, roomId)
+
+		if err = gs.handleGameDuration(ctx, gameDurationSec, roomId); err != nil {
+			gs.logger.Error(errors.E(op, err))
+			return
+		}
+
+		if err = gs.handleGameResults(ctx, roomId); err != nil {
+			gs.logger.Error(errors.E(op, err))
+		}
+	}()
 
 	return nil
 }
 
-func (gs *GameService) handleGameDuration(ctx context.Context, gameDurationSec int, roomId uuid.UUID) {
+func (gs *GameService) handleGameDuration(ctx context.Context, gameDurationSec int, roomId uuid.UUID) error {
 	const op errors.Op = "services.GameService.handleGameDuration"
 
 	time.Sleep(countdownDurationSeconds * time.Second)
@@ -223,15 +235,12 @@ func (gs *GameService) handleGameDuration(ctx context.Context, gameDurationSec i
 	// after blocking for countdown duration, set game status to "started"
 	err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus)
 	if err != nil {
-		gs.logger.Error(errors.E(op, err))
-		return
+		return errors.E(op, err)
 	}
 
 	time.Sleep(time.Duration(gameDurationSec) * time.Second)
 
-	if err = gs.handleGameResults(ctx, roomId); err != nil {
-		gs.logger.Error(errors.E(op, err))
-	}
+	return nil
 }
 
 func (gs *GameService) handleGameResults(ctx context.Context, roomId uuid.UUID) error {
@@ -252,12 +261,6 @@ func (gs *GameService) handleGameResults(ctx context.Context, roomId uuid.UUID) 
 		timer.Stop()
 	}
 	cancel()
-
-	// set game status to finished
-	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
-	if err != nil {
-		return errors.E(op, err)
-	}
 
 	gameId, err := gs.cacheRepo.GetCurrentGameId(ctx, roomId)
 	if err != nil {
@@ -316,4 +319,20 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 	}()
 
 	return allReceived
+}
+
+func (gs *GameService) cleanupGame(ctx context.Context, roomId uuid.UUID) error {
+	const op errors.Op = "services.GameService.cleanupGame"
+
+	// set game status to finished
+	err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	if err := gs.cacheRepo.DeleteAllCurrentGameUsers(ctx, roomId); err != nil {
+		return errors.E(op, err)
+	}
+
+	return nil
 }

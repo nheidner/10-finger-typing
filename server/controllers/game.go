@@ -41,7 +41,7 @@ func (gc *GameController) CreateGame(c *gin.Context) {
 		return
 	}
 
-	gameId, err := gc.gameService.SetNewCurrentGame(c.Request.Context(), user.ID, roomId, input.TextId)
+	gameId, err := gc.gameService.CreateNewCurrentGame(c.Request.Context(), user.ID, roomId, input.TextId)
 	if err != nil {
 		utils.WriteError(c, errors.E(op, err), gc.logger)
 		return
