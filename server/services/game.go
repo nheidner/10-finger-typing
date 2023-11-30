@@ -58,6 +58,11 @@ func (gs *GameService) CreateNewCurrentGame(ctx context.Context, userId, roomId,
 
 	var gameId = uuid.New()
 
+	//cleanup
+	if err := gs.cacheRepo.DeleteCurrentGameScores(ctx, roomId); err != nil {
+		return uuid.Nil, errors.E(op, err)
+	}
+
 	if err := gs.cacheRepo.SetNewCurrentGame(ctx, gameId, textId, roomId, userId); err != nil {
 		return uuid.Nil, errors.E(op, err)
 	}
@@ -123,8 +128,12 @@ func (gs *GameService) UserFinishesGame(
 		TextId:       textId,
 	}
 
-	_, err = gs.dbRepo.CreateScore(newScore)
+	createdScore, err := gs.dbRepo.CreateScore(newScore)
 	if err != nil {
+		return errors.E(op, err)
+	}
+
+	if err := gs.cacheRepo.SetCurrentGameScore(ctx, roomId, *createdScore); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -282,19 +291,14 @@ func (gs *GameService) handleGameResults(ctx context.Context, roomId uuid.UUID) 
 	}
 	cancel()
 
-	gameId, err := gs.cacheRepo.GetCurrentGameId(ctx, roomId)
-	if err != nil {
-		return errors.E(op, err)
-	}
-
-	scores, err := gs.dbRepo.FindScores(uuid.Nil, gameId, "", []models.SortOption{{Column: "words_per_minute", Order: "desc"}})
+	currentGameScores, err := gs.cacheRepo.GetCurrentGameScores(ctx, roomId)
 	if err != nil {
 		return errors.E(op, err)
 	}
 
 	scorePushMessage := models.PushMessage{
 		Type:    models.GameScores,
-		Payload: scores,
+		Payload: currentGameScores,
 	}
 
 	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, scorePushMessage); err != nil {

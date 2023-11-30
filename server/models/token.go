@@ -10,7 +10,7 @@ import (
 type Token struct {
 	ID        uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	CreatedAt time.Time       `json:"createdAt"`
-	DeletedAt *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
+	DeletedAt *gorm.DeletedAt `json:"-" gorm:"index"`
 	Room      Room            `json:"-"`
 	RoomID    uuid.UUID       `json:"-"`
 	IsUsed    bool            `json:"-"`

@@ -4,12 +4,12 @@ import { Dialog, Transition } from "@headlessui/react";
 export const Modal: FC<{
   children: ReactNode;
   isOpen: boolean;
-  setOpen: (isOpen: boolean) => void;
+  setIsOpen: (isOpen: boolean) => void;
   panelHeight?: string;
-}> = ({ children, isOpen, setOpen, panelHeight }) => {
+}> = ({ children, isOpen, setIsOpen, panelHeight }) => {
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={setOpen}>
+      <Dialog as="div" className="relative z-10" onClose={setIsOpen}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-50"

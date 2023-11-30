@@ -9,7 +9,7 @@ import {
   UserJoinedPayload,
   UserLeftPayload,
 } from "../types";
-import { Game, GameStatus, Room, RoomSubscriber } from "@/types";
+import { Game, GameStatus, Room, RoomSubscriber, Score } from "@/types";
 
 const notReceivePongReason = "did not receive pong";
 const apiUrl = getWsUrl();
@@ -17,7 +17,8 @@ const apiUrl = getWsUrl();
 export const useConnectToRoom = (
   roomId: string,
   setGameStatus: (newGameStatus: GameStatus) => void,
-  userStartedGame: boolean
+  userStartedGame: boolean,
+  setScores: (newScores: Score[]) => void
 ) => {
   const [roomSubscribers, setRoomSubscribers] = useState<RoomSubscriber[]>([]);
   const [game, setGame] = useState<Game | null>(null);
@@ -58,7 +59,6 @@ export const useConnectToRoom = (
             clearTimeout(waitForPongTimeout);
             waitForPongTimeout = null;
           }
-
           break;
         }
         case "initial_state": {
@@ -71,13 +71,14 @@ export const useConnectToRoom = (
             gameDurationSec: payload.gameDurationSec,
           });
           setGameStatus(payload.currentGame.status);
+          setScores(payload.currentGameScores);
           break;
         }
         case "game_result": {
-          // TODO: handle payload
           const payload = message.payload as GameResultPayload;
 
           setGameStatus("finished");
+          setScores(payload);
           break;
         }
         case "game_started": {
@@ -109,6 +110,7 @@ export const useConnectToRoom = (
           setGame(payload);
           setGameStatus("unstarted");
           setCountDownDuration(null);
+          setScores([]);
           break;
         }
         case "user_left": {
@@ -141,7 +143,7 @@ export const useConnectToRoom = (
           break;
       }
     };
-  }, [setGameStatus, userStartedGame, countDownDuration]);
+  }, [setGameStatus, userStartedGame, countDownDuration, setScores]);
 
   useEffect(() => {
     let retryTimes = 0;

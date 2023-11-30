@@ -7,8 +7,8 @@ import { Modal } from "@/components/Modal";
 
 export const InviteModal: FC<{
   isOpen: boolean;
-  setOpen: (open: boolean) => void;
-}> = ({ isOpen, setOpen }) => {
+  setIsOpen: (open: boolean) => void;
+}> = ({ isOpen, setIsOpen }) => {
   const [newRoomUsers, setNewRoomUsers] = useState<Partial<User>[]>([]);
 
   const router = useRouter();
@@ -32,14 +32,14 @@ export const InviteModal: FC<{
     setNewRoomUsers([]);
   };
 
-  const closeModal = () => setOpen(false);
+  const closeModal = () => setIsOpen(false);
 
   const panelHeight = `${
     (152 + Math.ceil(newRoomUsers.length / 3) * 148) / 16
   }rem`;
 
   return (
-    <Modal isOpen={isOpen} setOpen={setOpen} panelHeight={panelHeight}>
+    <Modal isOpen={isOpen} setIsOpen={setIsOpen} panelHeight={panelHeight}>
       <InvitePanel
         textId={textId}
         closeModal={closeModal}

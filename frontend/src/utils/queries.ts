@@ -1,11 +1,4 @@
-import {
-  Room,
-  Score,
-  Text,
-  LanguageCode,
-  User,
-  UserNotification,
-} from "@/types";
+import { Score, Text, LanguageCode, User, UserNotification } from "@/types";
 import { fetchApi } from "./fetch";
 
 export type NewRoomBodyParams = {

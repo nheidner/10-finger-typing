@@ -59,6 +59,7 @@ func (repo *SQLRepository) CreateScore(score models.Score) (*models.Score, error
 				{Name: "accuracy"},
 				{Name: "number_errors"},
 				{Name: "errors"},
+				{Name: "user_id"},
 			}}).
 		Create(&score).Error; err != nil {
 		return nil, errors.E(op, err)

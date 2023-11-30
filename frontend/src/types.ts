@@ -48,11 +48,13 @@ export interface RoomSubscriber {
   status: SubscriberStatus;
   username: string;
 }
+
 export interface Room {
   adminId: string;
   currentGame: Game;
   roomSubscribers: RoomSubscriber[];
   gameDurationSec: number;
+  currentGameScores: Score[];
 }
 
 type RoomInvitationPayload = {

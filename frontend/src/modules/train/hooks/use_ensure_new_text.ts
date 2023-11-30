@@ -74,7 +74,7 @@ export const useEnsureTextData = ({
         queryClient.setQueryData(["texts", data?.id], () => data);
         router.push({
           pathname: router.pathname,
-          query: { ...router.query, textId: data?.id },
+          query: { ...router.query, textId: data?.id || "" },
         });
       },
       onError(err) {

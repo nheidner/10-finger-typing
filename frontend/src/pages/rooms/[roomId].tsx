@@ -1,3 +1,4 @@
+import { Modal } from "@/components/Modal";
 import { CountDown } from "@/modules/room/components/Countdown";
 import { GameDurationCounter } from "@/modules/room/components/GameDurationCounter";
 import { RoomSubscriberList } from "@/modules/room/components/RoomSubscriberList";
@@ -5,7 +6,7 @@ import { SelectNewText } from "@/modules/room/components/SelectNewText";
 import { StartGameButton } from "@/modules/room/components/StartGameButton";
 import { useConnectToRoom } from "@/modules/room/hooks/use_connect_to_room";
 import { Content } from "@/modules/train/components/Content";
-import { GameStatus } from "@/types";
+import { GameStatus, Score } from "@/types";
 import {
   createScore,
   getAuthenticatedUser,
@@ -19,7 +20,25 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import { NextPage, NextPageContext } from "next";
-import { useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
+
+const Scores: FC<{
+  scores: Score[];
+  isAdmin: boolean;
+  roomId: string;
+  gameStatus: GameStatus;
+}> = ({ scores, isAdmin, roomId, gameStatus }) => {
+  const selectNewText = isAdmin ? (
+    <SelectNewText roomId={roomId} gameStatus={gameStatus} />
+  ) : null;
+
+  return (
+    <Modal isOpen={scores.length > 0} setIsOpen={() => {}}>
+      {selectNewText}
+      <div>hello world</div>
+    </Modal>
+  );
+};
 
 const RoomPage: NextPage<{
   dehydratedState: DehydratedState;
@@ -27,8 +46,9 @@ const RoomPage: NextPage<{
 }> = ({ roomId }) => {
   const [gameStatus, setGameStatus] = useState<GameStatus>("unstarted");
   const [userStartedGame, setUserStartedGame] = useState(false);
+  const [scores, setScores] = useState<Score[]>([]);
   const { roomSubscribers, game, countDownDuration, roomSettings } =
-    useConnectToRoom(roomId, setGameStatus, userStartedGame);
+    useConnectToRoom(roomId, setGameStatus, userStartedGame, setScores);
 
   const { data: textData, isLoading: textIsLoading } = useQuery(
     ["texts", game?.textId],
@@ -94,12 +114,14 @@ const RoomPage: NextPage<{
 
   const isAdmin = roomSettings?.adminId === authenticatedUserData?.id;
 
-  const selectNewText = isAdmin ? (
-    <SelectNewText roomId={roomId} gameStatus={gameStatus} />
-  ) : null;
-
   return (
     <>
+      <Scores
+        scores={scores}
+        gameStatus={gameStatus}
+        isAdmin={isAdmin}
+        roomId={roomId}
+      />
       <CountDown
         countDownDuration={countDownDuration}
         gameStatus={gameStatus}
@@ -121,7 +143,6 @@ const RoomPage: NextPage<{
           />
         </div>
       </section>
-      {selectNewText}
       <Content
         isActive={gameStatus === "started" && userStartedGame}
         isLoading={textIsLoading}

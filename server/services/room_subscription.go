@@ -70,11 +70,11 @@ func (rs *roomSubscription) sendInitialState(ctx context.Context, room models.Ro
 	}
 
 	var initialState struct {
-		AdminId           uuid.UUID                 `json:"adminId"`
-		GameDurationSec   int                       `json:"gameDurationSec"`
-		Subscribers       []models.RoomSubscriber   `json:"roomSubscribers"`
-		CurrentGame       *models.Game              `json:"currentGame"`
-		CurrentGameScores []models.CurrentGameScore `json:"currentGameScores"`
+		AdminId           uuid.UUID               `json:"adminId"`
+		GameDurationSec   int                     `json:"gameDurationSec"`
+		Subscribers       []models.RoomSubscriber `json:"roomSubscribers"`
+		CurrentGame       *models.Game            `json:"currentGame"`
+		CurrentGameScores []models.Score          `json:"currentGameScores"`
 	}
 
 	initialState.AdminId = room.AdminId

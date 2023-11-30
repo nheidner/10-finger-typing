@@ -17,6 +17,7 @@ type CacheRepository interface {
 	UserNotificationCacheRepository
 	UserCacheRepository
 	SessionCacheRepository
+	ScoreCacheRepository
 }
 
 type GameCacheRepository interface {
@@ -88,4 +89,10 @@ type SessionCacheRepository interface {
 	SetSession(ctx context.Context, tokenHash string, userId uuid.UUID) error
 	DeleteSession(ctx context.Context, tokenHash string) error
 	DeleteAllSessions(ctx context.Context) error
+}
+
+type ScoreCacheRepository interface {
+	GetCurrentGameScores(ctx context.Context, roomId uuid.UUID) ([]models.Score, error)
+	SetCurrentGameScore(ctx context.Context, roomId uuid.UUID, score models.Score) error
+	DeleteCurrentGameScores(ctx context.Context, roomId uuid.UUID) error
 }
