@@ -2,6 +2,7 @@ import { getWsUrl } from "@/utils/get_api_url";
 import { useEffect, useRef, useState } from "react";
 import {
   CountdownStartPayload,
+  GameResultPayload,
   InitialStatePayload,
   Message,
   NewGamePayload,
@@ -15,7 +16,8 @@ const apiUrl = getWsUrl();
 
 export const useConnectToRoom = (
   roomId: string,
-  setGameStatus: (newGameStatus: GameStatus) => void
+  setGameStatus: (newGameStatus: GameStatus) => void,
+  userStartedGame: boolean
 ) => {
   const [roomSubscribers, setRoomSubscribers] = useState<RoomSubscriber[]>([]);
   const [game, setGame] = useState<Game | null>(null);
@@ -28,6 +30,118 @@ export const useConnectToRoom = (
   > | null>(null);
 
   const websocketRef = useRef<WebSocket | null>(null);
+
+  const onMessageRef =
+    useRef<
+      (
+        e: MessageEvent,
+        isComponentMounted: boolean,
+        waitForPongTimeout: NodeJS.Timeout | null
+      ) => void
+    >();
+
+  useEffect(() => {
+    onMessageRef.current = (
+      e: MessageEvent,
+      isComponentMounted: boolean,
+      waitForPongTimeout: NodeJS.Timeout | null
+    ) => {
+      if (!isComponentMounted) {
+        return;
+      }
+
+      const message = JSON.parse(e.data) as Message;
+
+      switch (message.type) {
+        case "pong": {
+          if (waitForPongTimeout) {
+            clearTimeout(waitForPongTimeout);
+            waitForPongTimeout = null;
+          }
+
+          break;
+        }
+        case "initial_state": {
+          const payload = message.payload as InitialStatePayload;
+
+          setGame(payload.currentGame);
+          setRoomSubscribers(payload.roomSubscribers);
+          setRoomSettings({
+            adminId: payload.adminId,
+            gameDurationSec: payload.gameDurationSec,
+          });
+          setGameStatus(payload.currentGame.status);
+          break;
+        }
+        case "game_result": {
+          // TODO: handle payload
+          const payload = message.payload as GameResultPayload;
+
+          setGameStatus("finished");
+          break;
+        }
+        case "game_started": {
+          if (!userStartedGame) {
+            setGameStatus("started");
+          }
+          break;
+        }
+        case "user_joined": {
+          const payload = message.payload as UserJoinedPayload;
+
+          setRoomSubscribers((oldRoomSubscribers) =>
+            oldRoomSubscribers.map((roomSubscriber) => {
+              if (roomSubscriber.userId !== payload) {
+                return roomSubscriber;
+              }
+
+              return {
+                ...roomSubscriber,
+                status: "active",
+              };
+            })
+          );
+          break;
+        }
+        case "new_game": {
+          const payload = message.payload as NewGamePayload;
+
+          setGame(payload);
+          setGameStatus("unstarted");
+          setCountDownDuration(null);
+          break;
+        }
+        case "user_left": {
+          const payload = message.payload as UserLeftPayload;
+
+          setRoomSubscribers((oldRoomSubscribers) =>
+            oldRoomSubscribers.map((roomSubscriber) => {
+              if (roomSubscriber.userId !== payload) {
+                return roomSubscriber;
+              }
+
+              return {
+                ...roomSubscriber,
+                status: "inactive",
+              };
+            })
+          );
+          break;
+        }
+        case "countdown": {
+          const payload = message.payload as CountdownStartPayload;
+
+          if (!countDownDuration) {
+            setGameStatus("countdown");
+            setCountDownDuration(payload);
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    };
+  }, [setGameStatus, userStartedGame, countDownDuration]);
 
   useEffect(() => {
     let retryTimes = 0;
@@ -71,83 +185,7 @@ export const useConnectToRoom = (
       };
 
       websocketRef.current.onmessage = (e) => {
-        if (!isComponentMounted) {
-          return;
-        }
-
-        const message = JSON.parse(e.data) as Message;
-
-        switch (message.type) {
-          case "pong": {
-            if (waitForPongTimeout) {
-              clearTimeout(waitForPongTimeout);
-              waitForPongTimeout = null;
-            }
-
-            break;
-          }
-          case "initial_state": {
-            const payload = message.payload as InitialStatePayload;
-
-            setGame(payload.currentGame);
-            setRoomSubscribers(payload.roomSubscribers);
-            setRoomSettings({
-              adminId: payload.adminId,
-              gameDurationSec: payload.gameDurationSec,
-            });
-            break;
-          }
-          case "user_joined": {
-            const payload = message.payload as UserJoinedPayload;
-
-            setRoomSubscribers((oldRoomSubscribers) =>
-              oldRoomSubscribers.map((roomSubscriber) => {
-                if (roomSubscriber.userId !== payload) {
-                  return roomSubscriber;
-                }
-
-                return {
-                  ...roomSubscriber,
-                  status: "active",
-                };
-              })
-            );
-            break;
-          }
-          case "new_game": {
-            const payload = message.payload as NewGamePayload;
-
-            setGame(payload);
-            setGameStatus("unstarted");
-            break;
-          }
-          case "user_left": {
-            const payload = message.payload as UserLeftPayload;
-
-            setRoomSubscribers((oldRoomSubscribers) =>
-              oldRoomSubscribers.map((roomSubscriber) => {
-                if (roomSubscriber.userId !== payload) {
-                  return roomSubscriber;
-                }
-
-                return {
-                  ...roomSubscriber,
-                  status: "inactive",
-                };
-              })
-            );
-            break;
-          }
-          case "countdown_start": {
-            const payload = message.payload as CountdownStartPayload;
-
-            setGameStatus("countdown");
-            setCountDownDuration(payload);
-            break;
-          }
-          default:
-            break;
-        }
+        onMessageRef.current?.(e, isComponentMounted, waitForPongTimeout);
       };
 
       websocketRef.current.onclose = (e) => {

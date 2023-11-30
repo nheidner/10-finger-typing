@@ -59,8 +59,14 @@ func (rs *roomSubscription) sendInitialState(ctx context.Context, room models.Ro
 		return errors.E(op, err)
 	}
 
+	currentGameUserIds, err := rs.cacheRepo.GetCurrentGameUserIds(ctx, room.ID)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
 	room.Subscribers = existingRoomSubscribers
 	room.CurrentGame = currentGame
+	room.CurrentGame.GameSubscribers = currentGameUserIds
 
 	initialMessage := &models.PushMessage{
 		Type:    models.InitialState,

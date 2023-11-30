@@ -15,7 +15,7 @@ import (
 
 const (
 	waitForResultsDurationSeconds = 10
-	countdownDurationSeconds      = 3
+	countdownDurationSeconds      = 5
 )
 
 type GameService struct {
@@ -195,23 +195,15 @@ func (gs *GameService) InitiateGameIfReady(ctx context.Context, roomId uuid.UUID
 		return errors.E(op, err)
 	}
 
-	countdownPushMessage := models.PushMessage{
-		Type:    models.CountdownStart,
-		Payload: countdownDurationSeconds,
-	}
-
-	err = gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
-	if err != nil {
-		return errors.E(op, err)
-	}
-
 	gameDurationSec, err := gs.cacheRepo.GetRoomGameDurationSec(ctx, roomId)
 	if err != nil {
 		return errors.E(op, err)
 	}
 
+	ctx = context.Background()
+
+	go gs.countdown(ctx, roomId, countdownDurationSeconds)
 	go func() {
-		ctx := context.Background()
 		defer gs.cleanupGame(ctx, roomId)
 
 		if err = gs.handleGameDuration(ctx, gameDurationSec, roomId); err != nil {
@@ -227,14 +219,42 @@ func (gs *GameService) InitiateGameIfReady(ctx context.Context, roomId uuid.UUID
 	return nil
 }
 
+func (gs *GameService) countdown(ctx context.Context, roomId uuid.UUID, countdownDurationSeconds int) {
+	const op errors.Op = "services.GameService.countdown"
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for countdownDurationSeconds > 0 {
+		countdownPushMessage := models.PushMessage{
+			Type:    models.Countdown,
+			Payload: countdownDurationSeconds,
+		}
+		err := gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
+		if err != nil {
+			gs.logger.Error(errors.E(op, err))
+			return
+		}
+
+		countdownDurationSeconds--
+		<-ticker.C
+	}
+}
+
 func (gs *GameService) handleGameDuration(ctx context.Context, gameDurationSec int, roomId uuid.UUID) error {
 	const op errors.Op = "services.GameService.handleGameDuration"
 
 	time.Sleep(countdownDurationSeconds * time.Second)
 
 	// after blocking for countdown duration, set game status to "started"
-	err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus)
-	if err != nil {
+	if err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus); err != nil {
+		return errors.E(op, err)
+	}
+
+	gameStartedPushMessage := models.PushMessage{
+		Type: models.GameStarted,
+	}
+	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, gameStartedPushMessage); err != nil {
 		return errors.E(op, err)
 	}
 

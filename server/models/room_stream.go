@@ -27,15 +27,16 @@ const (
 	UserJoined PushMessageType = iota
 	NewGame
 	Cursor
-	CountdownStart
+	Countdown
 	UserLeft
 	InitialState
 	GameScores
+	GameStarted
 )
 
 func (p PushMessageType) String() (string, error) {
 	const op errors.Op = "models.PushMessageType.String"
-	f := []string{"user_joined", "new_game", "cursor", "countdown_start", "user_left", "initial_state", "game_result"}
+	f := []string{"user_joined", "new_game", "cursor", "countdown", "user_left", "initial_state", "game_result", "game_started"}
 
 	if int(p) >= len(f) {
 		err := fmt.Errorf("invalid PushMessageType")
@@ -63,13 +64,14 @@ func (p *PushMessageType) ParseFromString(data string) error {
 	const op errors.Op = "models.ParseFromString"
 
 	stringToPushMessageTypeMap := map[string]PushMessageType{
-		"user_joined":     UserJoined,
-		"new_game":        NewGame,
-		"cursor":          Cursor,
-		"countdown_start": CountdownStart,
-		"user_left":       UserLeft,
-		"initial_state":   InitialState,
-		"game_result":     GameScores,
+		"user_joined":   UserJoined,
+		"new_game":      NewGame,
+		"cursor":        Cursor,
+		"countdown":     Countdown,
+		"user_left":     UserLeft,
+		"initial_state": InitialState,
+		"game_result":   GameScores,
+		"game_started":  GameStarted,
 	}
 
 	pushMessageType, ok := stringToPushMessageTypeMap[data]
@@ -100,7 +102,7 @@ func (p *PushMessageType) UnmarshalJSON(data []byte) error {
 
 type PushMessage struct {
 	Type PushMessageType `json:"type"`
-	// cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp
+	// cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp, game_started: nil
 	Payload any `json:"payload"`
 }
 

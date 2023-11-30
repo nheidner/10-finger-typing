@@ -35,6 +35,7 @@ export interface Game {
   roomId: string;
   status: GameStatus;
   textId: string;
+  gameSubscribers: string[] | null;
 }
 
 export type GameStatus = "unstarted" | "started" | "finished" | "countdown";

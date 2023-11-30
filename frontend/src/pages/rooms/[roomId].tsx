@@ -26,9 +26,9 @@ const RoomPage: NextPage<{
   roomId: string;
 }> = ({ roomId }) => {
   const [gameStatus, setGameStatus] = useState<GameStatus>("unstarted");
-
+  const [userStartedGame, setUserStartedGame] = useState(false);
   const { roomSubscribers, game, countDownDuration, roomSettings } =
-    useConnectToRoom(roomId, setGameStatus);
+    useConnectToRoom(roomId, setGameStatus, userStartedGame);
 
   const { data: textData, isLoading: textIsLoading } = useQuery(
     ["texts", game?.textId],
@@ -48,6 +48,22 @@ const RoomPage: NextPage<{
     mutationKey: ["create game score", roomId, game?.id],
     mutationFn: createScore,
   });
+
+  const userStartedGameServerState = !!(
+    authenticatedUserData?.id &&
+    game?.gameSubscribers?.includes(authenticatedUserData.id)
+  );
+
+  useEffect(() => {
+    if (gameStatus === "finished") {
+      setUserStartedGame(false);
+      return;
+    }
+
+    if (userStartedGameServerState && !userStartedGame) {
+      setUserStartedGame(true);
+    }
+  }, [gameStatus, userStartedGameServerState, userStartedGame]);
 
   useEffect(() => {
     if (
@@ -78,6 +94,10 @@ const RoomPage: NextPage<{
 
   const isAdmin = roomSettings?.adminId === authenticatedUserData?.id;
 
+  const selectNewText = isAdmin ? (
+    <SelectNewText roomId={roomId} gameStatus={gameStatus} />
+  ) : null;
+
   return (
     <>
       <CountDown
@@ -88,7 +108,12 @@ const RoomPage: NextPage<{
       <section className="flex justify-between items-center">
         <div className="flex gap-2 items-center">
           <RoomSubscriberList roomSubscribers={roomSubscribers} />
-          <StartGameButton gameStatus={gameStatus} roomId={roomId} />
+          <StartGameButton
+            gameStatus={gameStatus}
+            roomId={roomId}
+            setUserStartedGame={setUserStartedGame}
+            userStartedGame={userStartedGame}
+          />
           <GameDurationCounter
             gameStatus={gameStatus}
             setGameStatus={setGameStatus}
@@ -96,11 +121,9 @@ const RoomPage: NextPage<{
           />
         </div>
       </section>
-      {isAdmin ? (
-        <SelectNewText roomId={roomId} gameStatus={gameStatus} />
-      ) : null}
+      {selectNewText}
       <Content
-        isActive={gameStatus === "started"}
+        isActive={gameStatus === "started" && userStartedGame}
         isLoading={textIsLoading}
         text={textData || null}
         userData={{}}
