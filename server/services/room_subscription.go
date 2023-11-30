@@ -49,7 +49,7 @@ func newRoomSubscription(
 func (rs *roomSubscription) sendInitialState(ctx context.Context, room models.Room) error {
 	const op errors.Op = "services.roomSubscription.sendInitialState"
 
-	existingRoomSubscribers, err := rs.cacheRepo.GetRoomSubscribers(ctx, room.ID)
+	roomSubscribers, err := rs.cacheRepo.GetRoomSubscribers(ctx, room.ID)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -64,13 +64,29 @@ func (rs *roomSubscription) sendInitialState(ctx context.Context, room models.Ro
 		return errors.E(op, err)
 	}
 
-	room.Subscribers = existingRoomSubscribers
-	room.CurrentGame = currentGame
-	room.CurrentGame.GameSubscribers = currentGameUserIds
+	currentGameScores, err := rs.cacheRepo.GetCurrentGameScores(ctx, room.ID)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	var initialState struct {
+		AdminId           uuid.UUID                 `json:"adminId"`
+		GameDurationSec   int                       `json:"gameDurationSec"`
+		Subscribers       []models.RoomSubscriber   `json:"roomSubscribers"`
+		CurrentGame       *models.Game              `json:"currentGame"`
+		CurrentGameScores []models.CurrentGameScore `json:"currentGameScores"`
+	}
+
+	initialState.AdminId = room.AdminId
+	initialState.GameDurationSec = room.GameDurationSec
+	initialState.Subscribers = roomSubscribers
+	initialState.CurrentGame = currentGame
+	initialState.CurrentGame.GameSubscribers = currentGameUserIds
+	initialState.CurrentGameScores = currentGameScores
 
 	initialMessage := &models.PushMessage{
 		Type:    models.InitialState,
-		Payload: room,
+		Payload: initialState,
 	}
 
 	if err := wsjson.Write(ctx, rs.conn, initialMessage); err != nil {

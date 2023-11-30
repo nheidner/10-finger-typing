@@ -28,7 +28,7 @@ func getRoomKey(roomId uuid.UUID) string {
 }
 
 func (repo *RedisRepository) GetRoomInCacheOrDb(ctx context.Context, dbRepo common.DBRepository, roomId uuid.UUID) (*models.Room, error) {
-	const op errors.Op = "services.RoomService.GetRoomInCacheOrDb"
+	const op errors.Op = "redis_repo.RedisRepository.GetRoomInCacheOrDb"
 
 	room, err := repo.getRoom(ctx, roomId)
 	switch {
@@ -200,36 +200,6 @@ func (repo *RedisRepository) getRoom(ctx context.Context, roomId uuid.UUID) (*mo
 		return nil, errors.E(op, common.ErrNotFound)
 	}
 
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
-	roomSubscriberIds, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	roomSubscribers := make([]models.RoomSubscriber, 0, len(roomSubscriberIds))
-	for _, roomSubscriberIdStr := range roomSubscriberIds {
-		roomSubscriberId, err := uuid.Parse(roomSubscriberIdStr)
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-
-		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
-
-		roomSubscriber, err := repo.redisClient.HGetAll(ctx, roomSubscriberKey).Result()
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-
-		username := roomSubscriber[roomSubscriberUsernameField]
-
-		subscriber := models.RoomSubscriber{
-			UserId:   roomSubscriberId,
-			Username: username,
-		}
-
-		roomSubscribers = append(roomSubscribers, subscriber)
-	}
-
 	createdAt, err := utils.StringToTime(roomData[roomCreatedAtField])
 	if err != nil {
 		return nil, errors.E(op, err)
@@ -252,7 +222,6 @@ func (repo *RedisRepository) getRoom(ctx context.Context, roomId uuid.UUID) (*mo
 		AdminId:         adminId,
 		CreatedAt:       createdAt,
 		UpdatedAt:       updatedAt,
-		Subscribers:     roomSubscribers,
 		GameDurationSec: gameDurationSec,
 	}, nil
 }

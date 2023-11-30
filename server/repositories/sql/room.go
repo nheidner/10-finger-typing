@@ -24,10 +24,6 @@ func (repo *SQLRepository) FindRoomWithUsers(roomId uuid.UUID) (*models.Room, er
 		}
 	}
 
-	if err := repo.db.Model(&room).Association("Users").Find(&(room.Users)); err != nil {
-		return nil, errors.E(op, err)
-	}
-
 	return &room, nil
 }
 
