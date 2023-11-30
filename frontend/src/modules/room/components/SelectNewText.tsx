@@ -18,9 +18,8 @@ import { getRandomNumberBetween } from "@/utils/random";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 export const SelectNewText: FC<{
-  gameStatus: GameStatus;
   roomId: string;
-}> = ({ gameStatus, roomId }) => {
+}> = ({ roomId }) => {
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
   );
@@ -110,10 +109,6 @@ export const SelectNewText: FC<{
   const handleCreateNewGame = async () => {
     getNewText();
   };
-
-  if (gameStatus !== "finished") {
-    return null;
-  }
 
   return (
     <section className="flex gap-10 justify-center items-center">

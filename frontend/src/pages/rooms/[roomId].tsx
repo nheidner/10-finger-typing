@@ -1,8 +1,7 @@
-import { Modal } from "@/components/Modal";
 import { CountDown } from "@/modules/room/components/Countdown";
 import { GameDurationCounter } from "@/modules/room/components/GameDurationCounter";
 import { RoomSubscriberList } from "@/modules/room/components/RoomSubscriberList";
-import { SelectNewText } from "@/modules/room/components/SelectNewText";
+import { Scores } from "@/modules/room/components/Scores";
 import { StartGameButton } from "@/modules/room/components/StartGameButton";
 import { useConnectToRoom } from "@/modules/room/hooks/use_connect_to_room";
 import { Content } from "@/modules/train/components/Content";
@@ -20,25 +19,7 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import { NextPage, NextPageContext } from "next";
-import { FC, useEffect, useState } from "react";
-
-const Scores: FC<{
-  scores: Score[];
-  isAdmin: boolean;
-  roomId: string;
-  gameStatus: GameStatus;
-}> = ({ scores, isAdmin, roomId, gameStatus }) => {
-  const selectNewText = isAdmin ? (
-    <SelectNewText roomId={roomId} gameStatus={gameStatus} />
-  ) : null;
-
-  return (
-    <Modal isOpen={scores.length > 0} setIsOpen={() => {}}>
-      {selectNewText}
-      <div>hello world</div>
-    </Modal>
-  );
-};
+import { useEffect, useState } from "react";
 
 const RoomPage: NextPage<{
   dehydratedState: DehydratedState;
@@ -116,12 +97,7 @@ const RoomPage: NextPage<{
 
   return (
     <>
-      <Scores
-        scores={scores}
-        gameStatus={gameStatus}
-        isAdmin={isAdmin}
-        roomId={roomId}
-      />
+      <Scores scores={scores} isAdmin={isAdmin} roomId={roomId} />
       <CountDown
         countDownDuration={countDownDuration}
         gameStatus={gameStatus}
