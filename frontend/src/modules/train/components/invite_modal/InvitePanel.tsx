@@ -112,45 +112,26 @@ export const InvitePanel: FC<{
     }
   };
 
-  const panelHeight = `${
-    (152 + Math.ceil(newRoomUsers.length / 3) * 148) / 16
-  }rem`;
-
   const submitButtonIsDisabled = !newRoomUsers.length;
 
   return (
-    <Transition.Child
-      as={Fragment}
-      enter="ease-out duration-50"
-      enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-      enterTo="opacity-100 translate-y-0 sm:scale-100"
-      leave="ease-out duration-20"
-      leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-      leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-    >
-      <Dialog.Panel
-        className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-[31.25rem] sm:p-6"
-        style={{ height: panelHeight }}
-      >
-        <form className="flex flex-col" onSubmit={handleCreateNewRoomAndGame}>
-          <UserList
-            newRoomUsers={newRoomUsers}
-            removeNewRoomUser={removeNewRoomUser}
-            isLoading={createRoomIsLoading}
-          />
-          <UserAutocompleteBox
-            addNewRoomUser={addNewRoomUser}
-            newRoomUsersDisplaySet={newRoomUsersDisplaySet}
-            handleKeyDown={handleKeyDown}
-          />
-          <div className="self-end mt-6 flex items-center">
-            <LoadingSpinner isLoading={createRoomIsLoading} />
-            <SubmitButton isDisabled={submitButtonIsDisabled}>
-              Create Room
-            </SubmitButton>
-          </div>
-        </form>
-      </Dialog.Panel>
-    </Transition.Child>
+    <form className="flex flex-col" onSubmit={handleCreateNewRoomAndGame}>
+      <UserList
+        newRoomUsers={newRoomUsers}
+        removeNewRoomUser={removeNewRoomUser}
+        isLoading={createRoomIsLoading}
+      />
+      <UserAutocompleteBox
+        addNewRoomUser={addNewRoomUser}
+        newRoomUsersDisplaySet={newRoomUsersDisplaySet}
+        handleKeyDown={handleKeyDown}
+      />
+      <div className="self-end mt-6 flex items-center">
+        <LoadingSpinner isLoading={createRoomIsLoading} />
+        <SubmitButton isDisabled={submitButtonIsDisabled}>
+          Create Room
+        </SubmitButton>
+      </div>
+    </form>
   );
 };
