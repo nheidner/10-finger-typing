@@ -28,7 +28,7 @@ const RoomPage: NextPage<{
   const [gameStatus, setGameStatus] = useState<GameStatus>("unstarted");
   const [userStartedGame, setUserStartedGame] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
-  const { roomSubscribers, game, countDownDuration, roomSettings } =
+  const { roomSubscribers, game, countDownDuration, roomSettings, websocket } =
     useConnectToRoom(roomId, setGameStatus, userStartedGame, setScores);
 
   const { data: textData, isLoading: textIsLoading } = useQuery(
@@ -124,7 +124,18 @@ const RoomPage: NextPage<{
         isLoading={textIsLoading}
         text={textData || null}
         userData={{}}
-        onType={() => {}}
+        onType={(cursor: number) => {
+          const message = {
+            type: "cursor",
+            payload: {
+              position: cursor,
+            },
+          };
+
+          if (websocket) {
+            websocket.send(JSON.stringify(message));
+          }
+        }}
       />
     </>
   );

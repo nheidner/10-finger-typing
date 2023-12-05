@@ -4,6 +4,7 @@ import (
 	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
+	"10-typing/utils"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,47 @@ const (
 	observeRoomSubscriberStatusMaxDurationMinutes = 60 * 24
 	observeRoomSubscriberStatusIntervalSeconds    = 4
 )
+
+type Message struct {
+	Type    string `json:"type"`
+	Payload any    `json:"payload"`
+}
+
+func (p *Message) UnmarshalJSON(data []byte) error {
+	const op errors.Op = "services.Message.UnmarshalJSON"
+	var temp struct {
+		Type    string          `json:"type"`
+		Payload json.RawMessage `json:"payload"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return errors.E(op, err)
+	}
+
+	p.Type = temp.Type
+
+	switch temp.Type {
+	case "cursor":
+		var cusorPayload CursorPayload
+		if err := json.Unmarshal(temp.Payload, &cusorPayload); err != nil {
+			return errors.E(op, err)
+		}
+		p.Payload = cusorPayload
+	case "ping":
+	default:
+		var defaultPayload any
+		if err := json.Unmarshal(temp.Payload, &defaultPayload); err != nil {
+			return errors.E(op, err)
+		}
+		p.Payload = defaultPayload
+	}
+
+	return nil
+}
+
+type CursorPayload struct {
+	Position int `json:"position"`
+}
 
 type roomSubscription struct {
 	connectionId uuid.UUID
@@ -100,6 +142,9 @@ func (rs *roomSubscription) sendInitialState(ctx context.Context, room models.Ro
 func (rs *roomSubscription) handleMessages(ctx context.Context) error {
 	const op errors.Op = "services.roomSubscription.handleMessages"
 
+	execute, cleanup := utils.Throttle(400 * time.Millisecond)
+	defer cleanup()
+
 	for {
 		messageType, message, err := rs.conn.Read(ctx)
 		if err != nil {
@@ -107,15 +152,38 @@ func (rs *roomSubscription) handleMessages(ctx context.Context) error {
 		}
 
 		if messageType == websocket.MessageText {
-			var msg map[string]any
+			var msg Message
 			if err := json.Unmarshal(message, &msg); err != nil {
 				rs.logger.Error(errors.E(op, err))
 
 				continue
 			}
-			switch msg["type"] {
+
+			switch msg.Type {
 			case "cursor":
-				// TODO: handle cursor
+				cursorPayload, ok := msg.Payload.(CursorPayload)
+				if !ok {
+					err := fmt.Errorf("msg.Payload is not of type CursorPayload")
+					return errors.E(op, err)
+				}
+
+				var cursorPushMessagePayload struct {
+					Position int       `json:"position"`
+					UserId   uuid.UUID `json:"userId"`
+				}
+				cursorPushMessagePayload.Position = cursorPayload.Position
+				cursorPushMessagePayload.UserId = rs.userId
+
+				pushMessage := models.PushMessage{
+					Type:    models.Cursor,
+					Payload: cursorPushMessagePayload,
+				}
+
+				execute(func() {
+					if err := rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, pushMessage); err != nil {
+						rs.logger.Error(errors.E(op, err))
+					}
+				})
 			case "ping":
 				response := map[string]any{"type": "pong"}
 				responseBytes, err := json.Marshal(response)

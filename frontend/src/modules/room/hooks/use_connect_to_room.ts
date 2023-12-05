@@ -246,5 +246,11 @@ export const useConnectToRoom = (
     };
   }, [roomId, setGameStatus]);
 
-  return { roomSubscribers, game, countDownDuration, roomSettings };
+  return {
+    roomSubscribers,
+    game,
+    countDownDuration,
+    roomSettings,
+    websocket: websocketRef.current,
+  };
 };

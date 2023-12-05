@@ -102,7 +102,7 @@ func (p *PushMessageType) UnmarshalJSON(data []byte) error {
 
 type PushMessage struct {
 	Type PushMessageType `json:"type"`
-	// cursor: cursor position, start: time_stamp, finish: time_stamp, user_added: user, countdown: time_stamp, game_started: nil
+	// cursor: cursor position, user; start: time_stamp; finish: time_stamp; user_added: user; countdown: time_stamp; game_started: nil
 	Payload any `json:"payload"`
 }
 
