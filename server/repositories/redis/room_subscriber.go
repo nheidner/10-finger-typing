@@ -73,6 +73,23 @@ func (repo *RedisRepository) GetRoomSubscriberGameStatus(ctx context.Context, ro
 	return models.SubscriberGameStatus(status), nil
 }
 
+func (repo *RedisRepository) GetRoomSubscribersIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
+	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscribersIds"
+	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
+
+	r, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	roomSubscriberIds, err := stringsToUuids(r)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return roomSubscriberIds, nil
+}
+
 func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid.UUID) ([]models.RoomSubscriber, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscribers"
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)

@@ -58,9 +58,20 @@ func (gs *GameService) CreateNewCurrentGame(ctx context.Context, userId, roomId,
 
 	var gameId = uuid.New()
 
-	//cleanup
+	// cleanup
 	if err := gs.cacheRepo.DeleteCurrentGameScores(ctx, roomId); err != nil {
 		return uuid.Nil, errors.E(op, err)
+	}
+
+	// set game_status of all room users to unstarted
+	currentGameUserIds, err := gs.cacheRepo.GetRoomSubscribersIds(ctx, roomId)
+	if err != nil {
+		return uuid.Nil, errors.E(op, err)
+	}
+	for _, currentGameUserId := range currentGameUserIds {
+		if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, roomId, currentGameUserId, models.UnstartedSubscriberGameStatus); err != nil {
+			return uuid.Nil, errors.E(op, err)
+		}
 	}
 
 	if err := gs.cacheRepo.SetNewCurrentGame(ctx, gameId, textId, roomId, userId); err != nil {
@@ -97,7 +108,7 @@ func (gs *GameService) UserFinishesGame(
 ) error {
 	const op errors.Op = "services.GameService.UserFinishesGame"
 
-	// check if game status is not already finished
+	// validate: check if game status is not already finished
 	currentGameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
 	switch {
 	case err != nil:
@@ -105,6 +116,18 @@ func (gs *GameService) UserFinishesGame(
 	case currentGameStatus != models.StartedGameStatus:
 		err := fmt.Errorf("game has not the correct status")
 		return errors.E(op, err, http.StatusBadRequest)
+	}
+
+	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, roomId, userId, models.FinishedSubscriberGameStatus); err != nil {
+		return errors.E(op, err)
+	}
+
+	userFinishedGamePushMessage := models.PushMessage{
+		Type:    models.UserFinishedGame,
+		Payload: userId,
+	}
+	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, userFinishedGamePushMessage); err != nil {
+		return errors.E(op, err)
 	}
 
 	// get game id
@@ -168,8 +191,19 @@ func (gs *GameService) AddUserToGame(ctx context.Context, roomId, userId uuid.UU
 		return errors.E(op, err, http.StatusBadRequest)
 	}
 
-	err = gs.cacheRepo.SetCurrentGameUser(ctx, roomId, userId)
-	if err != nil {
+	if err := gs.cacheRepo.SetCurrentGameUser(ctx, roomId, userId); err != nil {
+		return errors.E(op, err)
+	}
+
+	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, roomId, userId, models.StartedSubscriberGameStatus); err != nil {
+		return errors.E(op, err)
+	}
+
+	userStartedGamePushMessage := models.PushMessage{
+		Type:    models.UserStartedGame,
+		Payload: userId,
+	}
+	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, userStartedGamePushMessage); err != nil {
 		return errors.E(op, err)
 	}
 

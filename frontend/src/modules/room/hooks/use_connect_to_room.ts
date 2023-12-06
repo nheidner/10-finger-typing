@@ -6,8 +6,10 @@ import {
   InitialStatePayload,
   Message,
   NewGamePayload,
+  UserFinishedGamePayload,
   UserJoinedPayload,
   UserLeftPayload,
+  UserStartedGamePayload,
 } from "../types";
 import { Game, GameStatus, Room, RoomSubscriber, Score } from "@/types";
 
@@ -111,6 +113,48 @@ export const useConnectToRoom = (
           setGameStatus("unstarted");
           setCountDownDuration(null);
           setScores([]);
+          setRoomSubscribers((oldRoomSubscribers) => {
+            return oldRoomSubscribers.map((roomSubscriber) => {
+              return {
+                ...roomSubscriber,
+                gameStatus: "unstarted",
+              };
+            });
+          });
+          break;
+        }
+        case "user_finished_game": {
+          const payload = message.payload as UserFinishedGamePayload;
+
+          setRoomSubscribers((oldRoomSubscribers) => {
+            return oldRoomSubscribers.map((roomSubscriber) => {
+              if (roomSubscriber.userId === payload) {
+                return {
+                  ...roomSubscriber,
+                  gameStatus: "finished",
+                };
+              }
+
+              return roomSubscriber;
+            });
+          });
+          break;
+        }
+        case "user_started_game": {
+          const payload = message.payload as UserStartedGamePayload;
+
+          setRoomSubscribers((oldRoomSubscribers) => {
+            return oldRoomSubscribers.map((roomSubscriber) => {
+              if (roomSubscriber.userId === payload) {
+                return {
+                  ...roomSubscriber,
+                  gameStatus: "started",
+                };
+              }
+
+              return roomSubscriber;
+            });
+          });
           break;
         }
         case "user_left": {
@@ -137,6 +181,9 @@ export const useConnectToRoom = (
             setGameStatus("countdown");
             setCountDownDuration(payload);
           }
+          break;
+        }
+        case "cursor": {
           break;
         }
         default:

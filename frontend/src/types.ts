@@ -1,5 +1,7 @@
+export type Uuid = string;
+
 export interface User {
-  id: string;
+  id: Uuid;
   username: string;
   firstName: string;
   email: string;
@@ -8,21 +10,21 @@ export interface User {
 }
 
 export interface Score {
-  id: string;
+  id: Uuid;
   wordsPerMinute: number;
   wordsTyped: number;
   timeElapsed: number;
   accuracy: number;
   numberErrors: number;
   errors: { [error: string]: number };
-  userId: string;
+  userId: Uuid;
 }
 
 export type LanguageCode = (typeof languageCodes)[number];
 export type LanguageName = (typeof languageNames)[number];
 
 export interface Text {
-  id: string;
+  id: Uuid;
   language: LanguageCode;
   text: string;
   punctuation: boolean;
@@ -31,10 +33,10 @@ export interface Text {
 }
 
 export interface Game {
-  id: string;
-  roomId: string;
+  id: Uuid;
+  roomId: Uuid;
   status: GameStatus;
-  textId: string;
+  textId: Uuid;
   gameSubscribers: string[] | null;
 }
 
@@ -43,14 +45,14 @@ export type SubscriberGameStatus = "unstarted" | "started" | "finished";
 export type SubscriberStatus = "inactive" | "active";
 
 export interface RoomSubscriber {
-  userId: string;
+  userId: Uuid;
   gameStatus: SubscriberGameStatus;
   status: SubscriberStatus;
   username: string;
 }
 
 export interface Room {
-  adminId: string;
+  adminId: Uuid;
   currentGame: Game;
   roomSubscribers: RoomSubscriber[];
   gameDurationSec: number;
@@ -59,11 +61,11 @@ export interface Room {
 
 type RoomInvitationPayload = {
   by: string;
-  roomId: string;
+  roomId: Uuid;
 };
 
 export interface UserNotification {
-  id: string;
+  id: Uuid;
   type: "room_invitation";
   payload: RoomInvitationPayload;
 }

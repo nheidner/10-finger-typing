@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -132,4 +133,20 @@ func deleteKeysByPattern(ctx context.Context, repo *RedisRepository, pattern str
 	}
 
 	return nil
+}
+
+func stringsToUuids(uuidStrings []string) ([]uuid.UUID, error) {
+	const op errors.Op = "redis_repo.stringsToUuids"
+
+	uuids := make([]uuid.UUID, 0, len(uuidStrings))
+	for _, gameUserIdStr := range uuidStrings {
+		gameUserId, err := uuid.Parse(gameUserIdStr)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		uuids = append(uuids, gameUserId)
+	}
+
+	return uuids, nil
 }

@@ -1,12 +1,18 @@
-import { Game, Room, Score, User } from "@/types";
+import { Game, Room, Score, User, Uuid } from "@/types";
 
 export type InitialStatePayload = Room;
-export type UserJoinedPayload = string;
-export type UserLeftPayload = string;
+export type UserJoinedPayload = Uuid;
+export type UserLeftPayload = Uuid;
 export type CountdownStartPayload = number;
 export type NewGamePayload = Game;
 export type GameResultPayload = Score[];
 export type GameStartedPayload = null;
+export type CursorPayload = {
+  position: number;
+  userId: Uuid;
+};
+export type UserStartedGamePayload = Uuid;
+export type UserFinishedGamePayload = Uuid;
 
 export type Message = {
   user: User;
@@ -18,7 +24,10 @@ export type Message = {
     | "pong"
     | "new_game"
     | "game_result"
-    | "game_started";
+    | "game_started"
+    | "cursor"
+    | "user_started_game"
+    | "user_finished_game";
   payload:
     | UserJoinedPayload
     | InitialStatePayload
@@ -26,5 +35,8 @@ export type Message = {
     | CountdownStartPayload
     | NewGamePayload
     | GameResultPayload
-    | GameStartedPayload;
+    | GameStartedPayload
+    | CursorPayload
+    | UserStartedGamePayload
+    | UserFinishedGamePayload;
 };

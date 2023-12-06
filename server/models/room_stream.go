@@ -32,11 +32,24 @@ const (
 	InitialState
 	GameScores
 	GameStarted
+	UserStartedGame
+	UserFinishedGame
 )
 
 func (p PushMessageType) String() (string, error) {
 	const op errors.Op = "models.PushMessageType.String"
-	f := []string{"user_joined", "new_game", "cursor", "countdown", "user_left", "initial_state", "game_result", "game_started"}
+	f := []string{
+		"user_joined",
+		"new_game",
+		"cursor",
+		"countdown",
+		"user_left",
+		"initial_state",
+		"game_result",
+		"game_started",
+		"user_started_game",
+		"user_finished_game",
+	}
 
 	if int(p) >= len(f) {
 		err := fmt.Errorf("invalid PushMessageType")
@@ -64,14 +77,16 @@ func (p *PushMessageType) ParseFromString(data string) error {
 	const op errors.Op = "models.ParseFromString"
 
 	stringToPushMessageTypeMap := map[string]PushMessageType{
-		"user_joined":   UserJoined,
-		"new_game":      NewGame,
-		"cursor":        Cursor,
-		"countdown":     Countdown,
-		"user_left":     UserLeft,
-		"initial_state": InitialState,
-		"game_result":   GameScores,
-		"game_started":  GameStarted,
+		"user_joined":        UserJoined,
+		"new_game":           NewGame,
+		"cursor":             Cursor,
+		"countdown":          Countdown,
+		"user_left":          UserLeft,
+		"initial_state":      InitialState,
+		"game_result":        GameScores,
+		"game_started":       GameStarted,
+		"user_started_game":  UserStartedGame,
+		"user_finished_game": UserFinishedGame,
 	}
 
 	pushMessageType, ok := stringToPushMessageTypeMap[data]

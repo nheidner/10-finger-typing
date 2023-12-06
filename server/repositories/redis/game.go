@@ -38,14 +38,9 @@ func (repo *RedisRepository) GetCurrentGameUserIds(ctx context.Context, roomId u
 		return nil, errors.E(op, err)
 	}
 
-	gameUserIds := make([]uuid.UUID, 0, len(r))
-	for _, gameUserIdStr := range r {
-		gameUserId, err := uuid.Parse(gameUserIdStr)
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-
-		gameUserIds = append(gameUserIds, gameUserId)
+	gameUserIds, err := stringsToUuids(r)
+	if err != nil {
+		return nil, errors.E(op, err)
 	}
 
 	return gameUserIds, nil
