@@ -16,7 +16,7 @@ func main() {
 	cacheRepo := redis_repo.NewRedisRepository(models.RedisClient)
 	dbRepo := sql_repo.NewSQLRepository(models.DB)
 
-	err := dbRepo.DeleteAllUsers()
+	err := dbRepo.DeleteAllUsers(ctx)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -37,14 +37,14 @@ func main() {
 		return
 	}
 
-	err = dbRepo.DeleteAllScores()
+	err = dbRepo.DeleteAllScores(ctx)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
 		return
 	}
 
-	err = dbRepo.DeleteAllTexts()
+	err = dbRepo.DeleteAllTexts(ctx)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -57,7 +57,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = dbRepo.DeleteAllRooms()
+	err = dbRepo.DeleteAllRooms(ctx)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)

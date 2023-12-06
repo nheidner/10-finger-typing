@@ -18,43 +18,43 @@ type DBRepository interface {
 }
 
 type RoomDBRepository interface {
-	FindRoomWithUsers(roomId uuid.UUID) (*models.Room, error)
-	FindRoom(roomId uuid.UUID) (*models.Room, error)
-	CreateRoom(newRoom models.Room) (*models.Room, error)
-	SoftDeleteRoom(roomId uuid.UUID) error
-	DeleteAllRooms() error
+	FindRoomWithUsers(ctx context.Context, roomId uuid.UUID) (*models.Room, error)
+	FindRoom(ctx context.Context, roomId uuid.UUID) (*models.Room, error)
+	CreateRoom(ctx context.Context, newRoom models.Room) (*models.Room, error)
+	SoftDeleteRoom(ctx context.Context, roomId uuid.UUID) error
+	DeleteAllRooms(ctx context.Context) error
 }
 
 type ScoreDBRepository interface {
-	FindScores(userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error)
-	CreateScore(score models.Score) (*models.Score, error)
-	DeleteAllScores() error
+	FindScores(ctx context.Context, userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error)
+	CreateScore(ctx context.Context, score models.Score) (*models.Score, error)
+	DeleteAllScores(ctx context.Context) error
 }
 
 type TextDBRepository interface {
-	FindNewTextForUser(
+	FindNewTextForUser(ctx context.Context,
 		userId uuid.UUID, language string,
 		punctuation bool,
 		specialCharactersGte, specialCharactersLte, numbersGte, numbersLte int,
 	) (*models.Text, error)
-	FindAllTextIds() ([]uuid.UUID, error)
-	FindTextById(textId uuid.UUID) (*models.Text, error)
+	FindAllTextIds(ctx context.Context) ([]uuid.UUID, error)
+	FindTextById(ctx context.Context, textId uuid.UUID) (*models.Text, error)
 	CreateTextAndCache(ctx context.Context, cacheRepo CacheRepository, text models.Text) (*models.Text, error)
 }
 
 type TokenDBRepository interface {
-	CreateToken(roomId uuid.UUID) (*models.Token, error)
+	CreateToken(ctx context.Context, roomId uuid.UUID) (*models.Token, error)
 }
 
 type UserDBRepository interface {
-	FindUserByEmail(email string) (*models.User, error)
-	FindUsers(username, usernameSubstr string) ([]models.User, error)
-	FindUserById(userId uuid.UUID) (*models.User, error)
-	CreateUserAndCache(cacheRepo CacheRepository, newUser models.User) (*models.User, error)
-	VerifyUserAndCache(cacheRepo CacheRepository, userId uuid.UUID) error
-	DeleteAllUsers() error
+	FindUserByEmail(ctx context.Context, email string) (*models.User, error)
+	FindUsers(ctx context.Context, username, usernameSubstr string) ([]models.User, error)
+	FindUserById(ctx context.Context, userId uuid.UUID) (*models.User, error)
+	CreateUserAndCache(ctx context.Context, cacheRepo CacheRepository, newUser models.User) (*models.User, error)
+	VerifyUserAndCache(ctx context.Context, cacheRepo CacheRepository, userId uuid.UUID) error
+	DeleteAllUsers(ctx context.Context) error
 }
 
 type UserRoomDBRepository interface {
-	CreateUserRoom(userId, roomId uuid.UUID) error
+	CreateUserRoom(ctx context.Context, userId, roomId uuid.UUID) error
 }

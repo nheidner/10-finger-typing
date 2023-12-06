@@ -64,7 +64,7 @@ func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo 
 		return user, nil
 	}
 
-	user, err = dbRepo.FindUserById(userId)
+	user, err = dbRepo.FindUserById(ctx, userId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -99,7 +99,7 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 		return user, nil
 	}
 
-	user, err = dbRepo.FindUserById(userId)
+	user, err = dbRepo.FindUserById(ctx, userId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

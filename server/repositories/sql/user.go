@@ -10,11 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func (repo *SQLRepository) FindUserByEmail(email string) (*models.User, error) {
+func (repo *SQLRepository) FindUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	const op errors.Op = "sql_repo.SQLRepository.FindUserByEmail"
 	var user models.User
 
-	if err := repo.db.Where("email = ?", email).First(&user).Error; err != nil {
+	if err := repo.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			return nil, errors.E(op, common.ErrNotFound)
@@ -26,10 +26,10 @@ func (repo *SQLRepository) FindUserByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
-func (repo *SQLRepository) FindUsers(username, usernameSubstr string) ([]models.User, error) {
+func (repo *SQLRepository) FindUsers(ctx context.Context, username, usernameSubstr string) ([]models.User, error) {
 	const op errors.Op = "sql_repo.SQLRepository.FindUsers"
 	var users []models.User
-	findUsersDbQuery := repo.db
+	findUsersDbQuery := repo.db.WithContext(ctx)
 
 	if username != "" {
 		findUsersDbQuery = findUsersDbQuery.Where("username = ?", username)
@@ -48,13 +48,13 @@ func (repo *SQLRepository) FindUsers(username, usernameSubstr string) ([]models.
 	return users, nil
 }
 
-func (repo *SQLRepository) FindUserById(userId uuid.UUID) (*models.User, error) {
+func (repo *SQLRepository) FindUserById(ctx context.Context, userId uuid.UUID) (*models.User, error) {
 	const op errors.Op = "sql_repo.SQLRepository.FindUserById"
 	user := models.User{
 		ID: userId,
 	}
 
-	if err := repo.db.First(&user).Error; err != nil {
+	if err := repo.db.WithContext(ctx).First(&user).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			return nil, errors.E(op, common.ErrNotFound)
@@ -66,11 +66,10 @@ func (repo *SQLRepository) FindUserById(userId uuid.UUID) (*models.User, error) 
 	return &user, nil
 }
 
-func (repo *SQLRepository) CreateUserAndCache(cacheRepo common.CacheRepository, newUser models.User) (*models.User, error) {
+func (repo *SQLRepository) CreateUserAndCache(ctx context.Context, cacheRepo common.CacheRepository, newUser models.User) (*models.User, error) {
 	const op errors.Op = "sql_repo.SQLRepository.CreateUserAndCache"
-	var ctx = context.Background()
 
-	createdUser, err := repo.createUser(newUser)
+	createdUser, err := repo.createUser(ctx, newUser)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -82,11 +81,10 @@ func (repo *SQLRepository) CreateUserAndCache(cacheRepo common.CacheRepository, 
 	return createdUser, nil
 }
 
-func (repo *SQLRepository) VerifyUserAndCache(cacheRepo common.CacheRepository, userId uuid.UUID) error {
+func (repo *SQLRepository) VerifyUserAndCache(ctx context.Context, cacheRepo common.CacheRepository, userId uuid.UUID) error {
 	const op errors.Op = "sql_repo.SQLRepository.VerifyUserAndCache"
-	var ctx = context.Background()
 
-	if err := repo.verifyUser(userId); err != nil {
+	if err := repo.verifyUser(ctx, userId); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -106,30 +104,30 @@ func (repo *SQLRepository) VerifyUserAndCache(cacheRepo common.CacheRepository, 
 	return nil
 }
 
-func (repo *SQLRepository) DeleteAllUsers() error {
+func (repo *SQLRepository) DeleteAllUsers(ctx context.Context) error {
 	const op errors.Op = "sql_repo.SQLRepository.DeleteAllUsers"
 
-	if err := repo.db.Exec("TRUNCATE users RESTART IDENTITY CASCADE").Error; err != nil {
+	if err := repo.db.WithContext(ctx).Exec("TRUNCATE users RESTART IDENTITY CASCADE").Error; err != nil {
 		return errors.E(op, err)
 	}
 
 	return nil
 }
 
-func (repo *SQLRepository) verifyUser(userId uuid.UUID) error {
+func (repo *SQLRepository) verifyUser(ctx context.Context, userId uuid.UUID) error {
 	const op errors.Op = "sql_repo.SQLRepository.verifyUser"
 
-	if err := repo.db.Model(&models.User{}).Where("id = ?", userId).Update("is_verified", true).Error; err != nil {
+	if err := repo.db.WithContext(ctx).Model(&models.User{}).Where("id = ?", userId).Update("is_verified", true).Error; err != nil {
 		return errors.E(op, err)
 	}
 
 	return nil
 }
 
-func (repo *SQLRepository) createUser(newUser models.User) (*models.User, error) {
+func (repo *SQLRepository) createUser(ctx context.Context, newUser models.User) (*models.User, error) {
 	const op errors.Op = "sql_repo.SQLRepository.createUser"
 
-	if err := repo.db.Create(&newUser).Error; err != nil {
+	if err := repo.db.WithContext(ctx).Create(&newUser).Error; err != nil {
 		return nil, errors.E(op, err)
 	}
 

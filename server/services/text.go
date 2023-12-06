@@ -31,6 +31,7 @@ func (ts *TextService) FindNewTextForUser(
 	const op errors.Op = "services.TextService.FindNewTextForUser"
 
 	text, err := ts.dbRepo.FindNewTextForUser(
+		ctx,
 		userId,
 		language,
 		punctuation,
@@ -52,7 +53,7 @@ func (ts *TextService) FindNewTextForUser(
 func (ts *TextService) FindTextById(ctx context.Context, textId uuid.UUID) (*models.Text, error) {
 	const op errors.Op = "services.TextService.FindTextById"
 
-	text, err := ts.dbRepo.FindTextById(textId)
+	text, err := ts.dbRepo.FindTextById(ctx, textId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

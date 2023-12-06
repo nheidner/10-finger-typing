@@ -90,7 +90,7 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 
 	// create tokens and send invites to non registered users
 	for _, email := range emails {
-		token, err := rs.dbRepo.CreateToken(room.ID)
+		token, err := rs.dbRepo.CreateToken(ctx, room.ID)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -137,7 +137,7 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 func (rs *RoomService) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
 	const op errors.Op = "services.RoomService.DeleteRoom"
 
-	if err := rs.dbRepo.SoftDeleteRoom(roomId); err != nil {
+	if err := rs.dbRepo.SoftDeleteRoom(ctx, roomId); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -268,19 +268,19 @@ func (rs *RoomService) createRoomWithSubscribers(ctx context.Context, userIds []
 		newRoom.GameDurationSec = gameDurationSec
 	}
 
-	createdRoom, err := rs.dbRepo.CreateRoom(newRoom)
+	createdRoom, err := rs.dbRepo.CreateRoom(ctx, newRoom)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
 	// room subscribers
 	for _, userId := range userIds {
-		if err := rs.dbRepo.CreateUserRoom(userId, createdRoom.ID); err != nil {
+		if err := rs.dbRepo.CreateUserRoom(ctx, userId, createdRoom.ID); err != nil {
 			return nil, errors.E(op, err)
 		}
 	}
 
-	createdRoom, err = rs.dbRepo.FindRoom(createdRoom.ID)
+	createdRoom, err = rs.dbRepo.FindRoom(ctx, createdRoom.ID)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

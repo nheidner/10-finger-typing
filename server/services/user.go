@@ -33,7 +33,7 @@ func NewUserService(dbRepo common.DBRepository, cacheRepo common.CacheRepository
 func (us *UserService) FindUsers(ctx context.Context, username, usernameSubstr string) ([]models.User, error) {
 	const op errors.Op = "services.UserService.FindUsers"
 
-	users, err := us.dbRepo.FindUsers(username, usernameSubstr)
+	users, err := us.dbRepo.FindUsers(ctx, username, usernameSubstr)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -44,7 +44,7 @@ func (us *UserService) FindUsers(ctx context.Context, username, usernameSubstr s
 func (us *UserService) FindUserById(ctx context.Context, userId uuid.UUID) (*models.User, error) {
 	const op errors.Op = "services.UserService.FindUserById"
 
-	user, err := us.dbRepo.FindUserById(userId)
+	user, err := us.dbRepo.FindUserById(ctx, userId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -69,7 +69,7 @@ func (us *UserService) Create(ctx context.Context, email, username, firstName, l
 		PasswordHash: hashedPassword,
 	}
 
-	user, err := us.dbRepo.CreateUserAndCache(us.cacheRepo, newUser)
+	user, err := us.dbRepo.CreateUserAndCache(ctx, us.cacheRepo, newUser)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -80,7 +80,7 @@ func (us *UserService) Create(ctx context.Context, email, username, firstName, l
 func (us *UserService) VerifyUser(ctx context.Context, userId uuid.UUID) error {
 	const op errors.Op = "services.UserService.VerifyUser"
 
-	if err := us.dbRepo.VerifyUserAndCache(us.cacheRepo, userId); err != nil {
+	if err := us.dbRepo.VerifyUserAndCache(ctx, us.cacheRepo, userId); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -90,7 +90,7 @@ func (us *UserService) VerifyUser(ctx context.Context, userId uuid.UUID) error {
 func (us *UserService) Login(ctx context.Context, email, password string) (user *models.User, sessionToken string, err error) {
 	const op errors.Op = "services.UserService.Login"
 
-	user, err = us.dbRepo.FindUserByEmail(email)
+	user, err = us.dbRepo.FindUserByEmail(ctx, email)
 	switch {
 	case errors.Is(err, common.ErrNotFound):
 		return nil, "", errors.E(op, err, http.StatusBadRequest)

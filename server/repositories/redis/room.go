@@ -33,7 +33,7 @@ func (repo *RedisRepository) GetRoomInCacheOrDb(ctx context.Context, dbRepo comm
 	room, err := repo.getRoom(ctx, roomId)
 	switch {
 	case err != nil && errors.Is(err, common.ErrNotFound):
-		room, err = dbRepo.FindRoomWithUsers(roomId)
+		room, err = dbRepo.FindRoomWithUsers(ctx, roomId)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}

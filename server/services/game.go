@@ -151,7 +151,7 @@ func (gs *GameService) UserFinishesGame(
 		TextId:       textId,
 	}
 
-	createdScore, err := gs.dbRepo.CreateScore(newScore)
+	createdScore, err := gs.dbRepo.CreateScore(ctx, newScore)
 	if err != nil {
 		return errors.E(op, err)
 	}

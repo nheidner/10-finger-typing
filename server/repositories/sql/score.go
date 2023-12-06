@@ -3,16 +3,17 @@ package sql_repo
 import (
 	"10-typing/errors"
 	"10-typing/models"
+	"context"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 )
 
-func (repo *SQLRepository) FindScores(userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error) {
+func (repo *SQLRepository) FindScores(ctx context.Context, userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error) {
 	const op errors.Op = "sql_repo.SQLRepository.FindScores"
 	var scores []models.Score
 
-	findScoresDbQuery := repo.db
+	findScoresDbQuery := repo.db.WithContext(ctx)
 	if userId != uuid.Nil {
 		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", userId)
 	}
@@ -40,7 +41,7 @@ func (repo *SQLRepository) FindScores(userId, gameId uuid.UUID, username string,
 	return scores, nil
 }
 
-func (repo *SQLRepository) CreateScore(score models.Score) (*models.Score, error) {
+func (repo *SQLRepository) CreateScore(ctx context.Context, score models.Score) (*models.Score, error) {
 	const op errors.Op = "sql_repo.SQLRepository.CreateScore"
 	omittedFiels := []string{"WordsPerMinute", "Accuracy"}
 
@@ -48,7 +49,7 @@ func (repo *SQLRepository) CreateScore(score models.Score) (*models.Score, error
 		omittedFiels = append(omittedFiels, "GameId")
 	}
 
-	if err := repo.db.
+	if err := repo.db.WithContext(ctx).
 		Omit(omittedFiels...).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
@@ -68,10 +69,10 @@ func (repo *SQLRepository) CreateScore(score models.Score) (*models.Score, error
 	return &score, nil
 }
 
-func (repo *SQLRepository) DeleteAllScores() error {
+func (repo *SQLRepository) DeleteAllScores(ctx context.Context) error {
 	const op errors.Op = "sql_repo.SQLRepository.DeleteAllScores"
 
-	if err := repo.db.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error; err != nil {
+	if err := repo.db.WithContext(ctx).Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error; err != nil {
 		return errors.E(op, err)
 	}
 
