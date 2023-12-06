@@ -2,6 +2,7 @@ import { getWsUrl } from "@/utils/get_api_url";
 import { useEffect, useRef, useState } from "react";
 import {
   CountdownStartPayload,
+  CursorPayload,
   GameResultPayload,
   InitialStatePayload,
   Message,
@@ -11,7 +12,7 @@ import {
   UserLeftPayload,
   UserStartedGamePayload,
 } from "../types";
-import { Game, GameStatus, Room, RoomSubscriber, Score } from "@/types";
+import { Game, GameStatus, Room, RoomSubscriber, Score, Uuid } from "@/types";
 
 const notReceivePongReason = "did not receive pong";
 const apiUrl = getWsUrl();
@@ -31,6 +32,9 @@ export const useConnectToRoom = (
     Room,
     "adminId" | "gameDurationSec"
   > | null>(null);
+  const [cursorPositions, setCursorPositions] = useState<Map<Uuid, number>>(
+    new Map()
+  );
 
   const websocketRef = useRef<WebSocket | null>(null);
 
@@ -184,6 +188,14 @@ export const useConnectToRoom = (
           break;
         }
         case "cursor": {
+          const payload = message.payload as CursorPayload;
+
+          setCursorPositions((oldCursorPositions) => {
+            return new Map(oldCursorPositions).set(
+              payload.userId,
+              payload.position
+            );
+          });
           break;
         }
         default:
@@ -299,5 +311,6 @@ export const useConnectToRoom = (
     countDownDuration,
     roomSettings,
     websocket: websocketRef.current,
+    cursorPositions,
   };
 };

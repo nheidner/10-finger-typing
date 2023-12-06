@@ -28,8 +28,14 @@ const RoomPage: NextPage<{
   const [gameStatus, setGameStatus] = useState<GameStatus>("unstarted");
   const [userStartedGame, setUserStartedGame] = useState(false);
   const [scores, setScores] = useState<Score[]>([]);
-  const { roomSubscribers, game, countDownDuration, roomSettings, websocket } =
-    useConnectToRoom(roomId, setGameStatus, userStartedGame, setScores);
+  const {
+    roomSubscribers,
+    game,
+    countDownDuration,
+    roomSettings,
+    websocket,
+    cursorPositions,
+  } = useConnectToRoom(roomId, setGameStatus, userStartedGame, setScores);
 
   const { data: textData, isLoading: textIsLoading } = useQuery(
     ["texts", game?.textId],
@@ -105,7 +111,10 @@ const RoomPage: NextPage<{
       />
       <section className="flex justify-between items-center">
         <div className="flex gap-2 items-center">
-          <RoomSubscriberList roomSubscribers={roomSubscribers} />
+          <RoomSubscriberList
+            roomSubscribers={roomSubscribers}
+            cursorPositions={cursorPositions}
+          />
           <StartGameButton
             gameStatus={gameStatus}
             roomId={roomId}
