@@ -43,7 +43,7 @@ func main() {
 	multi := zerolog.MultiLevelWriter(consoleWriter, logFile)
 	logger := zerologger.New(multi)
 
-	logger.Info("GOMAXPROCS: >>", runtime.GOMAXPROCS(0))
+	logger.Info("GOMAXPROCS: >> ", runtime.GOMAXPROCS(0))
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("typingerrors", models.TypingErrors)

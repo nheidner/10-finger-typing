@@ -58,37 +58,20 @@ func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId
 	return numberRoomSubscriberConns, false, nil
 }
 
-func (repo *RedisRepository) GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberGameStatus, error) {
-	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscriberGameStatus"
-	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
+// func (repo *RedisRepository) GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberGameStatus, error) {
+// 	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscriberGameStatus"
+// 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
-	status, err := repo.redisClient.HGet(ctx, roomSubscriberKey, roomSubscriberGameStatusField).Int()
-	switch {
-	case err == redis.Nil:
-		return models.UnstartedSubscriberGameStatus, errors.E(op, common.ErrNotFound)
-	case err != nil:
-		return models.UnstartedSubscriberGameStatus, err
-	}
+// 	status, err := repo.redisClient.HGet(ctx, roomSubscriberKey, roomSubscriberGameStatusField).Int()
+// 	switch {
+// 	case err == redis.Nil:
+// 		return models.UnstartedSubscriberGameStatus, errors.E(op, common.ErrNotFound)
+// 	case err != nil:
+// 		return models.UnstartedSubscriberGameStatus, err
+// 	}
 
-	return models.SubscriberGameStatus(status), nil
-}
-
-func (repo *RedisRepository) GetRoomSubscribersIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
-	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscribersIds"
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
-
-	r, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	roomSubscriberIds, err := stringsToUuids(r)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
-	return roomSubscriberIds, nil
-}
+// 	return models.SubscriberGameStatus(status), nil
+// }
 
 func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid.UUID) ([]models.RoomSubscriber, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscribers"
@@ -147,11 +130,13 @@ func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid
 	return roomSubscribers, nil
 }
 
-func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error {
+func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, pipe any, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetRoomSubscriberGameStatus"
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
-	if err := repo.redisClient.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberGameStatusField: strconv.Itoa(int(status))}).Err(); err != nil {
+	cmdable := repo.cmdable(pipe)
+
+	if err := cmdable.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberGameStatusField: strconv.Itoa(int(status))}).Err(); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -264,4 +249,59 @@ func (repo *RedisRepository) getNumberRoomSubscriberConnections(ctx context.Cont
 	}
 
 	return numberRoomSubscriberConnections, nil
+}
+
+// MULTIOPERATIONS
+func (repo *RedisRepository) SetRoomSubscriberGameStatusForAllRoomSubscribers(ctx context.Context, retries int, roomId uuid.UUID, newSubscriberGameStatus models.SubscriberGameStatus) error {
+	const op errors.Op = "redis_repo.RedisRepository.SetGameStatusForAllRoomSubscribers"
+
+	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
+
+	for i := 0; i < retries; i++ {
+		err := repo.redisClient.Watch(ctx, func(tx *redis.Tx) error {
+			currentGameUserIds, err := repo.getRoomSubscribersIds(ctx, roomId)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+				for _, currentGameUserId := range currentGameUserIds {
+					if err := repo.SetRoomSubscriberGameStatus(ctx, pipe, roomId, currentGameUserId, newSubscriberGameStatus); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			})
+
+			return err
+		}, roomSubscriberIdsKey)
+		switch err {
+		case redis.TxFailedErr:
+			continue
+		case nil:
+			return nil
+		default:
+			return errors.E(op, err)
+		}
+	}
+
+	return nil
+}
+
+func (repo *RedisRepository) getRoomSubscribersIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
+	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscribersIds"
+	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
+
+	r, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	roomSubscriberIds, err := stringsToUuids(r)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	return roomSubscriberIds, nil
 }

@@ -10,15 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// rooms:[room_id] hash: roomAdminId, createdAt, updatedAt
-func getCurrentGameScoresUserIdsKey(roomId uuid.UUID) string {
-	return getCurrentGameKey(roomId) + ":scores:user_ids"
-}
-
-func getCurrentGameScoreKey(roomId, userId uuid.UUID) string {
-	return getCurrentGameKey(roomId) + ":scores:" + userId.String()
-}
-
 func (repo *RedisRepository) GetCurrentGameScores(ctx context.Context, roomId uuid.UUID) ([]models.Score, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetCurrentGameScores"
 	currentGameScoresUserIdsKey := getCurrentGameScoresUserIdsKey(roomId)

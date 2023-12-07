@@ -12,22 +12,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	currentGameStatusField = "status"
-	currentGameIdField     = "game_id"
-	currentGameTextIdField = "text_id"
-)
-
-// rooms:[room_id]:current_game hash: id, text_id, status
-func getCurrentGameKey(roomId uuid.UUID) string {
-	return getRoomKey(roomId) + ":current_game"
-}
-
-// rooms:[room_id]:current_game:user_ids set: game user ids
-func getCurrentGameUserIdsKey(roomId uuid.UUID) string {
-	return getCurrentGameKey(roomId) + ":user_ids"
-}
-
 // GET METHODS
 func (repo *RedisRepository) GetCurrentGameUserIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetCurrentGameUserIds"
@@ -162,16 +146,6 @@ func (repo *RedisRepository) SetNewCurrentGame(ctx context.Context, newGameId, t
 	if err := repo.redisClient.HSet(ctx, currentGameKey, currentGameValue).Err(); err != nil {
 		return errors.E(op, err)
 	}
-
-	// TODO: isnt that wrong
-	// currentGameUserIdsKey := getCurrentGameUserIdsKey(roomId)
-	// userIdStrs := make([]interface{}, 0, len(userIds))
-	// for _, userId := range userIds {
-	// 	userIdStrs = append(userIdStrs, userId.String())
-	// }
-	// if err := repo.redisClient.SAdd(ctx, currentGameUserIdsKey, userIdStrs...).Err(); err != nil {
-	// 	return errors.E(op, err)
-	// }
 
 	return nil
 }

@@ -63,22 +63,11 @@ func (gs *GameService) CreateNewCurrentGame(ctx context.Context, userId, roomId,
 		return uuid.Nil, errors.E(op, err)
 	}
 
-	// set game_status of all room users to unstarted
-	currentGameUserIds, err := gs.cacheRepo.GetRoomSubscribersIds(ctx, roomId)
-	if err != nil {
+	if err := gs.cacheRepo.SetRoomSubscriberGameStatusForAllRoomSubscribers(ctx, 10, roomId, models.UnstartedSubscriberGameStatus); err != nil {
 		return uuid.Nil, errors.E(op, err)
-	}
-	for _, currentGameUserId := range currentGameUserIds {
-		if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, roomId, currentGameUserId, models.UnstartedSubscriberGameStatus); err != nil {
-			return uuid.Nil, errors.E(op, err)
-		}
 	}
 
 	if err := gs.cacheRepo.SetNewCurrentGame(ctx, gameId, textId, roomId, userId); err != nil {
-		return uuid.Nil, errors.E(op, err)
-	}
-
-	if err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.UnstartedGameStatus); err != nil {
 		return uuid.Nil, errors.E(op, err)
 	}
 
@@ -118,7 +107,7 @@ func (gs *GameService) UserFinishesGame(
 		return errors.E(op, err, http.StatusBadRequest)
 	}
 
-	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, roomId, userId, models.FinishedSubscriberGameStatus); err != nil {
+	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, nil, roomId, userId, models.FinishedSubscriberGameStatus); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -195,7 +184,7 @@ func (gs *GameService) AddUserToGame(ctx context.Context, roomId, userId uuid.UU
 		return errors.E(op, err)
 	}
 
-	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, roomId, userId, models.StartedSubscriberGameStatus); err != nil {
+	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, nil, roomId, userId, models.StartedSubscriberGameStatus); err != nil {
 		return errors.E(op, err)
 	}
 
