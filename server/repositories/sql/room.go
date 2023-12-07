@@ -28,14 +28,14 @@ func (repo *SQLRepository) FindRoomWithUsers(ctx context.Context, roomId uuid.UU
 	return &room, nil
 }
 
-func (repo *SQLRepository) FindRoom(ctx context.Context, roomId uuid.UUID) (*models.Room, error) {
+func (repo *SQLRepository) FindRoom(ctx context.Context, tx common.Transaction, roomId uuid.UUID) (*models.Room, error) {
 	const op errors.Op = "sql_repo.SQLRepository.FindRoom"
-
+	db := repo.dbConn(tx)
 	var room = models.Room{
 		ID: roomId,
 	}
 
-	if err := repo.db.WithContext(ctx).Preload("Users").First(&room).Error; err != nil {
+	if err := db.WithContext(ctx).Preload("Users").First(&room).Error; err != nil {
 		switch {
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			return nil, errors.E(op, common.ErrNotFound)
@@ -47,10 +47,11 @@ func (repo *SQLRepository) FindRoom(ctx context.Context, roomId uuid.UUID) (*mod
 	return &room, nil
 }
 
-func (repo *SQLRepository) CreateRoom(ctx context.Context, newRoom models.Room) (*models.Room, error) {
+func (repo *SQLRepository) CreateRoom(ctx context.Context, tx common.Transaction, newRoom models.Room) (*models.Room, error) {
 	const op errors.Op = "sql_repo.SQLRepository.CreateRoom"
+	db := repo.dbConn(tx)
 
-	if err := repo.db.WithContext(ctx).Create(&newRoom).Error; err != nil {
+	if err := db.WithContext(ctx).Create(&newRoom).Error; err != nil {
 		return nil, errors.E(op, err)
 	}
 

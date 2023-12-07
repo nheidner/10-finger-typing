@@ -116,7 +116,7 @@ func main() {
 	// ROOMS
 	api.GET("/rooms/:roomid/ws", authRequiredMiddleware, isRoomMemberMiddleware, roomController.ConnectToRoom)
 	// TODO: get new text for room
-	api.GET("/rooms/:roomid/text", authRequiredMiddleware, isRoomAdminMiddleware)
+	// api.GET("/rooms/:roomid/text", authRequiredMiddleware, isRoomAdminMiddleware)
 	api.POST("/rooms", authRequiredMiddleware, roomController.CreateRoom)
 	api.POST("/rooms/:roomid/leave", authRequiredMiddleware, isRoomMemberMiddleware, roomController.LeaveRoom)
 	api.POST("/rooms/:roomid/game", authRequiredMiddleware, isRoomAdminMiddleware, gameController.CreateNewCurrentGame)

@@ -60,15 +60,13 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 		}
 	}
 
+	// userIds are automatically validated when rows in user_room table are created
 	userIds = append(userIds, authenticatedUser.ID)
-
-	// TODO: validate userIds
 
 	// validate that emails are not already existing users
 	var allEmails []string
 
 	for _, email := range emails {
-
 		user, err := rs.cacheRepo.GetUserByEmailInCacheOrDB(ctx, rs.dbRepo, email)
 		if err != nil {
 			return nil, errors.E(op, err, http.StatusInternalServerError)
@@ -82,11 +80,36 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 		userIds = append(userIds, user.ID)
 	}
 
+	tx := rs.dbRepo.BeginTx()
+
 	// create room
-	room, err := rs.createRoomWithSubscribers(ctx, userIds, allEmails, authenticatedUser.ID, gameDurationSec)
+	room, err := rs.createRoomWithSubscribers(ctx, tx, userIds, allEmails, authenticatedUser.ID, gameDurationSec)
 	if err != nil {
+		tx.Rollback()
 		return nil, errors.E(op, err)
 	}
+
+	// send notifications
+	for _, roomSubscriber := range room.Users {
+		if roomSubscriber.ID == authenticatedUser.ID {
+			continue
+		}
+
+		userNotification := models.UserNotification{
+			Type: models.RoomInvitation,
+			Payload: map[string]any{
+				"by":     authenticatedUser.Username,
+				"roomId": room.ID,
+			},
+		}
+
+		if err = rs.cacheRepo.PublishUserNotification(ctx, roomSubscriber.ID, userNotification); err != nil {
+			tx.Rollback()
+			return nil, errors.E(op, err, http.StatusInternalServerError)
+		}
+	}
+
+	tx.Commit()
 
 	// create tokens and send invites to non registered users
 	for _, email := range emails {
@@ -110,24 +133,6 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 		err = rs.emailTransactionRepo.InviteUserToRoom(roomSubscriber.Email, roomSubscriber.Username)
 		if err != nil {
 			return nil, errors.E(op, err)
-		}
-	}
-
-	for _, roomSubscriber := range room.Users {
-		if roomSubscriber.ID == authenticatedUser.ID {
-			continue
-		}
-
-		userNotification := models.UserNotification{
-			Type: models.RoomInvitation,
-			Payload: map[string]any{
-				"by":     authenticatedUser.Username,
-				"roomId": room.ID,
-			},
-		}
-
-		if err = rs.cacheRepo.PublishUserNotification(ctx, roomSubscriber.ID, userNotification); err != nil {
-			return nil, errors.E(op, err, http.StatusInternalServerError)
 		}
 	}
 
@@ -258,7 +263,7 @@ func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId u
 	return nil
 }
 
-func (rs *RoomService) createRoomWithSubscribers(ctx context.Context, userIds []uuid.UUID, emails []string, adminId uuid.UUID, gameDurationSec int) (*models.Room, error) {
+func (rs *RoomService) createRoomWithSubscribers(ctx context.Context, tx common.Transaction, userIds []uuid.UUID, emails []string, adminId uuid.UUID, gameDurationSec int) (*models.Room, error) {
 	const op errors.Op = "services.RoomService.createRoomWithSubscribers"
 
 	newRoom := models.Room{
@@ -268,19 +273,19 @@ func (rs *RoomService) createRoomWithSubscribers(ctx context.Context, userIds []
 		newRoom.GameDurationSec = gameDurationSec
 	}
 
-	createdRoom, err := rs.dbRepo.CreateRoom(ctx, newRoom)
+	createdRoom, err := rs.dbRepo.CreateRoom(ctx, tx, newRoom)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
 	// room subscribers
 	for _, userId := range userIds {
-		if err := rs.dbRepo.CreateUserRoom(ctx, userId, createdRoom.ID); err != nil {
+		if err := rs.dbRepo.CreateUserRoom(ctx, tx, userId, createdRoom.ID); err != nil {
 			return nil, errors.E(op, err)
 		}
 	}
 
-	createdRoom, err = rs.dbRepo.FindRoom(ctx, createdRoom.ID)
+	createdRoom, err = rs.dbRepo.FindRoom(ctx, tx, createdRoom.ID)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

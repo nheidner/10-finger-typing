@@ -19,8 +19,8 @@ type DBRepository interface {
 
 type RoomDBRepository interface {
 	FindRoomWithUsers(ctx context.Context, roomId uuid.UUID) (*models.Room, error)
-	FindRoom(ctx context.Context, roomId uuid.UUID) (*models.Room, error)
-	CreateRoom(ctx context.Context, newRoom models.Room) (*models.Room, error)
+	FindRoom(ctx context.Context, tx Transaction, roomId uuid.UUID) (*models.Room, error)
+	CreateRoom(ctx context.Context, tx Transaction, newRoom models.Room) (*models.Room, error)
 	SoftDeleteRoom(ctx context.Context, roomId uuid.UUID) error
 	DeleteAllRooms(ctx context.Context) error
 }
@@ -56,5 +56,5 @@ type UserDBRepository interface {
 }
 
 type UserRoomDBRepository interface {
-	CreateUserRoom(ctx context.Context, userId, roomId uuid.UUID) error
+	CreateUserRoom(ctx context.Context, tx Transaction, userId, roomId uuid.UUID) error
 }
