@@ -134,3 +134,7 @@ func As(err error, target any) bool {
 func New(text string) error {
 	return errors.New(text)
 }
+
+func Join(errs ...error) error {
+	return errors.Join(errs...)
+}

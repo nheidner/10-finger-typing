@@ -85,8 +85,12 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 	// create room
 	room, err := rs.createRoomWithSubscribers(ctx, tx, userIds, allEmails, authenticatedUser.ID, gameDurationSec)
 	if err != nil {
-		tx.Rollback()
-		return nil, errors.E(op, err)
+		err := errors.E(op, err, http.StatusInternalServerError)
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return nil, errors.E(op, rollbackErr)
+		}
+
+		return nil, err
 	}
 
 	// send notifications
@@ -104,12 +108,18 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 		}
 
 		if err = rs.cacheRepo.PublishUserNotification(ctx, roomSubscriber.ID, userNotification); err != nil {
-			tx.Rollback()
-			return nil, errors.E(op, err, http.StatusInternalServerError)
+			err := errors.E(op, err, http.StatusInternalServerError)
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				return nil, errors.E(op, rollbackErr)
+			}
+
+			return nil, err
 		}
 	}
 
-	tx.Commit()
+	if err := tx.Commit(ctx); err != nil {
+		return nil, errors.E(op, err)
+	}
 
 	// create tokens and send invites to non registered users
 	for _, email := range emails {

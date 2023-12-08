@@ -1,7 +1,9 @@
 package common
 
+import "context"
+
 type Transaction interface {
-	Commit()
-	Rollback()
-	Db() any
+	Commit(ctx context.Context) error
+	Rollback() error
+	Conn() any
 }

@@ -130,11 +130,11 @@ func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid
 	return roomSubscribers, nil
 }
 
-func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, pipe any, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error {
+func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, tx common.Transaction, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetRoomSubscriberGameStatus"
 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
 
-	cmdable := repo.cmdable(pipe)
+	cmdable := repo.cmdable(tx)
 
 	if err := cmdable.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberGameStatusField: strconv.Itoa(int(status))}).Err(); err != nil {
 		return errors.E(op, err)
@@ -258,23 +258,25 @@ func (repo *RedisRepository) SetRoomSubscriberGameStatusForAllRoomSubscribers(ct
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
 
 	for i := 0; i < retries; i++ {
-		err := repo.redisClient.Watch(ctx, func(tx *redis.Tx) error {
+		err := repo.redisClient.Watch(ctx, func(_ *redis.Tx) error {
 			currentGameUserIds, err := repo.getRoomSubscribersIds(ctx, roomId)
 			if err != nil {
 				return err
 			}
 
-			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-				for _, currentGameUserId := range currentGameUserIds {
-					if err := repo.SetRoomSubscriberGameStatus(ctx, pipe, roomId, currentGameUserId, newSubscriberGameStatus); err != nil {
-						return err
-					}
+			tx := repo.BeginTx()
+
+			for _, currentGameUserId := range currentGameUserIds {
+				if err := repo.SetRoomSubscriberGameStatus(ctx, tx, roomId, currentGameUserId, newSubscriberGameStatus); err != nil {
+					return err
 				}
+			}
 
-				return nil
-			})
+			if err := tx.Commit(ctx); err != nil {
+				return err
+			}
 
-			return err
+			return nil
 		}, roomSubscriberIdsKey)
 		switch err {
 		case redis.TxFailedErr:

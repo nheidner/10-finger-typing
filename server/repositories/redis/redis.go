@@ -1,7 +1,10 @@
 package redis_repo
 
 import (
-	"github.com/google/uuid"
+	"10-typing/common"
+	"10-typing/errors"
+	"context"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -13,47 +16,82 @@ func NewRedisRepository(redisClient *redis.Client) *RedisRepository {
 	return &RedisRepository{redisClient}
 }
 
-func (repo *RedisRepository) cmdable(cmdable any) redis.Cmdable {
-	if cmdable != nil {
-		return cmdable.(redis.Cmdable)
+type RedisPipeline struct {
+	pipe redis.Pipeliner
+}
+
+func (p *RedisPipeline) Conn() any {
+	return p.pipe
+}
+
+func (p *RedisPipeline) Commit(ctx context.Context) error {
+	const op errors.Op = "redis_repo.RedisPipeline.Commit"
+
+	cmds, err := p.pipe.Exec(ctx)
+	if err == nil {
+		return nil
+	}
+
+	err = nil
+	for _, cmd := range cmds {
+		if cmd.Err() != nil {
+			err = errors.Join(err, cmd.Err())
+		}
+	}
+
+	return errors.E(op, err)
+}
+
+func (p *RedisPipeline) Rollback() error {
+	p.pipe.Discard()
+
+	return nil
+}
+
+type RedisTransaction struct {
+	pipe redis.Pipeliner
+}
+
+func (t *RedisTransaction) Conn() any {
+	return t.pipe
+}
+
+func (t *RedisTransaction) Commit(ctx context.Context) error {
+	const op errors.Op = "redis_repo.RedisTransaction.Commit"
+
+	cmds, err := t.pipe.Exec(ctx)
+	if err == nil {
+		return nil
+	}
+
+	err = nil
+	for _, cmd := range cmds {
+		if cmd.Err() != nil {
+			err = errors.Join(err, cmd.Err())
+		}
+	}
+
+	return errors.E(op, err)
+}
+
+func (t *RedisTransaction) Rollback() error {
+	t.pipe.Discard()
+
+	return nil
+}
+
+func (repo *RedisRepository) BeginPipeline() common.Transaction {
+	return &RedisPipeline{pipe: repo.redisClient.Pipeline()}
+}
+
+func (repo *RedisRepository) BeginTx() common.Transaction {
+	return &RedisTransaction{pipe: repo.redisClient.TxPipeline()}
+}
+
+func (repo *RedisRepository) cmdable(pipeline common.Transaction) redis.Cmdable {
+	if pipeline != nil {
+		return pipeline.Conn().(redis.Pipeliner)
 	}
 
 	return repo.redisClient
-}
-
-const (
-	currentGameStatusField = "status"
-	currentGameIdField     = "game_id"
-	currentGameTextIdField = "text_id"
-)
-
-// getCurrentGameKey returns a redis key of the following form: rooms:[room_id]:current_game
-//
-// The key holds a HASH value with the following fields: game_id, text_id, status
-func getCurrentGameKey(roomId uuid.UUID) string {
-	return getRoomKey(roomId) + ":current_game"
-}
-
-// getCurrentGameUserIdsKey returns a redis key of the following form: rooms:[room_id]:current_game:user_ids
-//
-// The key holds a SET value of user ids.
-// When a user id is in the set, the user id is part of the current game.
-// The user ids must be a subset of the user ids held in the key that is returned from getRoomSubscriberIdsKey().
-func getCurrentGameUserIdsKey(roomId uuid.UUID) string {
-	return getCurrentGameKey(roomId) + ":user_ids"
-}
-
-// getCurrentGameScoreKey returns a redis key of the following form: rooms:[room_id]:current_game:scores:user_ids
-//
-// The key holds a SORTED SET value: score:wpm, member:userId.
-// The value holds references through the user ids to the scores.
-func getCurrentGameScoresUserIdsKey(roomId uuid.UUID) string {
-	return getCurrentGameKey(roomId) + ":scores:user_ids"
-}
-
-// getCurrentGameScoreKey returns a redis key of the following form: rooms:[room_id]:current_game:scores:[user_id]
-//
-// The key holds a STRING value of a stringified JSON object that reflects a score.
-func getCurrentGameScoreKey(roomId, userId uuid.UUID) string {
-	return getCurrentGameKey(roomId) + ":scores:" + userId.String()
 }
