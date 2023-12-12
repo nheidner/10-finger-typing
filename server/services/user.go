@@ -33,7 +33,7 @@ func NewUserService(dbRepo common.DBRepository, cacheRepo common.CacheRepository
 func (us *UserService) FindUsers(ctx context.Context, username, usernameSubstr string) ([]models.User, error) {
 	const op errors.Op = "services.UserService.FindUsers"
 
-	users, err := us.dbRepo.FindUsers(ctx, username, usernameSubstr)
+	users, err := us.dbRepo.FindUsers(ctx, nil, username, usernameSubstr)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -44,7 +44,7 @@ func (us *UserService) FindUsers(ctx context.Context, username, usernameSubstr s
 func (us *UserService) FindUserById(ctx context.Context, userId uuid.UUID) (*models.User, error) {
 	const op errors.Op = "services.UserService.FindUserById"
 
-	user, err := us.dbRepo.FindUserById(ctx, userId)
+	user, err := us.dbRepo.FindUserById(ctx, nil, userId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -69,7 +69,7 @@ func (us *UserService) Create(ctx context.Context, email, username, firstName, l
 		PasswordHash: hashedPassword,
 	}
 
-	user, err := us.dbRepo.CreateUserAndCache(ctx, us.cacheRepo, newUser)
+	user, err := us.dbRepo.CreateUserAndCache(ctx, nil, us.cacheRepo, newUser)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -80,7 +80,7 @@ func (us *UserService) Create(ctx context.Context, email, username, firstName, l
 func (us *UserService) VerifyUser(ctx context.Context, userId uuid.UUID) error {
 	const op errors.Op = "services.UserService.VerifyUser"
 
-	if err := us.dbRepo.VerifyUserAndCache(ctx, us.cacheRepo, userId); err != nil {
+	if err := us.dbRepo.VerifyUserAndCache(ctx, nil, us.cacheRepo, userId); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -90,7 +90,7 @@ func (us *UserService) VerifyUser(ctx context.Context, userId uuid.UUID) error {
 func (us *UserService) Login(ctx context.Context, email, password string) (user *models.User, sessionToken string, err error) {
 	const op errors.Op = "services.UserService.Login"
 
-	user, err = us.dbRepo.FindUserByEmail(ctx, email)
+	user, err = us.dbRepo.FindUserByEmail(ctx, nil, email)
 	switch {
 	case errors.Is(err, common.ErrNotFound):
 		return nil, "", errors.E(op, err, http.StatusBadRequest)
@@ -119,7 +119,7 @@ func (us *UserService) DeleteSession(ctx context.Context, token string) error {
 
 	tokenHash := utils.HashSessionToken(token)
 
-	if err := us.cacheRepo.DeleteSession(ctx, tokenHash); err != nil {
+	if err := us.cacheRepo.DeleteSession(ctx, nil, tokenHash); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -152,7 +152,7 @@ func (us *UserService) createSession(ctx context.Context, userId uuid.UUID) (tok
 
 	tokenHash := utils.HashSessionToken(token)
 
-	if err := us.cacheRepo.SetSession(ctx, tokenHash, userId); err != nil {
+	if err := us.cacheRepo.SetSession(ctx, nil, tokenHash, userId); err != nil {
 		return "", errors.E(op, err)
 	}
 

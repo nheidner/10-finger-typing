@@ -32,6 +32,7 @@ func (ts *TextService) FindNewTextForUser(
 
 	text, err := ts.dbRepo.FindNewTextForUser(
 		ctx,
+		nil,
 		userId,
 		language,
 		punctuation,
@@ -53,7 +54,7 @@ func (ts *TextService) FindNewTextForUser(
 func (ts *TextService) FindTextById(ctx context.Context, textId uuid.UUID) (*models.Text, error) {
 	const op errors.Op = "services.TextService.FindTextById"
 
-	text, err := ts.dbRepo.FindTextById(ctx, textId)
+	text, err := ts.dbRepo.FindTextById(ctx, nil, textId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -86,7 +87,7 @@ func (ts *TextService) Create(
 		Numbers:           numbers,
 	}
 
-	createdText, err := ts.dbRepo.CreateTextAndCache(ctx, ts.cacheRepo, newText)
+	createdText, err := ts.dbRepo.CreateTextAndCache(ctx, nil, ts.cacheRepo, newText)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

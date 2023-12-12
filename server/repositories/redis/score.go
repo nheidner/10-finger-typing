@@ -1,6 +1,7 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"context"
@@ -45,7 +46,7 @@ func (repo *RedisRepository) GetCurrentGameScores(ctx context.Context, roomId uu
 	return scores, nil
 }
 
-func (repo *RedisRepository) SetCurrentGameScore(ctx context.Context, roomId uuid.UUID, score models.Score) error {
+func (repo *RedisRepository) SetCurrentGameScore(ctx context.Context, tx common.Transaction, roomId uuid.UUID, score models.Score) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetCurrentGameScore"
 
 	scoreJson, err := json.Marshal(&score)
@@ -53,15 +54,21 @@ func (repo *RedisRepository) SetCurrentGameScore(ctx context.Context, roomId uui
 		return errors.E(op, err)
 	}
 
+	// PIPELINE start if no outer pipeline exists
+	cmd, innerTx := repo.beginPipelineIfNoOuterTransactionExists(tx)
+
 	currentGameScoresKey := getCurrentGameScoreKey(roomId, score.UserId)
-	if err := repo.redisClient.Set(ctx, currentGameScoresKey, scoreJson, 0).Err(); err != nil {
-		return errors.E(op, err)
-	}
+	cmd.Set(ctx, currentGameScoresKey, scoreJson, 0)
 
 	currentGameScoresUserIdsKey := getCurrentGameScoresUserIdsKey(roomId)
 	scoreUserId := redis.Z{Score: score.WordsPerMinute, Member: score.UserId.String()}
-	if err := repo.redisClient.ZAdd(ctx, currentGameScoresUserIdsKey, scoreUserId).Err(); err != nil {
-		return errors.E(op, err)
+	cmd.ZAdd(ctx, currentGameScoresUserIdsKey, scoreUserId)
+
+	// PIPELINE commit
+	if innerTx != nil {
+		if err := innerTx.Commit(ctx); err != nil {
+			return errors.E(op, err)
+		}
 	}
 
 	return nil

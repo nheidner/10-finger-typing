@@ -1,6 +1,7 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"context"
@@ -13,27 +14,17 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	streamEntryTypeField    = "type"
-	streamEntryMessageField = "message"
-	streamEntryActionField  = "action"
-)
-
-// rooms:[room_id]:stream stream: action: "terminate/..", data: message stringified json
-func getRoomStreamKey(roomId uuid.UUID) string {
-	return getRoomKey(roomId) + ":stream"
-}
-
-func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid.UUID, pushMessage models.PushMessage) error {
+func (repo *RedisRepository) PublishPushMessage(ctx context.Context, tx common.Transaction, roomId uuid.UUID, pushMessage models.PushMessage) error {
 	const op errors.Op = "redis_repo.RedisRepository.PublishPushMessage"
 	roomStreamKey := getRoomStreamKey(roomId)
+	cmd := repo.cmdable(tx)
 
 	pushMessageData, err := json.Marshal(pushMessage)
 	if err != nil {
 		return errors.E(op, err)
 	}
 
-	if err := repo.redisClient.XAdd(ctx, &redis.XAddArgs{
+	if err := cmd.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]interface{}{
 			streamEntryTypeField:    strconv.Itoa(int(models.PushMessageStreamEntryType)),
@@ -46,11 +37,12 @@ func (repo *RedisRepository) PublishPushMessage(ctx context.Context, roomId uuid
 	return nil
 }
 
-func (repo *RedisRepository) PublishAction(ctx context.Context, roomId uuid.UUID, action models.StreamActionType) error {
+func (repo *RedisRepository) PublishAction(ctx context.Context, tx common.Transaction, roomId uuid.UUID, action models.StreamActionType) error {
 	const op errors.Op = "redis_repo.RedisRepository.PublishAction"
 	roomStreamKey := getRoomStreamKey(roomId)
+	cmd := repo.cmdable(tx)
 
-	if err := repo.redisClient.XAdd(ctx, &redis.XAddArgs{
+	if err := cmd.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
 		Values: map[string]string{
 			streamEntryTypeField:   strconv.Itoa(int(models.ActionStreamEntryType)),

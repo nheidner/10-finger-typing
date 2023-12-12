@@ -180,7 +180,7 @@ func (rs *roomSubscription) handleMessages(ctx context.Context) error {
 				}
 
 				execute(func() {
-					if err := rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, pushMessage); err != nil {
+					if err := rs.cacheRepo.PublishPushMessage(ctx, nil, rs.roomId, pushMessage); err != nil {
 						rs.logger.Error(errors.E(op, err))
 					}
 				})
@@ -213,7 +213,7 @@ func (rs *roomSubscription) handleRoomSubscriberStatus(ctx context.Context) erro
 	if roomSubscriberStatusHasBeenUpdated {
 		go observeRoomSubscriberStatus(context.Background(), rs.cacheRepo, rs.roomId, rs.userId, rs.logger)
 
-		if err := rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, models.PushMessage{
+		if err := rs.cacheRepo.PublishPushMessage(ctx, nil, rs.roomId, models.PushMessage{
 			Type:    models.UserJoined,
 			Payload: rs.userId,
 		}); err != nil {
@@ -237,7 +237,7 @@ func (rs *roomSubscription) close(ctx context.Context) error {
 			Type:    models.UserLeft,
 			Payload: rs.userId,
 		}
-		if err = rs.cacheRepo.PublishPushMessage(ctx, rs.roomId, userLeavePushMessage); err != nil {
+		if err = rs.cacheRepo.PublishPushMessage(ctx, nil, rs.roomId, userLeavePushMessage); err != nil {
 			return errors.E(op, err)
 		}
 	}
@@ -350,7 +350,7 @@ func observeRoomSubscriberStatus(ctx context.Context, cacheRepo common.CacheRepo
 					Type:    models.UserLeft,
 					Payload: userId,
 				}
-				if err = cacheRepo.PublishPushMessage(ctx, roomId, userLeavePushMessage); err != nil {
+				if err = cacheRepo.PublishPushMessage(ctx, nil, roomId, userLeavePushMessage); err != nil {
 					logger.Error(errors.E(op, err))
 				}
 

@@ -8,6 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const retries = 100
+
 type RedisRepository struct {
 	redisClient *redis.Client
 }
@@ -88,10 +90,21 @@ func (repo *RedisRepository) BeginTx() common.Transaction {
 	return &RedisTransaction{pipe: repo.redisClient.TxPipeline()}
 }
 
-func (repo *RedisRepository) cmdable(pipeline common.Transaction) redis.Cmdable {
-	if pipeline != nil {
-		return pipeline.Conn().(redis.Pipeliner)
+func (repo *RedisRepository) cmdable(tx common.Transaction) redis.Cmdable {
+	if tx != nil {
+		return tx.Conn().(redis.Pipeliner)
 	}
 
 	return repo.redisClient
+}
+
+func (repo *RedisRepository) beginPipelineIfNoOuterTransactionExists(outerTx common.Transaction) (cmd redis.Cmdable, innerTx common.Transaction) {
+	if outerTx != nil {
+		cmd = repo.cmdable(outerTx)
+	} else {
+		innerTx = repo.BeginPipeline()
+		cmd = repo.cmdable(innerTx)
+	}
+
+	return cmd, innerTx
 }

@@ -107,7 +107,7 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 			},
 		}
 
-		if err = rs.cacheRepo.PublishUserNotification(ctx, roomSubscriber.ID, userNotification); err != nil {
+		if err = rs.cacheRepo.PublishUserNotification(ctx, nil, roomSubscriber.ID, userNotification); err != nil {
 			err := errors.E(op, err, http.StatusInternalServerError)
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
 				return nil, errors.E(op, rollbackErr)
@@ -123,7 +123,7 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 
 	// create tokens and send invites to non registered users
 	for _, email := range emails {
-		token, err := rs.dbRepo.CreateToken(ctx, room.ID)
+		token, err := rs.dbRepo.CreateToken(ctx, nil, room.ID)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -152,7 +152,7 @@ func (rs *RoomService) CreateRoom(ctx context.Context, userIds []uuid.UUID, emai
 func (rs *RoomService) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
 	const op errors.Op = "services.RoomService.DeleteRoom"
 
-	if err := rs.dbRepo.SoftDeleteRoom(ctx, roomId); err != nil {
+	if err := rs.dbRepo.SoftDeleteRoom(ctx, nil, roomId); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -173,7 +173,7 @@ func (rs *RoomService) LeaveRoom(ctx context.Context, roomId, userId uuid.UUID) 
 
 	if isAdmin {
 		// first need to send terminate action message so that all websocket that remained connected, disconnect
-		if err := rs.cacheRepo.PublishAction(ctx, roomId, models.TerminateAction); err != nil {
+		if err := rs.cacheRepo.PublishAction(ctx, nil, roomId, models.TerminateAction); err != nil {
 			return errors.E(op, err)
 		}
 
@@ -191,11 +191,9 @@ func (rs *RoomService) LeaveRoom(ctx context.Context, roomId, userId uuid.UUID) 
 	return nil
 }
 
-// reads from connection and handles incoming ping and cursor messages.
-//
-// gets initial_state data and sends it as message to client.
-//
-// subscribes to room redis stream and sends messages to client.
+// RoomConnect reads from connection and handles incoming ping and cursor messages.
+// It gets initial_state data and sends it as message to client.
+// It subscribes to room redis stream and sends messages to client.
 func (rs *RoomService) RoomConnect(ctx context.Context, c *gin.Context, roomId uuid.UUID, user *models.User) error {
 	const op errors.Op = "services.RoomService.RoomConnect"
 
@@ -300,7 +298,7 @@ func (rs *RoomService) createRoomWithSubscribers(ctx context.Context, tx common.
 		return nil, errors.E(op, err)
 	}
 
-	if err := rs.cacheRepo.SetRoom(ctx, *createdRoom); err != nil {
+	if err := rs.cacheRepo.SetRoom(ctx, nil, *createdRoom); err != nil {
 		return nil, errors.E(op, err)
 	}
 

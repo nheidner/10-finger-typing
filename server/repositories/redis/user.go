@@ -10,31 +10,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	userUsernameField     = "username"
-	userPasswordHashField = "password_hash"
-	userFirstNameField    = "first_name"
-	userLastNameField     = "last_name"
-	userEmailField        = "email"
-	userIsVerifiedField   = "is_verified"
-)
-
-// users:[userid] hash of user data
-func getUserKey(userId uuid.UUID) string {
-	return "users:" + userId.String()
-}
-
-func getUserEmailKey(email string) string {
-	return "user_emails:" + email
-}
-
 // if not found, queries db
 func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRepo common.DBRepository, email string) (*models.User, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetUserByEmailInCacheOrDB"
 	userEmailKey := getUserEmailKey(email)
 
 	userIdStr, err := repo.redisClient.Get(ctx, userEmailKey).Result()
-	if err != nil {
+	switch {
+	case err == redis.Nil:
+		return nil, errors.E(op, common.ErrNotFound)
+	case err != nil:
 		return nil, errors.E(op, err)
 	}
 
@@ -64,12 +49,12 @@ func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo 
 		return user, nil
 	}
 
-	user, err = dbRepo.FindUserById(ctx, userId)
+	user, err = dbRepo.FindUserById(ctx, nil, userId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	if err = repo.SetUser(ctx, *user); err != nil {
+	if err = repo.SetUser(ctx, nil, *user); err != nil {
 		return nil, errors.E(op, err)
 	}
 
@@ -99,12 +84,12 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 		return user, nil
 	}
 
-	user, err = dbRepo.FindUserById(ctx, userId)
+	user, err = dbRepo.FindUserById(ctx, nil, userId)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	if err = repo.SetUser(ctx, *user); err != nil {
+	if err = repo.SetUser(ctx, nil, *user); err != nil {
 		return nil, errors.E(op, err)
 	}
 
@@ -123,35 +108,42 @@ func (repo *RedisRepository) UserExists(ctx context.Context, userId uuid.UUID) (
 	return r > 0, nil
 }
 
-func (repo *RedisRepository) SetUser(ctx context.Context, user models.User) error {
+func (repo *RedisRepository) SetUser(ctx context.Context, tx common.Transaction, user models.User) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetUser"
 	userEmailKey := getUserEmailKey(user.Email)
 
-	if err := repo.redisClient.Set(ctx, userEmailKey, user.ID.String(), 0).Err(); err != nil {
-		return errors.E(op, err)
-	}
+	// PIPELINE start if no outer pipeline exists
+	cmd, innerTx := repo.beginPipelineIfNoOuterTransactionExists(tx)
+
+	cmd.Set(ctx, userEmailKey, user.ID.String(), 0)
 
 	userKey := getUserKey(user.ID)
 
-	if err := repo.redisClient.HSet(ctx, userKey, map[string]any{
+	cmd.HSet(ctx, userKey, map[string]any{
 		userUsernameField:     user.Username,
 		userPasswordHashField: user.PasswordHash,
 		userFirstNameField:    user.FirstName,
 		userLastNameField:     user.LastName,
 		userEmailField:        user.Email,
 		userIsVerifiedField:   user.IsVerified,
-	}).Err(); err != nil {
-		return errors.E(op, err)
+	})
+
+	// PIPELINE commit
+	if innerTx != nil {
+		if err := innerTx.Commit(ctx); err != nil {
+			return errors.E(op, err)
+		}
 	}
 
 	return nil
 }
 
-func (repo *RedisRepository) VerifyUser(ctx context.Context, userId uuid.UUID) error {
+func (repo *RedisRepository) VerifyUser(ctx context.Context, tx common.Transaction, userId uuid.UUID) error {
 	const op errors.Op = "redis_repo.RedisRepository.VerifyUser"
 	userKey := getUserKey(userId)
+	var cmd = repo.cmdable(tx)
 
-	if err := repo.redisClient.HSet(ctx, userKey, userIsVerifiedField, true).Err(); err != nil {
+	if err := cmd.HSet(ctx, userKey, userIsVerifiedField, true).Err(); err != nil {
 		return errors.E(op, err)
 	}
 

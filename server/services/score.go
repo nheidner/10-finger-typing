@@ -42,7 +42,7 @@ func (ss *ScoreService) Create(
 		TextId:       textId,
 	}
 
-	createdScore, err := ss.dbRepo.CreateScore(ctx, newScore)
+	createdScore, err := ss.dbRepo.CreateScore(ctx, nil, newScore)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -58,7 +58,7 @@ func (ss *ScoreService) FindScores(
 ) ([]models.Score, error) {
 	const op errors.Op = "services.ScoreService.FindScores"
 
-	scores, err := ss.dbRepo.FindScores(ctx, userId, gameId, username, sortOptions)
+	scores, err := ss.dbRepo.FindScores(ctx, nil, userId, gameId, username, sortOptions)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

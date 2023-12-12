@@ -15,30 +15,18 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	roomAdminIdField         = "admin_id"
-	roomCreatedAtField       = "created_at"
-	roomUpdatedAtField       = "updated_at"
-	roomGameDurationSecField = "game_duration"
-)
-
-// rooms:[room_id] hash: roomAdminId, createdAt, updatedAt
-func getRoomKey(roomId uuid.UUID) string {
-	return "rooms:" + roomId.String()
-}
-
 func (repo *RedisRepository) GetRoomInCacheOrDb(ctx context.Context, dbRepo common.DBRepository, roomId uuid.UUID) (*models.Room, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetRoomInCacheOrDb"
 
 	room, err := repo.getRoom(ctx, roomId)
 	switch {
 	case err != nil && errors.Is(err, common.ErrNotFound):
-		room, err = dbRepo.FindRoomWithUsers(ctx, roomId)
+		room, err = dbRepo.FindRoomWithUsers(ctx, nil, roomId)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
 
-		if err = repo.SetRoom(ctx, *room); err != nil {
+		if err = repo.SetRoom(ctx, nil, *room); err != nil {
 			// no error should be returned
 			log.Print(errors.E(op, err))
 		}
@@ -64,9 +52,8 @@ func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId 
 	return gameDurationSec, nil
 }
 
-func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) error {
+func (repo *RedisRepository) SetRoom(ctx context.Context, tx common.Transaction, room models.Room) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetRoom"
-	// add room
 	roomKey := getRoomKey(room.ID)
 	roomValue := map[string]any{
 		roomAdminIdField:         room.AdminId.String(),
@@ -74,23 +61,19 @@ func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) erro
 		roomUpdatedAtField:       room.UpdatedAt.UnixMilli(),
 		roomGameDurationSecField: room.GameDurationSec,
 	}
-	if err := repo.redisClient.HSet(ctx, roomKey, roomValue).Err(); err != nil {
-		return errors.E(op, err)
-	}
 
-	// add room subscriber ids
+	// PIPELINE start if no outer pipeline exists
+	cmd, innerTx := repo.beginPipelineIfNoOuterTransactionExists(tx)
+
+	// add room
+	cmd.HSet(ctx, roomKey, roomValue)
+
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(room.ID)
 	roomSubscriberIdsValue := make([]string, 0, len(room.Users))
 	for _, subscriber := range room.Users {
 		roomSubscriberIdsValue = append(roomSubscriberIdsValue, subscriber.ID.String())
-	}
 
-	if err := repo.redisClient.SAdd(ctx, roomSubscriberIdsKey, roomSubscriberIdsValue).Err(); err != nil {
-		return errors.E(op, err)
-	}
-
-	// add room subscribers
-	for _, subscriber := range room.Users {
+		// add room subscribers
 		roomSubscriberKey := getRoomSubscriberKey(room.ID, subscriber.ID)
 		roomSubscriberValue := map[string]any{
 			roomSubscriberUsernameField:   subscriber.Username,
@@ -98,7 +81,15 @@ func (repo *RedisRepository) SetRoom(ctx context.Context, room models.Room) erro
 			roomSubscriberGameStatusField: strconv.Itoa(int(models.InactiveSubscriberStatus)),
 		}
 
-		if err := repo.redisClient.HSet(ctx, roomSubscriberKey, roomSubscriberValue).Err(); err != nil {
+		cmd.HSet(ctx, roomSubscriberKey, roomSubscriberValue)
+	}
+
+	// add room subscriber ids
+	cmd.SAdd(ctx, roomSubscriberIdsKey, roomSubscriberIdsValue)
+
+	// PIPELINE commit
+	if innerTx != nil {
+		if err := innerTx.Commit(ctx); err != nil {
 			return errors.E(op, err)
 		}
 	}

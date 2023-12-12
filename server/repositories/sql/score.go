@@ -1,6 +1,7 @@
 package sql_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"context"
@@ -9,11 +10,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (repo *SQLRepository) FindScores(ctx context.Context, userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error) {
+func (repo *SQLRepository) FindScores(ctx context.Context, tx common.Transaction, userId, gameId uuid.UUID, username string, sortOptions []models.SortOption) ([]models.Score, error) {
 	const op errors.Op = "sql_repo.SQLRepository.FindScores"
+	db := repo.dbConn(tx)
 	var scores []models.Score
 
-	findScoresDbQuery := repo.db.WithContext(ctx)
+	findScoresDbQuery := db.WithContext(ctx)
 	if userId != uuid.Nil {
 		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", userId)
 	}
@@ -41,15 +43,16 @@ func (repo *SQLRepository) FindScores(ctx context.Context, userId, gameId uuid.U
 	return scores, nil
 }
 
-func (repo *SQLRepository) CreateScore(ctx context.Context, score models.Score) (*models.Score, error) {
+func (repo *SQLRepository) CreateScore(ctx context.Context, tx common.Transaction, score models.Score) (*models.Score, error) {
 	const op errors.Op = "sql_repo.SQLRepository.CreateScore"
+	db := repo.dbConn(tx)
 	omittedFiels := []string{"WordsPerMinute", "Accuracy"}
 
 	if score.GameId == uuid.Nil {
 		omittedFiels = append(omittedFiels, "GameId")
 	}
 
-	if err := repo.db.WithContext(ctx).
+	if err := db.WithContext(ctx).
 		Omit(omittedFiels...).
 		Clauses(clause.Returning{
 			Columns: []clause.Column{
@@ -69,10 +72,11 @@ func (repo *SQLRepository) CreateScore(ctx context.Context, score models.Score) 
 	return &score, nil
 }
 
-func (repo *SQLRepository) DeleteAllScores(ctx context.Context) error {
+func (repo *SQLRepository) DeleteAllScores(ctx context.Context, tx common.Transaction) error {
 	const op errors.Op = "sql_repo.SQLRepository.DeleteAllScores"
+	db := repo.dbConn(tx)
 
-	if err := repo.db.WithContext(ctx).Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error; err != nil {
+	if err := db.WithContext(ctx).Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error; err != nil {
 		return errors.E(op, err)
 	}
 

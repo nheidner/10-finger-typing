@@ -1,26 +1,23 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"context"
 
 	"github.com/google/uuid"
 )
 
-const (
-	// text_ids set: text ids
-	textIdsKey = "text_ids"
-)
-
-func (repo *RedisRepository) SetTextId(ctx context.Context, textIds ...uuid.UUID) error {
+func (repo *RedisRepository) SetTextId(ctx context.Context, tx common.Transaction, textIds ...uuid.UUID) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetTextId"
 	textIdsStr := make([]any, 0, len(textIds))
+	var cmd = repo.cmdable(tx)
 
 	for _, textId := range textIds {
 		textIdsStr = append(textIdsStr, textId.String())
 	}
 
-	if err := repo.redisClient.SAdd(ctx, textIdsKey, textIdsStr...).Err(); err != nil {
+	if err := cmd.SAdd(ctx, textIdsKey, textIdsStr...).Err(); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -49,10 +46,11 @@ func (repo *RedisRepository) TextIdExists(ctx context.Context, textId uuid.UUID)
 	return r[0], nil
 }
 
-func (repo *RedisRepository) DeleteTextIdsKey(ctx context.Context) error {
+func (repo *RedisRepository) DeleteTextIdsKey(ctx context.Context, tx common.Transaction) error {
 	const op errors.Op = "redis_repo.RedisRepository.DeleteTextIdsKey"
+	var cmd = repo.cmdable(tx)
 
-	if err := repo.redisClient.Del(ctx, textIdsKey).Err(); err != nil {
+	if err := cmd.Del(ctx, textIdsKey).Err(); err != nil {
 		return errors.E(op, err)
 	}
 

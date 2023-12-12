@@ -4,6 +4,7 @@ import (
 	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
+	"10-typing/utils"
 	"context"
 	"fmt"
 
@@ -63,11 +64,12 @@ func (gs *GameService) CreateNewCurrentGame(ctx context.Context, userId, roomId,
 		return uuid.Nil, errors.E(op, err)
 	}
 
-	if err := gs.cacheRepo.SetRoomSubscriberGameStatusForAllRoomSubscribers(ctx, 10, roomId, models.UnstartedSubscriberGameStatus); err != nil {
+	// create game
+	if err := gs.cacheRepo.SetRoomSubscriberGameStatusForAllRoomSubscribers(ctx, roomId, models.UnstartedSubscriberGameStatus); err != nil {
 		return uuid.Nil, errors.E(op, err)
 	}
 
-	if err := gs.cacheRepo.SetNewCurrentGame(ctx, gameId, textId, roomId, userId); err != nil {
+	if err := gs.cacheRepo.SetNewCurrentGame(ctx, nil, gameId, textId, roomId, userId); err != nil {
 		return uuid.Nil, errors.E(op, err)
 	}
 
@@ -76,7 +78,7 @@ func (gs *GameService) CreateNewCurrentGame(ctx context.Context, userId, roomId,
 		return uuid.Nil, errors.E(op, err)
 	}
 
-	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, models.PushMessage{
+	if err := gs.cacheRepo.PublishPushMessage(ctx, nil, roomId, models.PushMessage{
 		Type:    models.NewGame,
 		Payload: newGame,
 	}); err != nil {
@@ -115,7 +117,7 @@ func (gs *GameService) UserFinishesGame(
 		Type:    models.UserFinishedGame,
 		Payload: userId,
 	}
-	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, userFinishedGamePushMessage); err != nil {
+	if err := gs.cacheRepo.PublishPushMessage(ctx, nil, roomId, userFinishedGamePushMessage); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -140,19 +142,20 @@ func (gs *GameService) UserFinishesGame(
 		TextId:       textId,
 	}
 
-	createdScore, err := gs.dbRepo.CreateScore(ctx, newScore)
+	createdScore, err := gs.dbRepo.CreateScore(ctx, nil, newScore)
 	if err != nil {
-		return errors.E(op, err)
-	}
-
-	if err := gs.cacheRepo.SetCurrentGameScore(ctx, roomId, *createdScore); err != nil {
 		return errors.E(op, err)
 	}
 
 	// post action on stream
-	err = gs.cacheRepo.PublishAction(ctx, roomId, models.GameUserScoreAction)
+	err = gs.cacheRepo.PublishAction(ctx, nil, roomId, models.GameUserScoreAction)
 	if err != nil {
 		return errors.E(op, err)
+	}
+
+	// the error should only be logged but not returned because the score is already saved in the DB
+	if err := gs.cacheRepo.SetCurrentGameScore(ctx, nil, roomId, *createdScore); err != nil {
+		gs.logger.Error(errors.E(op, err))
 	}
 
 	return nil
@@ -180,19 +183,29 @@ func (gs *GameService) AddUserToGame(ctx context.Context, roomId, userId uuid.UU
 		return errors.E(op, err, http.StatusBadRequest)
 	}
 
-	if err := gs.cacheRepo.SetCurrentGameUser(ctx, roomId, userId); err != nil {
-		return errors.E(op, err)
+	// PIPELINE start
+	tx := gs.cacheRepo.BeginPipeline()
+	if err := gs.cacheRepo.SetCurrentGameUser(ctx, tx, roomId, userId); err != nil {
+		err := errors.E(op, err)
+		return utils.RollbackAndErr(op, err, tx)
 	}
 
-	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, nil, roomId, userId, models.StartedSubscriberGameStatus); err != nil {
-		return errors.E(op, err)
+	if err := gs.cacheRepo.SetRoomSubscriberGameStatus(ctx, tx, roomId, userId, models.StartedSubscriberGameStatus); err != nil {
+		err := errors.E(op, err)
+		return utils.RollbackAndErr(op, err, tx)
 	}
 
 	userStartedGamePushMessage := models.PushMessage{
 		Type:    models.UserStartedGame,
 		Payload: userId,
 	}
-	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, userStartedGamePushMessage); err != nil {
+	if err := gs.cacheRepo.PublishPushMessage(ctx, tx, roomId, userStartedGamePushMessage); err != nil {
+		err := errors.E(op, err)
+		return utils.RollbackAndErr(op, err, tx)
+	}
+
+	// PIPELINE commit
+	if err := tx.Commit(ctx); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -203,26 +216,23 @@ func (gs *GameService) InitiateGameIfReady(ctx context.Context, roomId uuid.UUID
 	const op errors.Op = "services.GameService.InitiateGameIfReady"
 
 	numberGameUsers, err := gs.cacheRepo.GetCurrentGameUsersNumber(ctx, roomId)
-	if err != nil {
+	switch {
+	case err != nil:
 		return errors.E(op, err)
-	}
-
-	if numberGameUsers != 2 {
+	case numberGameUsers != 2:
 		return nil
 	}
 
-	// comment out
 	gameStatus, err := gs.cacheRepo.GetCurrentGameStatus(ctx, roomId)
-	if err != nil {
+	switch {
+	case err != nil:
 		return errors.E(op, err)
-	}
-
-	if gameStatus != models.UnstartedGameStatus {
+	case gameStatus != models.UnstartedGameStatus:
 		return nil
 	}
 
 	// start countdown
-	err = gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.CountdownGameStatus)
+	err = gs.cacheRepo.SetCurrentGameStatus(ctx, nil, roomId, models.CountdownGameStatus)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -262,7 +272,7 @@ func (gs *GameService) countdown(ctx context.Context, roomId uuid.UUID, countdow
 			Type:    models.Countdown,
 			Payload: countdownDurationSeconds,
 		}
-		err := gs.cacheRepo.PublishPushMessage(ctx, roomId, countdownPushMessage)
+		err := gs.cacheRepo.PublishPushMessage(ctx, nil, roomId, countdownPushMessage)
 		if err != nil {
 			gs.logger.Error(errors.E(op, err))
 			return
@@ -279,14 +289,14 @@ func (gs *GameService) handleGameDuration(ctx context.Context, gameDurationSec i
 	time.Sleep(countdownDurationSeconds * time.Second)
 
 	// after blocking for countdown duration, set game status to "started"
-	if err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.StartedGameStatus); err != nil {
+	if err := gs.cacheRepo.SetCurrentGameStatus(ctx, nil, roomId, models.StartedGameStatus); err != nil {
 		return errors.E(op, err)
 	}
 
 	gameStartedPushMessage := models.PushMessage{
 		Type: models.GameStarted,
 	}
-	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, gameStartedPushMessage); err != nil {
+	if err := gs.cacheRepo.PublishPushMessage(ctx, nil, roomId, gameStartedPushMessage); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -323,8 +333,7 @@ func (gs *GameService) handleGameResults(ctx context.Context, roomId uuid.UUID) 
 		Type:    models.GameScores,
 		Payload: currentGameScores,
 	}
-
-	if err := gs.cacheRepo.PublishPushMessage(ctx, roomId, scorePushMessage); err != nil {
+	if err := gs.cacheRepo.PublishPushMessage(ctx, nil, roomId, scorePushMessage); err != nil {
 		return errors.E(op, err)
 	}
 
@@ -371,13 +380,23 @@ func (gs *GameService) getAllResultsReceived(ctx context.Context, playersNumber 
 func (gs *GameService) cleanupGame(ctx context.Context, roomId uuid.UUID) error {
 	const op errors.Op = "services.GameService.cleanupGame"
 
+	// PIPELINE start
+	tx := gs.cacheRepo.BeginPipeline()
+
 	// set game status to finished
-	err := gs.cacheRepo.SetCurrentGameStatus(ctx, roomId, models.FinishedGameStatus)
+	err := gs.cacheRepo.SetCurrentGameStatus(ctx, tx, roomId, models.FinishedGameStatus)
 	if err != nil {
-		return errors.E(op, err)
+		err := errors.E(op, err)
+		return utils.RollbackAndErr(op, err, tx)
 	}
 
-	if err := gs.cacheRepo.DeleteAllCurrentGameUsers(ctx, roomId); err != nil {
+	if err := gs.cacheRepo.DeleteAllCurrentGameUsers(ctx, tx, roomId); err != nil {
+		err := errors.E(op, err)
+		return utils.RollbackAndErr(op, err, tx)
+	}
+
+	// PIPELINE commit
+	if err := tx.Commit(ctx); err != nil {
 		return errors.E(op, err)
 	}
 

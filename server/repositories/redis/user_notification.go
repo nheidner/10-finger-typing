@@ -1,6 +1,7 @@
 package redis_repo
 
 import (
+	"10-typing/common"
 	"10-typing/errors"
 	"10-typing/models"
 	"context"
@@ -15,13 +16,9 @@ const (
 	userNotificationStreamMaxlen = 10
 )
 
-// users:[userid]:notifications
-func getUserNotificationStreamKey(userId uuid.UUID) string {
-	return getUserKey(userId) + ":notifications"
-}
-
-func (repo *RedisRepository) PublishUserNotification(ctx context.Context, userId uuid.UUID, userNotification models.UserNotification) error {
+func (repo *RedisRepository) PublishUserNotification(ctx context.Context, tx common.Transaction, userId uuid.UUID, userNotification models.UserNotification) error {
 	const op errors.Op = "redis_repo.RedisRepository.PublishUserNotification"
+	var cmd = repo.cmdable(tx)
 
 	userNotificationStreamKey := getUserNotificationStreamKey(userId)
 	userNotificationData, err := json.Marshal(userNotification)
@@ -29,7 +26,7 @@ func (repo *RedisRepository) PublishUserNotification(ctx context.Context, userId
 		return errors.E(op, err)
 	}
 
-	if err := repo.redisClient.XAdd(ctx, &redis.XAddArgs{
+	if err := cmd.XAdd(ctx, &redis.XAddArgs{
 		Stream: userNotificationStreamKey,
 		MaxLen: userNotificationStreamMaxlen,
 		Values: map[string]any{
