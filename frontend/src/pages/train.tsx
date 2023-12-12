@@ -1,101 +1,52 @@
 import { DehydratedState, QueryClient, dehydrate } from "@tanstack/react-query";
 import { NextPage } from "next";
-import { ChangeEvent, useState } from "react";
-import { TypingLanguage } from "@/types";
-import { Toggle } from "@/modules/train/components/Toggle";
-import { Switch } from "@/modules/train/components/Switch";
+import { useState } from "react";
+import { LanguageName } from "@/types";
 import { Content } from "@/modules/train/components/Content";
 import { useEnsureTextData } from "@/modules/train/hooks/use_ensure_new_text";
-import { useConnectToRoom } from "@/modules/train/hooks/use_connect_to_room";
-import { UserData } from "@/modules/train/types";
-import { InviteModal } from "@/modules/train/components/InviteModal";
+import { InviteModal } from "@/modules/train/components/invite_modal";
 import {
   languageOptions,
   numeralOptions,
   specialCharactersOptions,
 } from "@/modules/train/constants";
-import { useRouter } from "next/router";
+import { TextConfigOptions } from "@/components/TextConfigOptions";
 
 const TrainPage: NextPage<{
   dehydratedState: DehydratedState;
 }> = () => {
   const [newRoomModalIsOpen, setNewRoomModalOpen] = useState(false);
+  const userData = {};
+
   const [specialCharacters, setSpecialCharacters] = useState(
     Object.keys(specialCharactersOptions)[0]
   );
   const [numerals, setNumerals] = useState(Object.keys(numeralOptions)[0]);
   const [usePunctuation, setUsePunctuation] = useState(false);
-  const [language, setLanguage] = useState(Object.keys(languageOptions)[0]);
-  const [userData, setUserData] = useState<{ [userId: number]: UserData }>({});
-
-  const handleSpecialCharactersChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setSpecialCharacters(e.target.value);
-  };
-  const handleNumeralsChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setNumerals(e.target.value);
-  };
-  const handlePunctuationChange = () => {
-    setUsePunctuation(!usePunctuation);
-  };
-  const handleLanguageChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setLanguage(e.target.value);
-  };
-
-  const specialCharactersGte = specialCharactersOptions[
-    specialCharacters
-  ][0] as number;
-  const specialCharactersLte = specialCharactersOptions[
-    specialCharacters
-  ][1] as number;
-  const numbersGte = numeralOptions[numerals][0] as number;
-  const numbersLte = numeralOptions[numerals][1] as number;
-  const lang = languageOptions[language] as TypingLanguage;
+  const [languageName, setLanguageName] = useState(
+    Object.keys(languageOptions)[0] as LanguageName
+  );
+  const lang = languageOptions[languageName];
 
   const { text: textData, isLoading: textIsLoading } = useEnsureTextData({
-    specialCharactersGte,
-    specialCharactersLte,
-    numbersGte,
-    numbersLte,
+    specialCharacters,
+    numerals,
     usePunctuation,
     language: lang,
   });
 
-  const router = useRouter();
-  const { roomId } = router.query as {
-    roomId?: string;
-  };
-
-  const webSocketRef = useConnectToRoom(setUserData, roomId, textData);
-
   return (
     <>
       <section className="flex gap-10 justify-center items-center">
-        <Toggle
-          item="specialCharacters"
-          label="Special Characters"
-          options={Object.keys(specialCharactersOptions)}
-          selectedValue={specialCharacters}
-          handleChange={handleSpecialCharactersChange}
-        />
-        <Toggle
-          item="numerals"
-          label="Number of Numerals"
-          options={Object.keys(numeralOptions)}
-          selectedValue={numerals}
-          handleChange={handleNumeralsChange}
-        />
-        <Switch
-          item="usePunctuation"
-          label="Use Punctuation"
-          enabled={usePunctuation}
-          handleChange={handlePunctuationChange}
-        />
-        <Toggle
-          item="languages"
-          label="Languages"
-          options={Object.keys(languageOptions)}
-          selectedValue={language}
-          handleChange={handleLanguageChange}
+        <TextConfigOptions
+          setLanguage={setLanguageName}
+          setNumerals={setNumerals}
+          setSpecialCharacters={setSpecialCharacters}
+          setUsePunctuation={setUsePunctuation}
+          specialCharacters={specialCharacters}
+          language={languageName}
+          numerals={numerals}
+          usePunctuation={usePunctuation}
         />
         <button
           type="button"
@@ -105,20 +56,16 @@ const TrainPage: NextPage<{
           Invite
         </button>
       </section>
-      <InviteModal isOpen={newRoomModalIsOpen} setOpen={setNewRoomModalOpen} />
+      <InviteModal
+        isOpen={newRoomModalIsOpen}
+        setIsOpen={setNewRoomModalOpen}
+      />
       <Content
+        isActive={true}
         isLoading={textIsLoading}
         text={textData || null}
         userData={userData}
-        onType={(cursor: number) => {
-          const message = {
-            type: "cursor",
-            payload: {
-              cursor,
-            },
-          };
-          webSocketRef.current?.send(JSON.stringify(message));
-        }}
+        onType={() => {}}
       />
     </>
   );

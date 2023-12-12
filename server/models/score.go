@@ -1,123 +1,50 @@
 package models
 
 import (
-	custom_errors "10-typing/errors"
+	"10-typing/errors"
 	"database/sql/driver"
 	"encoding/json"
-	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
+
+type Score struct {
+	ID             uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()" faker:"-"`
+	CreatedAt      time.Time       `json:"createdAt" faker:"-"`
+	UpdatedAt      time.Time       `json:"updatedAt" faker:"-"`
+	DeletedAt      *gorm.DeletedAt `json:"-" gorm:"index" faker:"-"`
+	WordsPerMinute float64         `json:"wordsPerMinute" gorm:"type:DECIMAL GENERATED ALWAYS AS (words_typed::DECIMAL * 60.0 / time_elapsed) STORED" faker:"-"`
+	WordsTyped     int             `json:"wordsTyped" faker:"boundary_start=50, boundary_end=1000"`
+	TimeElapsed    float64         `json:"timeElapsed" faker:"oneof: 60.0, 120.0, 180.0"`
+	Accuracy       float64         `json:"accuracy" gorm:"type:DECIMAL GENERATED ALWAYS AS (100.0 - (number_errors::DECIMAL * 100.0 / words_typed::DECIMAL)) STORED" faker:"-"`
+	NumberErrors   int             `json:"numberErrors" faker:"-"`
+	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb" faker:"-"`
+	UserId         uuid.UUID       `json:"userId" gorm:"not null" faker:"-"`
+	TextId         uuid.UUID       `json:"textId" gorm:"not null" faker:"-"`
+	GameId         uuid.UUID       `json:"gameId" faker:"-"`
+}
 
 type ErrorsJSON map[string]int
 
-type Score struct {
-	ID             uint            `json:"id" gorm:"primary_key"`
-	CreatedAt      time.Time       `json:"createdAt"`
-	UpdatedAt      time.Time       `json:"updatedAt"`
-	DeletedAt      *gorm.DeletedAt `json:"deletedAt" gorm:"index"`
-	WordsPerMinute float64         `json:"wordsPerMinute" gorm:"type:DECIMAL GENERATED ALWAYS AS (words_typed::DECIMAL * 60.0 / time_elapsed) STORED"`
-	WordsTyped     int             `json:"wordsTyped"`
-	TimeElapsed    float64         `json:"timeElapsed"`
-	Accuracy       float64         `json:"accuracy" gorm:"type:DECIMAL GENERATED ALWAYS AS (100.0 - (number_errors::DECIMAL * 100.0 / words_typed::DECIMAL)) STORED"`
-	NumberErrors   int             `json:"numberErrors"`
-	Errors         ErrorsJSON      `json:"errors" gorm:"type:jsonb"`
-	UserId         uint            `json:"userId"`
-	TextId         uint            `json:"textId"`
-}
-
-type CreateScoreInput struct {
-	WordsTyped  int        `json:"wordsTyped" binding:"required" faker:"boundary_start=50, boundary_end=250"`
-	TimeElapsed float64    `json:"timeElapsed" binding:"required" faker:"oneof: 60.0, 120.0, 180.0"`
-	Errors      ErrorsJSON `json:"errors" binding:"required,typingerrors"`
-	TextId      uint       `json:"textId" binding:"required"`
-	UserId      uint
-}
-
-type FindScoresQuery struct {
-	SortOptions []SortOption
-	UserId      uint
-	Username    string `form:"username"`
-}
-
-type FindScoresSortOption struct {
-	Column string `validate:"required,oneof=accuracy errors created_at"`
-	Order  string `validate:"required,oneof=desc asc"`
-}
-
-type ScoreService struct {
-	DB *gorm.DB
-}
-
 func (j ErrorsJSON) Value() (driver.Value, error) {
+	const op errors.Op = "models.ErrorsJSON.Value"
+
 	valueString, err := json.Marshal(j)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
 	return string(valueString), err
 }
 
 func (j *ErrorsJSON) Scan(value interface{}) error {
+	const op errors.Op = "models.ErrorsJSON.Scan"
+
 	if err := json.Unmarshal(value.([]byte), &j); err != nil {
-		return err
+		return errors.E(op, err)
 	}
+
 	return nil
-}
-
-func (ss *ScoreService) FindScores(query FindScoresQuery) (*[]Score, error) {
-	var scores []Score
-
-	findScoresDbQuery := ss.DB
-	if query.UserId != 0 {
-		findScoresDbQuery = findScoresDbQuery.Where("user_id = ?", query.UserId)
-	}
-	if query.Username != "" {
-		findScoresDbQuery = findScoresDbQuery.Joins("INNER JOIN users ON scores.user_id = users.id").Where("users.username = ?", query.Username)
-	}
-
-	for _, sortOption := range query.SortOptions {
-		findScoresDbQuery = findScoresDbQuery.Order(clause.OrderByColumn{Column: clause.Column{Name: sortOption.Column}, Desc: sortOption.Order == "desc"})
-	}
-	if len(query.SortOptions) == 0 {
-		findScoresDbQuery = findScoresDbQuery.Order("created_at desc")
-	}
-
-	findScoresDbQuery.Find(&scores)
-
-	if findScoresDbQuery.Error != nil {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
-	}
-
-	return &scores, nil
-}
-
-func (ss *ScoreService) Create(input CreateScoreInput) (*Score, error) {
-	numberErrors := 0
-	for _, value := range input.Errors {
-		numberErrors += value
-	}
-
-	score := Score{
-		WordsTyped:   input.WordsTyped,
-		TimeElapsed:  input.TimeElapsed,
-		Errors:       input.Errors,
-		UserId:       input.UserId,
-		NumberErrors: numberErrors,
-		TextId:       input.TextId,
-	}
-
-	createResult := ss.DB.Omit("WordsPerMinute", "Accuracy").
-		Clauses(clause.Returning{Columns: []clause.Column{{Name: "id"}, {Name: "words_per_minute"}, {Name: "words_typed"}, {Name: "time_elapsed"}, {Name: "accuracy"}, {Name: "number_errors"}, {Name: "errors"}}}).
-		Create(&score)
-
-	if (createResult.Error != nil) || (createResult.RowsAffected == 0) {
-		internalServerError := custom_errors.HTTPError{Message: "Internal Server Error", Status: http.StatusInternalServerError}
-		return nil, internalServerError
-	}
-
-	return &score, nil
-}
-
-func (ss *ScoreService) DeleteAll() error {
-	return ss.DB.Exec("TRUNCATE scores RESTART IDENTITY CASCADE").Error
 }

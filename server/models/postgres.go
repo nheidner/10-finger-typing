@@ -43,9 +43,16 @@ func ConnectDatabase() {
 		panic("Failed to connect to database!")
 	}
 
-	err = db.AutoMigrate(&User{}, &Session{}, &Text{}, &Score{}, &Room{}, &Token{})
+	err = db.AutoMigrate(&User{}, &Text{}, &Game{}, &Score{}, &Room{}, &Token{})
 	if err != nil {
 		panic("Failed to migrate database!")
+	}
+
+	err = db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_user_game_on_game_not_null " +
+		"ON scores (user_id, game_id) " +
+		"WHERE game_id IS NOT NULL;").Error
+	if err != nil {
+		panic("Failed to run custom migration!")
 	}
 
 	DB = db

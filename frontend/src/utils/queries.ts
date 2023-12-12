@@ -1,20 +1,83 @@
-import { Room, Score, Text, TypingLanguage, User } from "@/types";
+import { Score, Text, LanguageCode, User, UserNotification } from "@/types";
 import { fetchApi } from "./fetch";
 
-export type NewRoomParams = {
-  userIds: number[];
+export type NewRoomBodyParams = {
+  userIds: string[];
   emails: string[];
-  textIds: number[];
+  gameDurationSec?: number;
 };
 
-export const createRoom = async ({ query }: { query: NewRoomParams }) => {
-  return fetchApi<Room>("/rooms", {
+export const createRoom = async ({ body }: { body: NewRoomBodyParams }) => {
+  return fetchApi<{
+    id: string;
+  }>("/rooms", {
     method: "POST",
-    body: JSON.stringify(query),
+    body: JSON.stringify(body),
   });
 };
 
+export type NewGameBodyParams = { textId: string };
+
+export const createGame = async ({
+  roomId,
+  body,
+}: {
+  roomId: string;
+  body: NewGameBodyParams;
+}) => {
+  return fetchApi<{ id: string }>(`/rooms/${roomId}/game`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+};
+
+export type NewGameScoreBodyParams = {
+  wordsTyped: number;
+  timeElapsed: number;
+  errors: { [error: string]: number };
+  textId: string;
+  gameId: string;
+};
+
+export const createScore = async ({
+  roomId,
+  body,
+}: {
+  roomId: string;
+  body: NewGameScoreBodyParams;
+}) => {
+  return fetchApi<{ id: string }>(`/rooms/${roomId}/current-game/score`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+};
+
+export const createRoomAndText = async ({
+  newGameBody,
+  newRoomBody,
+}: {
+  newRoomBody: NewRoomBodyParams;
+  newGameBody: NewGameBodyParams;
+}) => {
+  const room = await createRoom({ body: newRoomBody });
+  const { id: gameId } = await createGame({
+    roomId: room.id,
+    body: newGameBody,
+  });
+
+  return {
+    room,
+    gameId,
+  };
+};
+
 export const getAuthenticatedUser = async () => fetchApi<User>("/user");
+
+export const getRealtimeUserNotification = async (lastId: string) => {
+  return fetchApi<UserNotification | null>(
+    `/notification/realtime?lastId=${encodeURIComponent(lastId)}`
+  );
+};
 
 export const logout = async () =>
   fetchApi<string>("/user/logout", { method: "POST" });
@@ -25,11 +88,19 @@ type TextQueryParams = {
   numbersGte?: number;
   numbersLte?: number;
   punctuation?: boolean;
-  language: TypingLanguage;
+  language: LanguageCode;
+};
+
+export const getTextById = async (textId: string) => {
+  return fetchApi<Text>(`/texts/${textId}`);
+};
+
+export const startGame = async (roomId: string) => {
+  return fetchApi<string>(`/rooms/${roomId}/start-game`, { method: "POST" });
 };
 
 export const getNewTextByUserid = async (
-  userId: number,
+  userId: string,
   {
     cookie,
     query,
@@ -56,7 +127,7 @@ export const getNewTextByUserid = async (
 
   const headers = cookie ? { cookie } : undefined;
 
-  return fetchApi<Text | null>(`/users/${userId}/text${queryString}`, {
+  return fetchApi<Text>(`/users/${userId}/text${queryString}`, {
     headers,
   });
 };
@@ -65,7 +136,7 @@ type TextParams = {
   specialCharacters: number;
   numbers: number;
   punctuation: boolean;
-  language: TypingLanguage;
+  language: LanguageCode;
 };
 
 export const createNewText = async ({

@@ -1,7 +1,8 @@
 package models
 
 import (
-	"errors"
+	"10-typing/errors"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -15,6 +16,8 @@ type SortOption struct {
 }
 
 func BindSortByQuery(c *gin.Context, sortOptionStruct interface{}) ([]SortOption, error) {
+	const op errors.Op = "models.BindSortByQuery"
+
 	sortByValues := c.QueryArray("sort_by")
 
 	var sortOptions = make([]SortOption, 0, len(sortByValues))
@@ -22,7 +25,8 @@ func BindSortByQuery(c *gin.Context, sortOptionStruct interface{}) ([]SortOption
 	for _, sortByValue := range sortByValues {
 		options := strings.Split(sortByValue, ".")
 		if len(options) != 2 {
-			return nil, errors.New("invalid sort_by query")
+			err := fmt.Errorf("invalid sort_by query")
+			return nil, errors.E(op, err)
 		}
 
 		sortOptionWithValidationStructTag := reflect.New(reflect.TypeOf(sortOptionStruct)).Elem()
@@ -31,7 +35,7 @@ func BindSortByQuery(c *gin.Context, sortOptionStruct interface{}) ([]SortOption
 		sortOptionWithValidationStructTag.FieldByName("Order").SetString(options[1])
 
 		if err := validateStruct(sortOptionWithValidationStructTag.Interface()); err != nil {
-			return nil, err
+			return nil, errors.E(op, err)
 		}
 
 		sortOption := SortOption{
@@ -46,14 +50,19 @@ func BindSortByQuery(c *gin.Context, sortOptionStruct interface{}) ([]SortOption
 }
 
 func validateStruct(s interface{}) error {
+	const op errors.Op = "models.validateStruct"
+
 	validate := validator.New()
 	err := validate.Struct(s)
 	if err != nil {
-		var errMsg string
+		var b strings.Builder
 		for _, err := range err.(validator.ValidationErrors) {
-			errMsg = err.Field() + " field validation failed on the " + err.Tag() + " rule"
+			fmt.Fprintf(&b, "\n%s field validation failed on the %s rule", err.Field(), err.Tag())
 		}
-		return errors.New(errMsg)
+		err := fmt.Errorf("%w: %s", err, b.String())
+
+		return errors.E(op, err)
 	}
+
 	return nil
 }

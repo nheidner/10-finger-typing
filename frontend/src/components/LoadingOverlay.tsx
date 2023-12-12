@@ -9,8 +9,8 @@ export const LoadingOverlay: FC<{
     <div className="relative">
       <div
         className={classNames(
-          "absolute left-0 top-0 w-full h-full bg-white transition-opacity z-10 duration-100",
-          isLoading ? "opacity-50" : "opacity-0 -z-10"
+          "absolute left-0 top-0 w-full h-full bg-white transition-opacity duration-100",
+          isLoading ? "z-10 opacity-50" : "opacity-0 -z-10"
         )}
       />
       {children}

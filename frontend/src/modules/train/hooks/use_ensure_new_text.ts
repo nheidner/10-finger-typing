@@ -1,32 +1,38 @@
-import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createNewText,
   getAuthenticatedUser,
   getNewTextByUserid,
 } from "@/utils/queries";
-import { Text, TypingLanguage } from "@/types";
+import { Text, LanguageCode } from "@/types";
 import { useRouter } from "next/router";
-
-const getRandomNumberBetween = (min: number, max: number) => {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-};
+import {
+  numeralOptions,
+  specialCharactersOptions,
+} from "@/modules/train/constants";
+import { FetchError } from "@/utils/fetch";
+import { getRandomNumberBetween } from "@/utils/random";
 
 export const useEnsureTextData = ({
-  specialCharactersGte,
-  specialCharactersLte,
-  numbersGte,
-  numbersLte,
+  specialCharacters,
+  numerals,
   usePunctuation,
   language,
 }: {
-  specialCharactersGte: number;
-  specialCharactersLte: number;
-  numbersGte: number;
-  numbersLte: number;
+  specialCharacters: string;
+  numerals: string;
   usePunctuation: boolean;
-  language: TypingLanguage;
+  language: LanguageCode;
 }): { text?: Text; isLoading: boolean } => {
+  const specialCharactersGte = specialCharactersOptions[
+    specialCharacters
+  ][0] as number;
+  const specialCharactersLte = specialCharactersOptions[
+    specialCharacters
+  ][1] as number;
+  const numbersGte = numeralOptions[numerals][0] as number;
+  const numbersLte = numeralOptions[numerals][1] as number;
+
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -36,7 +42,11 @@ export const useEnsureTextData = ({
     retry: false,
   });
 
-  const { data: textData, isLoading: textIsLoading } = useQuery(
+  const {
+    data: textData,
+    isLoading: textIsLoading,
+    status,
+  } = useQuery(
     [
       "text",
       specialCharactersGte,
@@ -47,7 +57,7 @@ export const useEnsureTextData = ({
       language,
     ],
     () =>
-      getNewTextByUserid(authenticatedUserData?.id as number, {
+      getNewTextByUserid(authenticatedUserData?.id as string, {
         query: {
           specialCharactersGte,
           specialCharactersLte,
@@ -59,12 +69,31 @@ export const useEnsureTextData = ({
       }),
     {
       enabled: !!authenticatedUserData?.id,
+      retry: false,
       onSuccess(data) {
         queryClient.setQueryData(["texts", data?.id], () => data);
         router.push({
           pathname: router.pathname,
-          query: { ...router.query, textId: data?.id },
+          query: { ...router.query, textId: data?.id || "" },
         });
+      },
+      onError(err) {
+        if (err instanceof FetchError) {
+          const specialCharacters = getRandomNumberBetween(
+            specialCharactersGte,
+            specialCharactersLte
+          );
+          const numbers = getRandomNumberBetween(numbersGte, numbersLte);
+
+          mutateText({
+            query: {
+              specialCharacters,
+              numbers,
+              punctuation: usePunctuation,
+              language,
+            },
+          });
+        }
       },
     }
   );
@@ -80,36 +109,6 @@ export const useEnsureTextData = ({
       await queryClient.invalidateQueries({ queryKey: ["text"] });
     },
   });
-
-  useEffect(() => {
-    if (textData !== null) {
-      return;
-    }
-
-    const specialCharacters = getRandomNumberBetween(
-      specialCharactersGte,
-      specialCharactersLte
-    );
-    const numbers = getRandomNumberBetween(numbersGte, numbersLte);
-
-    mutateText({
-      query: {
-        specialCharacters,
-        numbers,
-        punctuation: usePunctuation,
-        language,
-      },
-    });
-  }, [
-    textData,
-    language,
-    specialCharactersLte,
-    numbersLte,
-    usePunctuation,
-    specialCharactersGte,
-    numbersGte,
-    mutateText,
-  ]);
 
   return {
     text: textData || newTextData,

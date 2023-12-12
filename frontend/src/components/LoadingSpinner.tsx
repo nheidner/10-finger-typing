@@ -1,6 +1,10 @@
+import classNames from "classnames";
 import { FC } from "react";
 
-export const LoadingSpinner: FC<{ isLoading: boolean }> = ({ isLoading }) => {
+export const LoadingSpinner: FC<{ isLoading: boolean; isWhite?: boolean }> = ({
+  isLoading,
+  isWhite,
+}) => {
   if (!isLoading) {
     return null;
   }
@@ -9,7 +13,10 @@ export const LoadingSpinner: FC<{ isLoading: boolean }> = ({ isLoading }) => {
     <div>
       <svg
         aria-hidden="true"
-        className="w-6 h-6 mr-2 text-gray-200 animate-spin-fast dark:text-gray-600 fill-blue-600"
+        className={classNames(
+          "w-6 h-6 text-gray-200 animate-spin-fast dark:text-gray-600 fill-blue-600",
+          isWhite ? "fill-white" : "fill-blue-600"
+        )}
         viewBox="0 0 100 101"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
