@@ -13,9 +13,10 @@ import (
 // if not found, queries db
 func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRepo common.DBRepository, email string) (*models.User, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetUserByEmailInCacheOrDB"
-	userEmailKey := getUserEmailKey(email)
+	var userEmailKey = getUserEmailKey(email)
+	var cmd redis.Cmdable = repo.redisClient
 
-	userIdStr, err := repo.redisClient.Get(ctx, userEmailKey).Result()
+	userIdStr, err := cmd.Get(ctx, userEmailKey).Result()
 	switch {
 	case err == redis.Nil:
 		return nil, errors.E(op, common.ErrNotFound)
@@ -39,6 +40,7 @@ func (repo *RedisRepository) GetUserByEmailInCacheOrDB(ctx context.Context, dbRe
 // if not found, queries db
 func (repo *RedisRepository) GetUserByIdInCacheOrDB(ctx context.Context, dbRepo common.DBRepository, userId uuid.UUID) (*models.User, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetUserByIdInCacheOrDB"
+
 	user, err := repo.getUser(ctx, userId)
 	switch {
 	case errors.Is(err, common.ErrNotFound):
@@ -98,9 +100,10 @@ func (repo *RedisRepository) GetUserBySessionTokenHashInCacheOrDB(
 
 func (repo *RedisRepository) UserExists(ctx context.Context, userId uuid.UUID) (bool, error) {
 	const op errors.Op = "redis_repo.RedisRepository.UserExists"
-	userKey := getUserKey(userId)
+	var userKey = getUserKey(userId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	r, err := repo.redisClient.Exists(ctx, userKey).Result()
+	r, err := cmd.Exists(ctx, userKey).Result()
 	if err != nil {
 		errors.E(op, err)
 	}
@@ -111,13 +114,12 @@ func (repo *RedisRepository) UserExists(ctx context.Context, userId uuid.UUID) (
 func (repo *RedisRepository) SetUser(ctx context.Context, tx common.Transaction, user models.User) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetUser"
 	userEmailKey := getUserEmailKey(user.Email)
+	var userKey = getUserKey(user.ID)
 
 	// PIPELINE start if no outer pipeline exists
 	cmd, innerTx := repo.beginPipelineIfNoOuterTransactionExists(tx)
 
 	cmd.Set(ctx, userEmailKey, user.ID.String(), 0)
-
-	userKey := getUserKey(user.ID)
 
 	cmd.HSet(ctx, userKey, map[string]any{
 		userUsernameField:     user.Username,
@@ -140,7 +142,7 @@ func (repo *RedisRepository) SetUser(ctx context.Context, tx common.Transaction,
 
 func (repo *RedisRepository) VerifyUser(ctx context.Context, tx common.Transaction, userId uuid.UUID) error {
 	const op errors.Op = "redis_repo.RedisRepository.VerifyUser"
-	userKey := getUserKey(userId)
+	var userKey = getUserKey(userId)
 	var cmd = repo.cmdable(tx)
 
 	if err := cmd.HSet(ctx, userKey, userIsVerifiedField, true).Err(); err != nil {
@@ -167,8 +169,9 @@ func (repo *RedisRepository) DeleteAllUsers(ctx context.Context) error {
 func (repo *RedisRepository) getUserIdBySessionTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, error) {
 	const op errors.Op = "redis_repo.RedisRepository.getUserIdBySessionTokenHash"
 	sessionKey := getSessionKey(tokenHash)
+	var cmd redis.Cmdable = repo.redisClient
 
-	userIdStr, err := repo.redisClient.Get(ctx, sessionKey).Result()
+	userIdStr, err := cmd.Get(ctx, sessionKey).Result()
 	switch {
 	case err == redis.Nil:
 		return uuid.Nil, errors.E(op, common.ErrNotFound)
@@ -186,9 +189,10 @@ func (repo *RedisRepository) getUserIdBySessionTokenHash(ctx context.Context, to
 
 func (repo *RedisRepository) getUser(ctx context.Context, userId uuid.UUID) (*models.User, error) {
 	const op errors.Op = "redis_repo.RedisRepository.getUser"
-	userKey := getUserKey(userId)
+	var userKey = getUserKey(userId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	r, err := repo.redisClient.HGetAll(ctx, userKey).Result()
+	r, err := cmd.HGetAll(ctx, userKey).Result()
 	switch {
 	case err != nil:
 		return nil, errors.E(op, err)

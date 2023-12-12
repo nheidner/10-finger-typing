@@ -16,8 +16,8 @@ import (
 
 func (repo *RedisRepository) PublishPushMessage(ctx context.Context, tx common.Transaction, roomId uuid.UUID, pushMessage models.PushMessage) error {
 	const op errors.Op = "redis_repo.RedisRepository.PublishPushMessage"
-	roomStreamKey := getRoomStreamKey(roomId)
-	cmd := repo.cmdable(tx)
+	var roomStreamKey = getRoomStreamKey(roomId)
+	var cmd = repo.cmdable(tx)
 
 	pushMessageData, err := json.Marshal(pushMessage)
 	if err != nil {
@@ -39,8 +39,8 @@ func (repo *RedisRepository) PublishPushMessage(ctx context.Context, tx common.T
 
 func (repo *RedisRepository) PublishAction(ctx context.Context, tx common.Transaction, roomId uuid.UUID, action models.StreamActionType) error {
 	const op errors.Op = "redis_repo.RedisRepository.PublishAction"
-	roomStreamKey := getRoomStreamKey(roomId)
-	cmd := repo.cmdable(tx)
+	var roomStreamKey = getRoomStreamKey(roomId)
+	var cmd = repo.cmdable(tx)
 
 	if err := cmd.XAdd(ctx, &redis.XAddArgs{
 		Stream: roomStreamKey,
@@ -57,7 +57,7 @@ func (repo *RedisRepository) PublishAction(ctx context.Context, tx common.Transa
 
 func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[[]byte] {
 	const op errors.Op = "redis_repo.RedisRepository.GetPushMessages"
-	roomStreamKey := getRoomStreamKey(roomId)
+	var roomStreamKey = getRoomStreamKey(roomId)
 
 	startId := ""
 	if (startTime != time.Time{}) {
@@ -99,7 +99,7 @@ func (repo *RedisRepository) GetPushMessages(ctx context.Context, roomId uuid.UU
 
 func (repo *RedisRepository) GetAction(ctx context.Context, roomId uuid.UUID, startTime time.Time) <-chan models.StreamSubscriptionResult[models.StreamActionType] {
 	const op errors.Op = "redis_repo.RedisRepository.GetAction"
-	roomStreamKey := getRoomStreamKey(roomId)
+	var roomStreamKey = getRoomStreamKey(roomId)
 
 	startId := ""
 	if (startTime != time.Time{}) {

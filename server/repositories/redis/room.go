@@ -39,9 +39,10 @@ func (repo *RedisRepository) GetRoomInCacheOrDb(ctx context.Context, dbRepo comm
 
 func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId uuid.UUID) (gameDurationSec int, err error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetRoomGameDurationSec"
-	roomKey := getRoomKey(roomId)
+	var roomKey = getRoomKey(roomId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	gameDurationSec, err = repo.redisClient.HGet(ctx, roomKey, roomGameDurationSecField).Int()
+	gameDurationSec, err = cmd.HGet(ctx, roomKey, roomGameDurationSecField).Int()
 	switch {
 	case err == redis.Nil:
 		return 0, errors.E(op, common.ErrNotFound)
@@ -54,18 +55,18 @@ func (repo *RedisRepository) GetRoomGameDurationSec(ctx context.Context, roomId 
 
 func (repo *RedisRepository) SetRoom(ctx context.Context, tx common.Transaction, room models.Room) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetRoom"
-	roomKey := getRoomKey(room.ID)
+	var roomKey = getRoomKey(room.ID)
+
+	// PIPELINE start if no outer pipeline exists
+	cmd, innerTx := repo.beginPipelineIfNoOuterTransactionExists(tx)
+
+	// add room
 	roomValue := map[string]any{
 		roomAdminIdField:         room.AdminId.String(),
 		roomCreatedAtField:       room.CreatedAt.UnixMilli(),
 		roomUpdatedAtField:       room.UpdatedAt.UnixMilli(),
 		roomGameDurationSecField: room.GameDurationSec,
 	}
-
-	// PIPELINE start if no outer pipeline exists
-	cmd, innerTx := repo.beginPipelineIfNoOuterTransactionExists(tx)
-
-	// add room
 	cmd.HSet(ctx, roomKey, roomValue)
 
 	roomSubscriberIdsKey := getRoomSubscriberIdsKey(room.ID)
@@ -99,9 +100,10 @@ func (repo *RedisRepository) SetRoom(ctx context.Context, tx common.Transaction,
 
 func (repo *RedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId uuid.UUID) (bool, error) {
 	const op errors.Op = "redis_repo.RedisRepository.RoomHasAdmin"
-	roomKey := getRoomKey(roomId)
+	var roomKey = getRoomKey(roomId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	r, err := repo.redisClient.HGet(ctx, roomKey, roomAdminIdField).Result()
+	r, err := cmd.HGet(ctx, roomKey, roomAdminIdField).Result()
 	switch {
 	case err == redis.Nil:
 		return false, errors.E(op, common.ErrNotFound)
@@ -114,30 +116,30 @@ func (repo *RedisRepository) RoomHasAdmin(ctx context.Context, roomId, adminId u
 
 func (repo *RedisRepository) RoomHasSubscribers(ctx context.Context, roomId uuid.UUID, userIds ...uuid.UUID) (bool, error) {
 	const op errors.Op = "redis_repo.RedisRepository.RoomHasSubscribers"
+	var roomSubscriberIdsKey = getRoomSubscriberIdsKey(roomId)
+	var tempUserIdsKey = "temp:" + uuid.New().String()
+	var cmd redis.Cmdable = repo.redisClient
 
 	if len(userIds) == 0 {
 		err := fmt.Errorf("at least one user id must be specified")
 		return false, errors.E(op, err)
 	}
 
-	roomSubscriberIds := getRoomSubscriberIdsKey(roomId)
-	tempUserIdsKey := "temp:" + uuid.New().String()
-
 	userIdStrs := make([]interface{}, 0, len(userIds))
 	for _, userId := range userIds {
 		userIdStrs = append(userIdStrs, userId.String())
 	}
 
-	if err := repo.redisClient.SAdd(ctx, tempUserIdsKey, userIdStrs...).Err(); err != nil {
+	if err := cmd.SAdd(ctx, tempUserIdsKey, userIdStrs...).Err(); err != nil {
 		return false, errors.E(op, err)
 	}
 
-	r, err := repo.redisClient.SInter(ctx, roomSubscriberIds, tempUserIdsKey).Result()
+	r, err := cmd.SInter(ctx, roomSubscriberIdsKey, tempUserIdsKey).Result()
 	if err != nil {
 		return false, errors.E(op, err)
 	}
 
-	if err := repo.redisClient.Del(ctx, tempUserIdsKey).Err(); err != nil {
+	if err := cmd.Del(ctx, tempUserIdsKey).Err(); err != nil {
 		return false, errors.E(op, err)
 	}
 
@@ -146,9 +148,10 @@ func (repo *RedisRepository) RoomHasSubscribers(ctx context.Context, roomId uuid
 
 func (repo *RedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID) (bool, error) {
 	const op errors.Op = "redis_repo.RedisRepository.RoomExists"
-	roomKey := getRoomKey(roomId)
+	var roomKey = getRoomKey(roomId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	r, err := repo.redisClient.Exists(ctx, roomKey).Result()
+	r, err := cmd.Exists(ctx, roomKey).Result()
 	if err != nil {
 		return false, errors.E(op, err)
 	}
@@ -158,8 +161,8 @@ func (repo *RedisRepository) RoomExists(ctx context.Context, roomId uuid.UUID) (
 
 func (repo *RedisRepository) DeleteRoom(ctx context.Context, roomId uuid.UUID) error {
 	const op errors.Op = "redis_repo.RedisRepository.DeleteRoom"
-	roomKey := getRoomKey(roomId)
-	pattern := roomKey + "*"
+	var roomKey = getRoomKey(roomId)
+	var pattern = roomKey + "*"
 
 	if err := deleteKeysByPattern(ctx, repo, pattern); err != nil {
 		return errors.E(op, err)
@@ -170,7 +173,7 @@ func (repo *RedisRepository) DeleteRoom(ctx context.Context, roomId uuid.UUID) e
 
 func (repo *RedisRepository) DeleteAllRooms(ctx context.Context) error {
 	const op errors.Op = "redis_repo.RedisRepository.DeleteAllRooms"
-	pattern := "rooms:*"
+	var pattern = "rooms:*"
 
 	if err := deleteKeysByPattern(ctx, repo, pattern); err != nil {
 		return errors.E(op, err)
@@ -181,9 +184,10 @@ func (repo *RedisRepository) DeleteAllRooms(ctx context.Context) error {
 
 func (repo *RedisRepository) getRoom(ctx context.Context, roomId uuid.UUID) (*models.Room, error) {
 	const op errors.Op = "redis_repo.RedisRepository.getRoom"
-	roomKey := getRoomKey(roomId)
+	var roomKey = getRoomKey(roomId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	roomData, err := repo.redisClient.HGetAll(ctx, roomKey).Result()
+	roomData, err := cmd.HGetAll(ctx, roomKey).Result()
 	switch {
 	case err != nil:
 		return nil, err

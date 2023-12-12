@@ -21,8 +21,8 @@ const connectionExpirationMilli = 1000 * 60 * 10
 // when f.e. one of the watched keys' (rooms:[room_id]:subscribers:[user_id], rooms:[room_id]:subscribers:[user_id]:conns) values changed.
 func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId, userId uuid.UUID) (numberRoomSubscriberConns int64, roomSubscriberStatusHasBeenUpdated bool, err error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscriberStatus"
-	roomSubscriberConnectionKey := getRoomSubscriberConnectionKey(roomId, userId)
-	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
+	var roomSubscriberConnectionKey = getRoomSubscriberConnectionKey(roomId, userId)
+	var roomSubscriberKey = getRoomSubscriberKey(roomId, userId)
 
 	for i := 0; i < retries; i++ {
 		// watches roomSubscriber key and roomSubscriberConnection key and conditionally sets new room subscriber status
@@ -65,9 +65,9 @@ func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId
 
 // func (repo *RedisRepository) GetRoomSubscriberGameStatus(ctx context.Context, roomId, userId uuid.UUID) (models.SubscriberGameStatus, error) {
 // 	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscriberGameStatus"
-// 	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
+//  var roomSubscriberKey = getRoomSubscriberKey(roomId, userId)
 
-// 	status, err := repo.redisClient.HGet(ctx, roomSubscriberKey, roomSubscriberGameStatusField).Int()
+// 	status, err := cmd.HGet(ctx, roomSubscriberKey, roomSubscriberGameStatusField).Int()
 // 	switch {
 // 	case err == redis.Nil:
 // 		return models.UnstartedSubscriberGameStatus, errors.E(op, common.ErrNotFound)
@@ -80,9 +80,10 @@ func (repo *RedisRepository) GetRoomSubscriberStatus(ctx context.Context, roomId
 
 func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid.UUID) ([]models.RoomSubscriber, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscribers"
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
+	var roomSubscriberIdsKey = getRoomSubscriberIdsKey(roomId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	r, err := repo.redisClient.SMembers(ctx, roomSubscriberIdsKey).Result()
+	r, err := cmd.SMembers(ctx, roomSubscriberIdsKey).Result()
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -94,9 +95,8 @@ func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid
 			return nil, errors.E(op, err)
 		}
 
-		roomSubscriberKey := getRoomSubscriberKey(roomId, roomSubscriberId)
-
-		r, err := repo.redisClient.HGetAll(ctx, roomSubscriberKey).Result()
+		var roomSubscriberKey = getRoomSubscriberKey(roomId, roomSubscriberId)
+		r, err := cmd.HGetAll(ctx, roomSubscriberKey).Result()
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -137,7 +137,7 @@ func (repo *RedisRepository) GetRoomSubscribers(ctx context.Context, roomId uuid
 
 func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, tx common.Transaction, roomId, userId uuid.UUID, status models.SubscriberGameStatus) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetRoomSubscriberGameStatus"
-	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
+	var roomSubscriberKey = getRoomSubscriberKey(roomId, userId)
 	cmd := repo.cmdable(tx)
 
 	if err := cmd.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberGameStatusField: strconv.Itoa(int(status))}).Err(); err != nil {
@@ -153,9 +153,8 @@ func (repo *RedisRepository) SetRoomSubscriberGameStatus(ctx context.Context, tx
 // when f.e. one of the watched keys' (rooms:[room_id]:subscribers:[user_id], rooms:[room_id]:subscribers:[user_id]:conns) values changed.
 func (repo *RedisRepository) SetRoomSubscriberConnection(ctx context.Context, roomId, userId, newConnectionId uuid.UUID) (roomSubscriberStatusHasBeenUpdated bool, err error) {
 	const op errors.Op = "redis_repo.RedisRepository.SetRoomSubscriberConnection"
-
-	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
-	roomSubscriberConnectionKey := getRoomSubscriberConnectionKey(roomId, userId)
+	var roomSubscriberKey = getRoomSubscriberKey(roomId, userId)
+	var roomSubscriberConnectionKey = getRoomSubscriberConnectionKey(roomId, userId)
 
 	for i := 0; i < retries; i++ {
 		err := repo.redisClient.Watch(ctx, func(_ *redis.Tx) error {
@@ -202,18 +201,17 @@ func (repo *RedisRepository) SetRoomSubscriberConnection(ctx context.Context, ro
 // It does so by using a MULTI/EXEC transaction.
 func (repo *RedisRepository) DeleteRoomSubscriber(ctx context.Context, roomId, userId uuid.UUID) error {
 	const op errors.Op = "redis_repo.RedisRepository.DeleteRoomSubscriber"
-	var cmd = repo.redisClient
+	var roomSubscriberKey = getRoomSubscriberKey(roomId, userId)
+	var roomSubscriberIdsKey = getRoomSubscriberIdsKey(roomId)
 
 	tx := repo.BeginTx()
-
-	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
+	cmd := repo.cmdable(tx)
 	err := cmd.Del(ctx, roomSubscriberKey).Err()
 	if err != nil {
 		err := errors.E(op, err)
 		return utils.RollbackAndErr(op, err, tx)
 	}
 
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
 	if err := cmd.SRem(ctx, roomSubscriberIdsKey, userId.String()).Err(); err != nil {
 		err := errors.E(op, err)
 		return utils.RollbackAndErr(op, err, tx)
@@ -228,9 +226,10 @@ func (repo *RedisRepository) DeleteRoomSubscriber(ctx context.Context, roomId, u
 
 func (repo *RedisRepository) DeleteRoomSubscriberConnection(ctx context.Context, roomId, userId, connectionId uuid.UUID) (roomSubscriberStatusHasBeenUpdated bool, err error) {
 	const op errors.Op = "redis_repo.RedisRepository.DeleteRoomSubscriberConnection"
-	roomSubscriberConnectionKey := getRoomSubscriberConnectionKey(roomId, userId)
+	var roomSubscriberConnectionKey = getRoomSubscriberConnectionKey(roomId, userId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	if err = repo.redisClient.ZRem(ctx, roomSubscriberConnectionKey, connectionId.String()).Err(); err != nil {
+	if err = cmd.ZRem(ctx, roomSubscriberConnectionKey, connectionId.String()).Err(); err != nil {
 		return false, errors.E(op, err)
 	}
 
@@ -244,7 +243,7 @@ func (repo *RedisRepository) DeleteRoomSubscriberConnection(ctx context.Context,
 
 func (repo *RedisRepository) getRoomSubscriberStatus(ctx context.Context, roomSubscriberKey string, roomId, userId uuid.UUID) (models.SubscriberStatus, error) {
 	const op errors.Op = "redis_repo.RedisRepository.getRoomSubscriberStatus"
-	var cmd = repo.redisClient
+	var cmd redis.Cmdable = repo.redisClient
 
 	status, err := cmd.HGet(ctx, roomSubscriberKey, roomSubscriberStatusField).Int()
 	switch {
@@ -259,8 +258,8 @@ func (repo *RedisRepository) getRoomSubscriberStatus(ctx context.Context, roomSu
 
 func (repo *RedisRepository) setRoomSubscriberStatus(ctx context.Context, tx common.Transaction, roomId, userId uuid.UUID, status models.SubscriberStatus) error {
 	const op errors.Op = "redis_repo.RedisRepository.setRoomSubscriberStatus"
-	cmd := repo.cmdable(tx)
-	roomSubscriberKey := getRoomSubscriberKey(roomId, userId)
+	var cmd = repo.cmdable(tx)
+	var roomSubscriberKey = getRoomSubscriberKey(roomId, userId)
 
 	if err := cmd.HSet(ctx, roomSubscriberKey, map[string]interface{}{roomSubscriberStatusField: strconv.Itoa(int(status))}).Err(); err != nil {
 		return errors.E(op, err)
@@ -272,7 +271,7 @@ func (repo *RedisRepository) setRoomSubscriberStatus(ctx context.Context, tx com
 // getNumberRoomSubscriberConnections deletes expired connections from the roomSubscriberConnection key's sorted set and returns the number of connections remaining for this room subscriber.
 func (repo *RedisRepository) getNumberRoomSubscriberConnections(ctx context.Context, roomSubscriberConnectionKey string, roomId, userId uuid.UUID) (numberRoomSubscriberConnections int64, err error) {
 	const op errors.Op = "redis_repo.RedisRepository.getNumberRoomSubscriberConnections"
-	var cmd = repo.redisClient
+	var cmd redis.Cmdable = repo.redisClient
 
 	nowMilli := time.Now().UnixMilli()
 	nowMilliStr := strconv.Itoa(int(nowMilli))
@@ -292,8 +291,7 @@ func (repo *RedisRepository) getNumberRoomSubscriberConnections(ctx context.Cont
 // MULTIOPERATIONS
 func (repo *RedisRepository) SetRoomSubscriberGameStatusForAllRoomSubscribers(ctx context.Context, roomId uuid.UUID, newSubscriberGameStatus models.SubscriberGameStatus) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetGameStatusForAllRoomSubscribers"
-
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
+	var roomSubscriberIdsKey = getRoomSubscriberIdsKey(roomId)
 
 	for i := 0; i < retries; i++ {
 		err := repo.redisClient.Watch(ctx, func(_ *redis.Tx) error {
@@ -302,8 +300,7 @@ func (repo *RedisRepository) SetRoomSubscriberGameStatusForAllRoomSubscribers(ct
 				return err
 			}
 
-			tx := repo.BeginTx()
-
+			var tx = repo.BeginTx()
 			for _, currentGameUserId := range currentGameUserIds {
 				if err := repo.SetRoomSubscriberGameStatus(ctx, tx, roomId, currentGameUserId, newSubscriberGameStatus); err != nil {
 					return err
@@ -327,8 +324,8 @@ func (repo *RedisRepository) SetRoomSubscriberGameStatusForAllRoomSubscribers(ct
 
 func (repo *RedisRepository) getRoomSubscribersIds(ctx context.Context, roomId uuid.UUID) ([]uuid.UUID, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetRoomSubscribersIds"
-	roomSubscriberIdsKey := getRoomSubscriberIdsKey(roomId)
-	var cmd = repo.redisClient
+	var roomSubscriberIdsKey = getRoomSubscriberIdsKey(roomId)
+	var cmd redis.Cmdable = repo.redisClient
 
 	r, err := cmd.SMembers(ctx, roomSubscriberIdsKey).Result()
 	if err != nil {

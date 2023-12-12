@@ -6,13 +6,14 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 func (repo *RedisRepository) SetTextId(ctx context.Context, tx common.Transaction, textIds ...uuid.UUID) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetTextId"
-	textIdsStr := make([]any, 0, len(textIds))
 	var cmd = repo.cmdable(tx)
 
+	textIdsStr := make([]any, 0, len(textIds))
 	for _, textId := range textIds {
 		textIdsStr = append(textIdsStr, textId.String())
 	}
@@ -26,8 +27,9 @@ func (repo *RedisRepository) SetTextId(ctx context.Context, tx common.Transactio
 
 func (repo *RedisRepository) TextIdsKeyExists(ctx context.Context) (bool, error) {
 	const op errors.Op = "redis_repo.RedisRepository.TextIdsKeyExists"
+	var cmd redis.Cmdable = repo.redisClient
 
-	r, err := repo.redisClient.Exists(ctx, textIdsKey).Result()
+	r, err := cmd.Exists(ctx, textIdsKey).Result()
 	if err != nil {
 		return false, errors.E(op, err)
 	}
@@ -37,8 +39,9 @@ func (repo *RedisRepository) TextIdsKeyExists(ctx context.Context) (bool, error)
 
 func (repo *RedisRepository) TextIdExists(ctx context.Context, textId uuid.UUID) (bool, error) {
 	const op errors.Op = "redis_repo.RedisRepository.TextIdExists"
+	var cmd redis.Cmdable = repo.redisClient
 
-	r, err := repo.redisClient.SMIsMember(ctx, textIdsKey, textId.String()).Result()
+	r, err := cmd.SMIsMember(ctx, textIdsKey, textId.String()).Result()
 	if err != nil {
 		return false, errors.E(op, err)
 	}

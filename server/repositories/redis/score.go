@@ -13,9 +13,10 @@ import (
 
 func (repo *RedisRepository) GetCurrentGameScores(ctx context.Context, roomId uuid.UUID) ([]models.Score, error) {
 	const op errors.Op = "redis_repo.RedisRepository.GetCurrentGameScores"
-	currentGameScoresUserIdsKey := getCurrentGameScoresUserIdsKey(roomId)
+	var currentGameScoresUserIdsKey = getCurrentGameScoresUserIdsKey(roomId)
+	var cmd redis.Cmdable = repo.redisClient
 
-	userIdStrs, err := repo.redisClient.ZRevRange(ctx, currentGameScoresUserIdsKey, 0, -1).Result()
+	userIdStrs, err := cmd.ZRevRange(ctx, currentGameScoresUserIdsKey, 0, -1).Result()
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -28,9 +29,8 @@ func (repo *RedisRepository) GetCurrentGameScores(ctx context.Context, roomId uu
 			return nil, errors.E(op, err)
 		}
 
-		currentGameScoreKey := getCurrentGameScoreKey(roomId, userId)
-
-		scoreStr, err := repo.redisClient.Get(ctx, currentGameScoreKey).Result()
+		var currentGameScoreKey = getCurrentGameScoreKey(roomId, userId)
+		scoreStr, err := cmd.Get(ctx, currentGameScoreKey).Result()
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -48,6 +48,8 @@ func (repo *RedisRepository) GetCurrentGameScores(ctx context.Context, roomId uu
 
 func (repo *RedisRepository) SetCurrentGameScore(ctx context.Context, tx common.Transaction, roomId uuid.UUID, score models.Score) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetCurrentGameScore"
+	var currentGameScoresKey = getCurrentGameScoreKey(roomId, score.UserId)
+	var currentGameScoresUserIdsKey = getCurrentGameScoresUserIdsKey(roomId)
 
 	scoreJson, err := json.Marshal(&score)
 	if err != nil {
@@ -57,10 +59,8 @@ func (repo *RedisRepository) SetCurrentGameScore(ctx context.Context, tx common.
 	// PIPELINE start if no outer pipeline exists
 	cmd, innerTx := repo.beginPipelineIfNoOuterTransactionExists(tx)
 
-	currentGameScoresKey := getCurrentGameScoreKey(roomId, score.UserId)
 	cmd.Set(ctx, currentGameScoresKey, scoreJson, 0)
 
-	currentGameScoresUserIdsKey := getCurrentGameScoresUserIdsKey(roomId)
 	scoreUserId := redis.Z{Score: score.WordsPerMinute, Member: score.UserId.String()}
 	cmd.ZAdd(ctx, currentGameScoresUserIdsKey, scoreUserId)
 

@@ -12,7 +12,7 @@ import (
 
 func (repo *RedisRepository) SetSession(ctx context.Context, tx common.Transaction, tokenHash string, userId uuid.UUID) error {
 	const op errors.Op = "redis_repo.RedisRepository.SetSession"
-	sessionKey := getSessionKey(tokenHash)
+	var sessionKey = getSessionKey(tokenHash)
 	var cmd = repo.cmdable(tx)
 
 	if err := cmd.Set(ctx, sessionKey, userId.String(), models.SessionDurationSec*time.Second).Err(); err != nil {
@@ -24,7 +24,7 @@ func (repo *RedisRepository) SetSession(ctx context.Context, tx common.Transacti
 
 func (repo *RedisRepository) DeleteSession(ctx context.Context, tx common.Transaction, tokenHash string) error {
 	const op errors.Op = "redis_repo.RedisRepository.DeleteSession"
-	sessionKey := getSessionKey(tokenHash)
+	var sessionKey = getSessionKey(tokenHash)
 	var cmd = repo.cmdable(tx)
 
 	if err := cmd.Del(ctx, sessionKey).Err(); err != nil {

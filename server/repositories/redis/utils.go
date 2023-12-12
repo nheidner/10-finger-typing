@@ -27,6 +27,8 @@ func getStreamEntry[T []byte | models.StreamActionType | *models.UserNotificatio
 	) (T, error),
 ) chan models.StreamSubscriptionResult[T] {
 	const op errors.Op = "redis_repo.getStreamEntry"
+	var cmd redis.Cmdable = repo.redisClient
+
 	out := make(chan models.StreamSubscriptionResult[T])
 
 	go func() {
@@ -42,7 +44,7 @@ func getStreamEntry[T []byte | models.StreamActionType | *models.UserNotificatio
 			case <-ctx.Done():
 				return
 			default:
-				r, err := repo.redisClient.XRead(ctx, &redis.XReadArgs{
+				r, err := cmd.XRead(ctx, &redis.XReadArgs{
 					Streams: []string{streamKey, id},
 					Count:   1,
 					Block:   xreadBlockingDurationSecs * time.Second,
@@ -120,12 +122,13 @@ func getStreamEntryTypeFromMap(values map[string]any) (models.StreamEntryType, e
 
 func deleteKeysByPattern(ctx context.Context, repo *RedisRepository, pattern string) error {
 	const op errors.Op = "redis_repo.deleteKeysByPattern"
+	var cmd redis.Cmdable = repo.redisClient
 
-	iter := repo.redisClient.Scan(ctx, 0, pattern, 0).Iterator()
+	iter := cmd.Scan(ctx, 0, pattern, 0).Iterator()
 	for iter.Next(ctx) {
 		key := iter.Val()
 
-		repo.redisClient.Del(ctx, key)
+		cmd.Del(ctx, key)
 
 		if err := iter.Err(); err != nil {
 			return errors.E(op)
